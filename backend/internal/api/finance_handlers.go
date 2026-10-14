@@ -592,6 +592,11 @@ func (s *Server) PostConsolePayoutBatches(w http.ResponseWriter, r *http.Request
 		ctx := r.Context()
 		var id uuid.UUID
 		err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
+			// One preparation at a time: without this, two overlapping requests both pass the overlap
+			// check and both insert payouts for the same payable earnings.
+			if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('payout_batches.prepare'))`); err != nil {
+				return err
+			}
 			var overlap int
 			if err := tx.QueryRow(ctx, `SELECT count(*) FROM payout_batches WHERE status IN ('draft','approved','processing') AND daterange(cycle_start, cycle_end, '[]') && daterange($1::date, $2::date, '[]')`,
 				in.CycleStart.Time, in.CycleEnd.Time).Scan(&overlap); err != nil {
@@ -790,7 +795,11 @@ func (s *Server) GetConsoleReconciliation(w http.ResponseWriter, r *http.Request
 	unmatchedMpesa, err := rawAll(ctx, s.DB, `
 		SELECT c.payload FROM mpesa_callbacks c
 		WHERE c.callback_type IN ('stk_result','c2b_confirmation') AND c.received_at >= $1 AND c.received_at < $2
-		  AND (c.processed_at IS NULL OR c.process_error IS NOT NULL) ORDER BY c.received_at`, from, to)
+		  AND (c.processed_at IS NULL OR c.process_error IS NOT NULL
+		       -- M-Pesa collected money but the payment was refused (an amount that did not match): reconcile by hand
+		       OR EXISTS (SELECT 1 FROM payments p WHERE p.mpesa_checkout_request_id = c.correlation_id
+		                  AND p.status = 'failed' AND p.mpesa_receipt_number IS NOT NULL))
+		ORDER BY c.received_at`, from, to)
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return

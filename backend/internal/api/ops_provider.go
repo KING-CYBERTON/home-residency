@@ -40,7 +40,11 @@ func (s *Server) GetProviderJobs(w http.ResponseWriter, r *http.Request, params 
 	}
 	rows, err := s.DB.Query(ctx, `
 		SELECT a.id, a.created_at FROM assignments a JOIN service_requests r ON r.id = a.request_id
-		WHERE a.provider_id = $1 AND a.status IN ('accepted','completed') AND ($2::text IS NULL OR r.status::text = $2)
+		WHERE a.provider_id = $1 AND a.status IN ('accepted','completed') AND ($2::text IS NULL OR CASE $2
+		    WHEN 'upcoming' THEN r.status::text = 'confirmed'
+		    WHEN 'active'   THEN r.status::text = 'in_progress'
+		    WHEN 'past'     THEN r.status::text NOT IN ('confirmed','in_progress')
+		    ELSE FALSE END)
 		  AND ($3::timestamptz IS NULL OR (a.created_at, a.id) < ($3, $4::uuid))
 		ORDER BY a.created_at DESC, a.id DESC LIMIT $5`, pid, status, ct, cid, limit+1)
 	if err != nil {
