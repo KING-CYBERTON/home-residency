@@ -66,6 +66,17 @@ jobs:
       - name: Fail if the committed output differs
         run: git diff --exit-code -- backend/internal/api/gen || { echo "::error::api.gen.go is stale. Run 'make generate' in backend/ and commit."; exit 1; }
 
+  web-css:
+    name: Tailwind CSS is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild internal/web/static/css/app.css
+        working-directory: backend
+        run: make css
+      - name: Fail if the committed CSS differs
+        run: git diff --exit-code -- backend/internal/web/static/css || { echo "::error::app.css is stale. Run 'make css' in backend/ and commit."; exit 1; }
+
   openapi:
     name: Lint OpenAPI
     runs-on: ubuntu-latest

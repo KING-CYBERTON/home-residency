@@ -37,6 +37,10 @@ type Server struct {
 	Store  storage.Store
 	Cfg    config.Config
 	Now    func() time.Time
+
+	// Web mounts the server-rendered HTML surfaces (internal/web) on the root router. Set by
+	// cmd/api; nil in the API tests.
+	Web func(chi.Router)
 }
 
 func NewServer(db *pgxpool.Pool, cfg config.Config, sender sms.Sender, cipher crypt.Cipher, pay mpesa.Client, store storage.Store) *Server {
@@ -75,6 +79,9 @@ func (s *Server) Handler() (http.Handler, error) {
 	})
 	if l, ok := s.Store.(*storage.Local); ok {
 		r.Handle("/storage/*", l.Handler()) // development only: S3 serves these in production
+	}
+	if s.Web != nil {
+		s.Web(r)
 	}
 	gen.HandlerWithOptions(s, gen.ChiServerOptions{
 		BaseURL:     BaseURL,

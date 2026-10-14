@@ -1,0 +1,181 @@
+{{/* / */}}
+{{define "home-content"}}
+<section class="bg-brand-50">
+  <div class="mx-auto max-w-6xl px-4 py-14 sm:py-20">
+    <p class="text-sm font-semibold uppercase tracking-wide text-brand-700">Nairobi home services</p>
+    <h1 class="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Trusted help at home, vetted and managed for you</h1>
+    <p class="mt-5 max-w-2xl text-lg text-slate-700">Cleaners, domestic workers, caregivers and tradespeople, checked, trained and supervised by our team. Book at a fixed price and we handle the rest.</p>
+    <div class="mt-8 flex flex-wrap gap-3">
+      <a href="/book" class="btn-primary px-6 py-3 text-base">Book a service</a>
+      <a href="/how-it-works" class="btn-secondary px-6 py-3 text-base">How it works</a>
+    </div>
+  </div>
+</section>
+
+<section class="mx-auto max-w-6xl px-4 py-12">
+  <h2 class="text-2xl font-bold text-slate-900">What we do</h2>
+  <ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {{range .Data.Categories}}
+    <li><a href="/services/{{.Slug}}" class="card block h-full hover:border-brand-600">
+      <span class="text-lg font-semibold text-slate-900">{{.Name}}</span>
+      {{with .Description}}<span class="mt-1 block text-sm text-slate-600">{{.}}</span>{{end}}
+      {{with .From}}<span class="mt-3 block text-sm text-slate-700">From <span class="font-semibold">{{money .ClientPriceMinor .Currency}}</span></span>{{end}}
+    </a></li>
+    {{else}}
+    <li class="text-slate-600">We're preparing our first services. <a href="/contact" class="font-medium text-brand-700">Leave your details</a> to be first in line.</li>
+    {{end}}
+  </ul>
+</section>
+
+<section class="mx-auto max-w-6xl px-4">{{template "trust-strip"}}</section>
+
+<section class="mx-auto max-w-6xl px-4 py-12">
+  <h2 class="text-2xl font-bold text-slate-900">How booking works</h2>
+  <ol class="mt-6 grid gap-4 md:grid-cols-4">
+    <li class="card"><p class="text-sm font-semibold text-brand-700">1</p><p class="mt-1 font-semibold">Choose a service</p><p class="mt-1 text-sm text-slate-600">Pick what you need, the date and the time. The price is fixed up front.</p></li>
+    <li class="card"><p class="text-sm font-semibold text-brand-700">2</p><p class="mt-1 font-semibold">We match a provider</p><p class="mt-1 text-sm text-slate-600">Our team chooses the best vetted provider near you, by skill, rating and availability.</p></li>
+    <li class="card"><p class="text-sm font-semibold text-brand-700">3</p><p class="mt-1 font-semibold">The job gets done</p><p class="mt-1 text-sm text-slate-600">Your provider checks in when they arrive. Any change to the job is agreed in the app first.</p></li>
+    <li class="card"><p class="text-sm font-semibold text-brand-700">4</p><p class="mt-1 font-semibold">Rate and pay</p><p class="mt-1 text-sm text-slate-600">Confirm the work, rate it and pay by M-Pesa. Low ratings are followed up by our team.</p></li>
+  </ol>
+</section>
+
+{{if .Data.Areas}}
+<section class="mx-auto max-w-6xl px-4 pb-4">
+  <h2 class="text-2xl font-bold text-slate-900">Areas we serve</h2>
+  <ul class="mt-4 flex flex-wrap gap-2">
+    {{range .Data.Areas}}<li><a href="/areas/{{.Slug}}" class="inline-block rounded-full border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-brand-600">{{.Name}}</a></li>{{end}}
+  </ul>
+</section>
+{{end}}
+
+<section class="mx-auto max-w-6xl px-4 py-12">
+  <div class="rounded-2xl bg-slate-900 px-6 py-10 text-white sm:px-10">
+    <h2 class="text-2xl font-bold">Looking for work?</h2>
+    <p class="mt-2 max-w-2xl text-slate-300">We hire cleaners, domestic workers, caregivers and tradespeople. Apply online, get trained, and receive jobs near you, paid on a published cycle.</p>
+    <a href="{{joinPath}}" class="mt-6 inline-flex rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-brand-50">Apply to work with us</a>
+  </div>
+</section>
+{{end}}
+
+{{/* /how-it-works */}}
+{{define "how-it-works-content"}}
+<article class="mx-auto max-w-3xl px-4 py-10 prose-body text-slate-700">
+  <h1 class="text-3xl font-bold tracking-tight text-slate-900">How it works</h1>
+  <p class="text-lg">{{siteName}} is not a listings site. We choose, check, train and supervise every provider, and every booking runs through our team. You deal with us; we deal with the provider.</p>
+
+  <h2>How we check providers</h2>
+  <ul>
+    <li>Everyone applies online for a specific service. Incomplete applications don't go forward.</li>
+    <li>We verify identity and documents with the issuing source, and speak to two referees.</li>
+    <li>The Certificate of Good Conduct is independently confirmed, not taken at face value.</li>
+    <li>A structured interview and a practical assessment, scored against a published standard.</li>
+    <li>Approval is made by a manager who did not do the vetting, and nobody works before finishing training.</li>
+    <li>Documents that expire are tracked; a provider is paused until they are renewed.</li>
+  </ul>
+
+  <h2>How a booking is handled</h2>
+  <ul>
+    <li>You choose the service, date, time and scope from the rate card. There is no haggling.</li>
+    <li>Our system ranks suitable providers by skill, distance, rating and availability; a person on our team makes the choice and records why.</li>
+    <li>For some services we may offer you a choice from a shortlist, showing skills, experience and rating.</li>
+    <li>The provider checks in on arrival with a code or their location, so you know they're there.</li>
+    <li>Any change to the work or price is approved in the app before it happens.</li>
+    <li>You confirm and rate the job. Late arrivals, low ratings and disputes are reviewed by our team every day.</li>
+  </ul>
+
+  <h2>If something goes wrong</h2>
+  <ul>
+    <li>Raise a complaint in your account. A low rating opens one automatically.</li>
+    <li>Safety and loss complaints are escalated at once and the provider is paused while we investigate.</li>
+    <li>We hear the provider's side before deciding, and we tell you what we did about it.</li>
+    <li>Outcomes range from a warning or retraining to removal from the platform.</li>
+  </ul>
+
+  <h2>Paying</h2>
+  <p>You pay by M-Pesa against an invoice in your account. Providers are paid by us on a published cycle, so you never need to handle cash.</p>
+
+  <div class="mt-10 flex flex-wrap gap-3">
+    <a href="/book" class="btn-primary">Book a service</a>
+    <a href="/faq" class="btn-secondary">Read common questions</a>
+  </div>
+</article>
+{{end}}
+
+{{/* /privacy */}}
+{{define "privacy-content"}}
+<article class="mx-auto max-w-3xl px-4 py-10 prose-body text-slate-700">
+  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Privacy</h1>
+  <p class="text-lg">We handle personal data under Kenya's Data Protection Act, 2019. This summary explains what we collect and why.</p>
+  <h2>What we collect</h2>
+  <ul>
+    <li>Households: name, phone number, email, service addresses and access instructions, bookings, payments, ratings and complaints. Live-in placements also need an identity check.</li>
+    <li>Providers: identity and tax documents, Certificate of Good Conduct, referee feedback, qualifications, training and job records, and payout details.</li>
+    <li>Enquiries sent through this website: the details you type into the form.</li>
+  </ul>
+  <h2>How we protect it</h2>
+  <ul>
+    <li>Documents and sensitive fields such as gate codes are encrypted, and only staff whose role needs them can open them. Every access is logged.</li>
+    <li>Households and providers never see each other's contact details; messages go through us.</li>
+  </ul>
+  <h2>Your rights</h2>
+  <p>You can ask to see, correct or delete your data, or object to how we use it. <a href="/contact" class="font-medium text-brand-700">Contact us</a> and we'll respond within the time the law sets.</p>
+</article>
+{{end}}
+
+{{/* /contact */}}
+{{define "contact-content"}}
+<section class="mx-auto grid max-w-6xl gap-10 px-4 py-10 md:grid-cols-2">
+  <div>
+    <h1 class="text-3xl font-bold tracking-tight text-slate-900">Contact us</h1>
+    <p class="mt-3 text-slate-600">Ask about a service, a live-in placement or a partnership for your estate. We'll reply by phone or email.</p>
+    <p class="mt-6 text-sm text-slate-600">Already a customer? <a href="{{clientPath}}" class="font-medium text-brand-700">Sign in</a> to message us about a booking.</p>
+  </div>
+  {{template "contact-form" .Data}}
+</section>
+{{end}}
+
+{{define "contact-form"}}
+{{$f := .Form}}
+<div id="contact-form">
+{{if $f.Sent}}
+  <div class="card border-brand-200 bg-brand-50" role="status">
+    <p class="text-lg font-semibold text-slate-900">Thank you{{with $f.FullName}}, {{.}}{{end}}.</p>
+    <p class="mt-2 text-slate-700">We've received your message and will get back to you soon.</p>
+  </div>
+{{else}}
+  <form action="/contact" method="post" class="card space-y-4" hx-post="/contact" hx-target="#contact-form" hx-swap="outerHTML" novalidate>
+    {{with $f.Errors.form}}<p class="field-error" role="alert">{{.}}</p>{{end}}
+    <label class="block"><span class="field-label">Your name</span>
+      <input name="full_name" value="{{$f.FullName}}" autocomplete="name" required class="field-input"{{if $f.Errors.full_name}} aria-invalid="true" aria-describedby="err-name"{{end}}>
+      {{with $f.Errors.full_name}}<span id="err-name" class="field-error block">{{.}}</span>{{end}}
+    </label>
+    <label class="block"><span class="field-label">Phone number</span>
+      <input name="phone" type="tel" value="{{$f.Phone}}" autocomplete="tel" inputmode="tel" placeholder="0712 345 678" class="field-input"{{if $f.Errors.phone}} aria-invalid="true" aria-describedby="err-phone"{{end}}>
+      {{with $f.Errors.phone}}<span id="err-phone" class="field-error block">{{.}}</span>{{end}}
+    </label>
+    <label class="block"><span class="field-label">Email <span class="font-normal text-slate-500">(optional)</span></span>
+      <input name="email" type="email" value="{{$f.Email}}" autocomplete="email" class="field-input"{{if $f.Errors.email}} aria-invalid="true" aria-describedby="err-email"{{end}}>
+      {{with $f.Errors.email}}<span id="err-email" class="field-error block">{{.}}</span>{{end}}
+    </label>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="block"><span class="field-label">Service</span>
+        <select name="category" class="field-input"><option value="">Not sure yet</option>
+          {{range .Catalogue.Categories}}<option value="{{.Slug}}"{{if eq .Slug $f.Category}} selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+      </label>
+      <label class="block"><span class="field-label">Area</span>
+        <select name="area" class="field-input"><option value="">Other / not listed</option>
+          {{range .Catalogue.Areas}}<option value="{{.Slug}}"{{if eq .Slug $f.Area}} selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+      </label>
+    </div>
+    <label class="block"><span class="field-label">Message</span>
+      <textarea name="message" rows="4" maxlength="2000" class="field-input"{{if $f.Errors.message}} aria-invalid="true"{{end}}>{{$f.Message}}</textarea>
+      {{with $f.Errors.message}}<span class="field-error block">{{.}}</span>{{end}}
+    </label>
+    <p class="text-xs text-slate-500">We use these details only to reply to you. See our <a href="/privacy" class="underline">privacy notice</a>.</p>
+    <button type="submit" class="btn-primary w-full sm:w-auto">Send <span class="htmx-indicator ml-2" aria-hidden="true">&hellip;</span></button>
+  </form>
+{{end}}
+</div>
+{{end}}
