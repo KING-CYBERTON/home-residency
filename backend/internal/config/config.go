@@ -35,6 +35,7 @@ type Config struct {
 	StorageDriver string
 	StorageDir    string
 	StorageBucket string
+	StorageKMSKey string
 }
 
 func Load() (Config, error) {
@@ -58,6 +59,7 @@ func Load() (Config, error) {
 	c.StorageDriver = get("STORAGE_DRIVER", "local")
 	c.StorageDir = get("STORAGE_DIR", os.TempDir()+"/hr-vault")
 	c.StorageBucket = os.Getenv("STORAGE_BUCKET")
+	c.StorageKMSKey = os.Getenv("STORAGE_KMS_KEY_ID")
 	c.CookieSecure = getBool("COOKIE_SECURE", c.Env == "prod")
 	if v := os.Getenv("ALLOWED_ORIGINS"); v != "" {
 		c.AllowedOrigins = strings.Split(v, ",")

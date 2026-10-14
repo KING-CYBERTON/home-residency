@@ -41,6 +41,8 @@ func mapErr(err error) error {
 			return httpx.Conflict("Already exists or conflicts with an existing record").With("constraint", pe.ConstraintName)
 		case "23514", "23503", "22P02", "22007", "22008": // check, fk, bad text/date representation
 			return httpx.Invalid("Value rejected by a data rule").With("constraint", pe.ConstraintName)
+		case "23P01": // exclusion_violation: overlapping windows
+			return httpx.Conflict("Overlaps an existing entry").With("constraint", pe.ConstraintName)
 		case "P0001": // raise_exception, e.g. append-only tables
 			return httpx.Conflict(pe.Message)
 		}

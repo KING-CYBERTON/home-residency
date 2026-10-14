@@ -71,30 +71,9 @@ func (s *Server) PostAuthOtpVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	maxAttempts := int(s.setting(ctx, s.DB, "otp.max_attempts", 5))
-
-	// Count the attempt first, atomically, so guessing cannot outrun the limit.
-	var phone, purpose string
-	var stored []byte
-	err = s.DB.QueryRow(ctx, `
-		UPDATE otp_codes SET attempts = attempts + 1
-		WHERE id = $1 AND consumed_at IS NULL AND expires_at > now() AND attempts < $2
-		RETURNING phone_e164, purpose::text, code_hash`, body.OtpId, maxAttempts).Scan(&phone, &purpose, &stored)
-	if errors.Is(err, pgx.ErrNoRows) {
-		httpx.Fail(w, r, errInvalidCode)
-		return
-	}
+	phone, purpose, err := s.checkOTP(ctx, body.OtpId, body.Code)
 	if err != nil {
 		httpx.Fail(w, r, err)
-		return
-	}
-	if !s.Auth.CodeMatches(body.OtpId, body.Code, stored) {
-		httpx.Fail(w, r, errInvalidCode)
-		return
-	}
-	tag, err := s.DB.Exec(ctx, `UPDATE otp_codes SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL`, body.OtpId)
-	if err != nil || tag.RowsAffected() != 1 {
-		httpx.Fail(w, r, errInvalidCode)
 		return
 	}
 
@@ -115,6 +94,31 @@ func (s *Server) PostAuthOtpVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.respondSession(w, r, sess, false, userID)
+}
+
+// checkOTP spends a one-time code: it counts the attempt first, atomically, so guessing cannot outrun
+// the limit, then checks the code and consumes it. It returns the phone and purpose the code was issued for.
+func (s *Server) checkOTP(ctx context.Context, otpID uuid.UUID, code string) (phone, purpose string, err error) {
+	maxAttempts := int(s.setting(ctx, s.DB, "otp.max_attempts", 5))
+	var stored []byte
+	err = s.DB.QueryRow(ctx, `
+		UPDATE otp_codes SET attempts = attempts + 1
+		WHERE id = $1 AND consumed_at IS NULL AND expires_at > now() AND attempts < $2
+		RETURNING phone_e164, purpose::text, code_hash`, otpID, maxAttempts).Scan(&phone, &purpose, &stored)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", errInvalidCode
+	}
+	if err != nil {
+		return "", "", err
+	}
+	if !s.Auth.CodeMatches(otpID, code, stored) {
+		return "", "", errInvalidCode
+	}
+	tag, err := s.DB.Exec(ctx, `UPDATE otp_codes SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL`, otpID)
+	if err != nil || tag.RowsAffected() != 1 {
+		return "", "", errInvalidCode
+	}
+	return phone, purpose, nil
 }
 
 func (s *Server) registerUser(ctx context.Context, r *http.Request, phone string, body gen.OtpVerify) (uuid.UUID, error) {

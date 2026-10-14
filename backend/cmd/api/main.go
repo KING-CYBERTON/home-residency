@@ -24,6 +24,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
 )
 
 var version = "dev"
@@ -82,7 +83,18 @@ func newServer(ctx context.Context, cfg config.Config) (*api.Server, func(), err
 		pool.Close()
 		return nil, nil, err
 	}
-	return api.NewServer(pool, cfg, sms.New(cfg.SMSProvider), cipher, pay), pool.Close, nil
+	var store storage.Store
+	switch cfg.StorageDriver {
+	case "s3":
+		store, err = storage.NewS3(ctx, cfg.StorageBucket, cfg.StorageKMSKey)
+	default:
+		store = &storage.Local{Dir: cfg.StorageDir, BaseURL: cfg.PublicBaseURL, Secret: crypt.SHA256("storage:" + cfg.FieldKey)}
+	}
+	if err != nil {
+		pool.Close()
+		return nil, nil, err
+	}
+	return api.NewServer(pool, cfg, sms.New(cfg.SMSProvider), cipher, pay, store), pool.Close, nil
 }
 
 func serve(ctx context.Context, cfg config.Config) error {

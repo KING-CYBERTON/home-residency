@@ -26,6 +26,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 )
 
@@ -44,6 +45,7 @@ type harness struct {
 	srv    *httptest.Server
 	app    *api.Server
 	mpesa  *mpesa.Fake
+	store  *storage.Local
 	pool   *pgxpool.Pool
 	sms    *sms.Capture
 	router routers.Router
@@ -76,13 +78,15 @@ func newHarness(t *testing.T) *harness {
 	}
 	capture := &sms.Capture{}
 	fake := &mpesa.Fake{}
-	app := api.NewServer(pool, cfg, capture, cipher, fake)
+	store := &storage.Local{Dir: t.TempDir(), Secret: []byte("test")}
+	app := api.NewServer(pool, cfg, capture, cipher, fake, store)
 	h, err := app.Handler()
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
+	store.BaseURL = srv.URL
 
 	doc, err := openapi3.NewLoader().LoadFromData(apispec.YAML)
 	if err != nil {
@@ -92,7 +96,7 @@ func newHarness(t *testing.T) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &harness{t: t, srv: srv, app: app, mpesa: fake, pool: pool, sms: capture, router: router, tokens: map[string]string{}}
+	return &harness{t: t, srv: srv, app: app, mpesa: fake, store: store, pool: pool, sms: capture, router: router, tokens: map[string]string{}}
 }
 
 // call performs a request and validates the response against openapi.yaml, so the implementation cannot drift from the contract.
@@ -270,7 +274,6 @@ func TestEndToEnd(t *testing.T) {
 		h.expect(403, "triage", "GET", "/client/addresses", nil)
 		h.expect(403, "admin", "GET", "/console/requests", nil)      // admin is not implied for triage
 		h.expect(403, "triage", "GET", "/console/applications", nil) // not a vetting role
-		h.expect(501, "admin", "GET", "/console/applications", nil)  // allowed role, endpoint specified but not built
 		h.expect(501, "admin", "GET", "/console/staff", nil)
 		// rate limit: a second code to the same phone within a minute
 		h.expect(200, "", "POST", "/auth/otp/request", map[string]any{"phone": "+254700000009", "purpose": "register"})

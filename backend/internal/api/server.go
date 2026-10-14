@@ -18,6 +18,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 )
 
@@ -31,13 +32,14 @@ type Server struct {
 	SMS    sms.Sender
 	Cipher crypt.Cipher
 	Mpesa  mpesa.Client
+	Store  storage.Store
 	Cfg    config.Config
 	Now    func() time.Time
 }
 
-func NewServer(db *pgxpool.Pool, cfg config.Config, sender sms.Sender, cipher crypt.Cipher, pay mpesa.Client) *Server {
+func NewServer(db *pgxpool.Pool, cfg config.Config, sender sms.Sender, cipher crypt.Cipher, pay mpesa.Client, store storage.Store) *Server {
 	return &Server{
-		DB: db, Cfg: cfg, SMS: sender, Cipher: cipher, Mpesa: pay, Now: time.Now,
+		DB: db, Cfg: cfg, SMS: sender, Cipher: cipher, Mpesa: pay, Store: store, Now: time.Now,
 		Auth: auth.New(db, crypt.SHA256("pepper:"+cfg.FieldKey)),
 	}
 }
@@ -55,6 +57,9 @@ func (s *Server) Handler() (http.Handler, error) {
 		w.Header().Set("Content-Type", "application/yaml")
 		_, _ = w.Write(apispec.YAML)
 	})
+	if l, ok := s.Store.(*storage.Local); ok {
+		r.Handle("/storage/*", l.Handler()) // development only: S3 serves these in production
+	}
 	gen.HandlerWithOptions(s, gen.ChiServerOptions{
 		BaseURL:     BaseURL,
 		BaseRouter:  r,
