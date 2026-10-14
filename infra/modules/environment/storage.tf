@@ -1,7 +1,8 @@
 # The document vault (ADR-0001): private, SSE-KMS, TLS only. The client and provider
 # portals upload ID documents and photos straight from the browser with presigned PUT
 # URLs, and download with presigned GETs, so CORS allows the site origin
-# (public_base_url, where the binary serves the portals) and any allowed_origins.
+# (public_base_url, where the binary serves the portals), the console and any
+# allowed_origins.
 
 resource "aws_s3_bucket" "vault" {
   bucket = "${local.name}-vault-${local.account_id}"
@@ -60,7 +61,7 @@ resource "aws_s3_bucket_cors_configuration" "vault" {
   bucket = aws_s3_bucket.vault.id
   cors_rule {
     allowed_methods = ["GET", "PUT", "HEAD"]
-    allowed_origins = distinct(concat([local.public_base_url], var.allowed_origins))
+    allowed_origins = distinct(concat([local.public_base_url, local.console_url], var.allowed_origins))
     allowed_headers = ["*"]
     expose_headers  = ["ETag"]
     max_age_seconds = 600

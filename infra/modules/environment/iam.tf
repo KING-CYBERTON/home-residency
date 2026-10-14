@@ -93,6 +93,9 @@ resource "aws_iam_role_policy" "deploy" {
         Resource = "arn:aws:ecs:${local.region}:${local.account_id}:task/${aws_ecs_cluster.main.name}/*"
       },
       { Effect = "Allow", Action = ["ecs:UpdateService", "ecs:DescribeServices"], Resource = aws_ecs_service.api.id },
+      { Effect = "Allow", Action = "s3:ListBucket", Resource = aws_s3_bucket.console.arn },
+      { Effect = "Allow", Action = ["s3:PutObject", "s3:DeleteObject"], Resource = "${aws_s3_bucket.console.arn}/*" },
+      { Effect = "Allow", Action = "cloudfront:CreateInvalidation", Resource = aws_cloudfront_distribution.console.arn },
       {
         Effect    = "Allow"
         Action    = "iam:PassRole"

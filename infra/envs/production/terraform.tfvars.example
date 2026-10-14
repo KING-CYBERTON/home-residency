@@ -5,3 +5,5 @@ allowed_origins = ["https://console.example.co.ke", "https://example.co.ke"]
 sms_provider    = "africastalking"
 mpesa_shortcode = "000000"
 vapid_subject   = "mailto:ops@example.co.ke"
+console_domain          = "console.example.co.ke"
+console_certificate_arn = "arn:aws:acm:us-east-1:111111111111:certificate/..."

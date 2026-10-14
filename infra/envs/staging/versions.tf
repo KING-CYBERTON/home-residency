@@ -24,3 +24,12 @@ provider "aws" {
     tags = { Project = "homend", Environment = "staging", ManagedBy = "terraform" }
   }
 }
+
+# CloudFront certificates and WAFs must be in us-east-1.
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+  default_tags {
+    tags = { Project = "homend", Environment = "staging", ManagedBy = "terraform" }
+  }
+}

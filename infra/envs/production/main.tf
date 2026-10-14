@@ -19,6 +19,18 @@ variable "allowed_origins" {
   default     = []
 }
 
+variable "console_domain" {
+  description = "e.g. console.example.co.ke. Empty uses the CloudFront domain."
+  type        = string
+  default     = ""
+}
+
+variable "console_certificate_arn" {
+  description = "ACM certificate for console_domain, in us-east-1."
+  type        = string
+  default     = ""
+}
+
 variable "vapid_subject" {
   description = "Web push contact, e.g. mailto:ops@example.co.ke"
   type        = string
@@ -47,6 +59,10 @@ variable "webhook_allowed_cidrs" {
 
 module "env" {
   source = "../../modules/environment"
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
 
   environment     = "production"
   vpc_cidr        = "10.30.0.0/16"
@@ -55,6 +71,9 @@ module "env" {
   certificate_arn = var.certificate_arn
   allowed_origins = var.allowed_origins
   vapid_subject   = var.vapid_subject
+
+  console_domain          = var.console_domain
+  console_certificate_arn = var.console_certificate_arn
 
   sms_provider          = var.sms_provider
   mpesa_mode            = "production"
@@ -86,4 +105,8 @@ output "mpesa_secret_name" {
 
 output "push_secret_name" {
   value = module.env.push_secret_name
+}
+
+output "console_url" {
+  value = module.env.console_url
 }

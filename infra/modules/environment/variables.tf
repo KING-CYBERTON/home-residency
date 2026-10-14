@@ -114,6 +114,18 @@ variable "certificate_arn" {
   default     = ""
 }
 
+variable "console_domain" {
+  description = "Host name for the staff console, e.g. console.example.co.ke. Empty uses the CloudFront domain."
+  type        = string
+  default     = ""
+}
+
+variable "console_certificate_arn" {
+  description = "ACM certificate for console_domain. CloudFront requires it to be in us-east-1."
+  type        = string
+  default     = ""
+}
+
 variable "waf_rate_limit" {
   description = "Requests per IP per 5 minutes before WAF blocks it."
   type        = number
