@@ -35,9 +35,13 @@ After editing `api/openapi.yaml`, run `make generate` and commit `internal/api/g
 
 ## What is built and what is not
 
-**Built and tested (42 operations):** health; OTP register/login, staff login + TOTP, logout, `/me`; public site data (areas, categories, rate card, plans, FAQs, leads); client addresses, quotes, requests (idempotent), cancel, door code, visit confirmation, mandatory rating; console triage queue, claim, shortlist, assignment with eligibility rules, withdraw, mark unfilled, dashboard; provider offers (accept/decline, expiry), visits, check-in by geo or door code, check-out.
+**Built and tested: every operation in the spec (238).** None answers `501`; `TestNoOperationIsUnimplemented` calls each one as its owning role and fails on a 501 or any 5xx. That covers authentication, the document vault, vetting and the provider portal, training, booking and triage (shortlists, assignments, visits, exceptions), job variations, offline sync, payments and M-Pesa, the double-entry ledger, payouts, complaints and discipline (two-officer disqualification), appraisal, messaging with contact masking, notifications and push, reports and CSV export, catalogue and staff administration, and the USSD, SMS and WhatsApp channels.
 
-**Every other operation in the spec answers `501 not_implemented`** with the standard error envelope but is already routed, authenticated and role-checked. That includes: document vault, application/vetting workflow, training, payments and M-Pesa, payouts and ledger, complaints and discipline beyond the automatic low-rating case, subscriptions, messaging, notifications, reports, catalogue and staff admin screens, and all webhooks. Catalogue data is loaded by SQL until the admin endpoints exist.
+**Staff creation.** `POST /console/staff` returns `initial_credentials` (password and TOTP secret) once; they are not retrievable later. `reset-mfa` returns a fresh `TotpEnrolment`.
+
+**Channels.** `/webhooks/ussd`, `/webhooks/sms/inbound`, `/webhooks/sms/delivery` and `/webhooks/whatsapp` reuse the web handlers in process, so a job accepted by USSD or SMS follows the same rules as one accepted in the app. They are guarded by `WEBHOOK_TOKEN` (and optionally `WEBHOOK_ALLOWED_CIDRS`).
+
+**Configuration.** See `.env.example`: `MPESA_*` (Daraja), `WEBHOOK_TOKEN`, `STORAGE_BUCKET`/`STORAGE_KMS_KEY_ID`, `PUBLIC_BASE_URL`.
 
 **How it is checked:** `internal/api/e2e_test.go` runs the whole booking journey (register, book, triage, assign, accept, check in with a door code, check out, rate, complaint opened) over HTTP against Postgres and validates every response against `openapi.yaml`, so code and contract cannot drift. `policy_test.go` fails the build if a console route has no `x-roles`.
 

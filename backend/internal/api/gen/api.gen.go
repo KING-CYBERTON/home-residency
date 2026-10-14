@@ -2545,14 +2545,21 @@ type StaffUpdateStatus string
 
 // StaffUser defines model for StaffUser.
 type StaffUser struct {
-	CreatedAt   *time.Time         `json:"created_at,omitempty"`
-	Email       string             `json:"email"`
-	FullName    string             `json:"full_name"`
-	Id          openapi_types.UUID `json:"id"`
-	LastLoginAt *time.Time         `json:"last_login_at"`
-	Phone       *string            `json:"phone"`
-	Roles       []StaffRole        `json:"roles"`
-	Status      AccountStatus      `json:"status"`
+	CreatedAt *time.Time         `json:"created_at,omitempty"`
+	Email     string             `json:"email"`
+	FullName  string             `json:"full_name"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// InitialCredentials Returned once, in the response that creates the user. Hand these to the new user over a secure channel; they are never shown again.
+	InitialCredentials *struct {
+		Password   *string `json:"password,omitempty"`
+		TotpSecret *string `json:"totp_secret,omitempty"`
+		TotpUri    *string `json:"totp_uri,omitempty"`
+	} `json:"initial_credentials,omitempty"`
+	LastLoginAt *time.Time    `json:"last_login_at"`
+	Phone       *string       `json:"phone"`
+	Roles       []StaffRole   `json:"roles"`
+	Status      AccountStatus `json:"status"`
 }
 
 // StkPushInput defines model for StkPushInput.
@@ -2662,6 +2669,12 @@ type TimeOffInput struct {
 	EndsAt   time.Time `json:"ends_at"`
 	Reason   *string   `json:"reason,omitempty"`
 	StartsAt time.Time `json:"starts_at"`
+}
+
+// TotpEnrolment A fresh authenticator secret. Shown once.
+type TotpEnrolment struct {
+	TotpSecret string `json:"totp_secret"`
+	TotpUri    string `json:"totp_uri"`
 }
 
 // TrainingCourse defines model for TrainingCourse.

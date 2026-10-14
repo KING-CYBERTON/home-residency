@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -223,14 +224,14 @@ type assignmentDTO struct {
 
 type requestStaffDTO struct {
 	requestDTO
-	Client           clientSummaryDTO `json:"client"`
-	ProviderPayMinor int64            `json:"provider_pay_minor"`
-	Priority         int              `json:"priority"`
-	TriageOfficerID  *uuid.UUID       `json:"triage_officer_id"`
-	Assignments      []assignmentDTO  `json:"assignments"`
-	Variations       []any            `json:"variations"`
-	Exceptions       []any            `json:"exceptions"`
-	TriageStartedAt  *time.Time       `json:"triage_started_at"`
+	Client           clientSummaryDTO  `json:"client"`
+	ProviderPayMinor int64             `json:"provider_pay_minor"`
+	Priority         int               `json:"priority"`
+	TriageOfficerID  *uuid.UUID        `json:"triage_officer_id"`
+	Assignments      []assignmentDTO   `json:"assignments"`
+	Variations       []json.RawMessage `json:"variations"`
+	Exceptions       []json.RawMessage `json:"exceptions"`
+	TriageStartedAt  *time.Time        `json:"triage_started_at"`
 }
 
 type shortlistEntryDTO struct {

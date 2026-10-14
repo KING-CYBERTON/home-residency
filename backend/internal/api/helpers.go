@@ -181,3 +181,18 @@ func fmtMoney(minor int64) string {
 }
 
 var _ = fmt.Sprintf
+
+type channelKey struct{}
+
+// withChannel records which channel a request arrived on (web, ussd, sms, whatsapp, console), so a
+// reply typed into a phone is attributed to it rather than to the web app.
+func withChannel(ctx context.Context, ch string) context.Context {
+	return context.WithValue(ctx, channelKey{}, ch)
+}
+
+func channelOf(ctx context.Context) string {
+	if ch, ok := ctx.Value(channelKey{}).(string); ok {
+		return ch
+	}
+	return "web"
+}

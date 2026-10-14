@@ -7619,8 +7619,12 @@ paths:
       parameters:
       - $ref: '#/components/parameters/id'
       responses:
-        '204':
-          description: Done
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TotpEnrolment'
         '400':
           $ref: '#/components/responses/E400'
         '401':
@@ -12226,12 +12230,33 @@ components:
         created_at:
           type: string
           format: date-time
+        initial_credentials:
+          type: object
+          description: Returned once, in the response that creates the user. Hand these to the new user over a secure channel; they are never shown again.
+          properties:
+            password:
+              type: string
+            totp_secret:
+              type: string
+            totp_uri:
+              type: string
       required:
       - id
       - full_name
       - email
       - status
       - roles
+    TotpEnrolment:
+      type: object
+      description: A fresh authenticator secret. Shown once.
+      properties:
+        totp_secret:
+          type: string
+        totp_uri:
+          type: string
+      required:
+      - totp_secret
+      - totp_uri
     StaffCreate:
       type: object
       properties:

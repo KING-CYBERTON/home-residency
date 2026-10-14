@@ -116,7 +116,7 @@ func (s *Server) PostProviderOffersAccept(w http.ResponseWriter, r *http.Request
 			if he := domain.CheckAssignable(facts); he != nil {
 				return he
 			}
-			if _, err := tx.Exec(ctx, `UPDATE assignments SET status = 'accepted', responded_at = now(), response_channel = 'web' WHERE id = $1`, id); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE assignments SET status = 'accepted', responded_at = now(), response_channel = $2::channel WHERE id = $1`, id, channelOf(ctx)); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `UPDATE service_requests SET status = 'confirmed', confirmed_at = now() WHERE id = $1`, reqID); err != nil {
@@ -177,7 +177,7 @@ func (s *Server) PostProviderOffersDecline(w http.ResponseWriter, r *http.Reques
 		if status != "offered" {
 			return httpx.Conflict("This offer is " + status)
 		}
-		if _, err := tx.Exec(ctx, `UPDATE assignments SET status = 'declined', responded_at = now(), response_channel = 'web', decline_reason = $2, ended_at = now() WHERE id = $1`, id, in.Reason); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE assignments SET status = 'declined', responded_at = now(), response_channel = $3::channel, decline_reason = $2, ended_at = now() WHERE id = $1`, id, in.Reason, channelOf(ctx)); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE service_requests SET status = 'triaging' WHERE id = $1 AND status = 'awaiting_provider'`, reqID); err != nil {
@@ -306,6 +306,10 @@ func (s *Server) PostProviderVisitsCheckIn(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	method := string(in.Method)
+	storedMethod := method
+	if channelOf(r.Context()) == "ussd" {
+		storedMethod = "ussd"
+	}
 	if method == "geo" && (in.Lat == nil || in.Lng == nil) {
 		httpx.Fail(w, r, httpx.Invalid("lat and lng are required for a geo check-in"))
 		return
@@ -360,14 +364,14 @@ func (s *Server) PostProviderVisitsCheckIn(w http.ResponseWriter, r *http.Reques
 		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE visits SET status = 'checked_in', checked_in_at = $2, checkin_method = $3::checkin_method, checkin_lat = $4, checkin_lng = $5,
-			  checkin_distance_m = $6, device_recorded_at = $2 WHERE id = $1`, id, in.DeviceRecordedAt, method, in.Lat, in.Lng, distance); err != nil {
+			  checkin_distance_m = $6, device_recorded_at = $2 WHERE id = $1`, id, in.DeviceRecordedAt, storedMethod, in.Lat, in.Lng, distance); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE service_requests SET status = 'in_progress' WHERE id = $1 AND status = 'confirmed'`, reqID); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO visit_events (visit_id, client_event_id, event_type, payload, device_recorded_at, channel) VALUES ($1,$2,'check_in','{}',$3,'web')`,
-			id, in.ClientEventId, in.DeviceRecordedAt); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO visit_events (visit_id, client_event_id, event_type, payload, device_recorded_at, channel) VALUES ($1,$2,'check_in','{}',$3,$4::channel)`,
+			id, in.ClientEventId, in.DeviceRecordedAt, channelOf(ctx)); err != nil {
 			return err
 		}
 		if distance != nil && float64(*distance) > s.setting(ctx, tx, "checkin.max_distance_m", 300) {
@@ -436,28 +440,12 @@ func (s *Server) PostProviderVisitsCheckOut(w http.ResponseWriter, r *http.Reque
 			id, in.DeviceRecordedAt, trimPtr(in.Notes)); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO visit_events (visit_id, client_event_id, event_type, payload, device_recorded_at, channel) VALUES ($1,$2,'check_out','{}',$3,'web')`,
-			id, in.ClientEventId, in.DeviceRecordedAt); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO visit_events (visit_id, client_event_id, event_type, payload, device_recorded_at, channel) VALUES ($1,$2,'check_out','{}',$3,$4::channel)`,
+			id, in.ClientEventId, in.DeviceRecordedAt, channelOf(ctx)); err != nil {
 			return err
 		}
-		// When no visit is left to do, the job waits for the client's mandatory rating.
-		var open int
-		if err := tx.QueryRow(ctx, `SELECT count(*) FROM visits WHERE request_id = $1 AND status IN ('scheduled','checked_in')`, reqID).Scan(&open); err != nil {
+		if err := s.completeIfDone(ctx, tx, reqID); err != nil {
 			return err
-		}
-		if open == 0 {
-			tag, err := tx.Exec(ctx, `UPDATE service_requests SET status = 'awaiting_rating', completed_at = now() WHERE id = $1 AND status = 'in_progress'`, reqID)
-			if err != nil {
-				return err
-			}
-			if tag.RowsAffected() > 0 {
-				if _, err := s.createRequestInvoice(ctx, tx, reqID); err != nil {
-					return err
-				}
-			}
-			if err := emit(ctx, tx, "request.completed", "service_request", reqID, map[string]any{}); err != nil {
-				return err
-			}
 		}
 		return audit(ctx, tx, "visit.check_out", "visit", id, nil, nil, "")
 	})
@@ -485,3 +473,29 @@ func trimPtr(p *string) *string {
 }
 
 func hmacEqual(a, b []byte) bool { return crypt.Equal(a, b) }
+
+// completeIfDone moves a job to awaiting_rating once no visit is left to do, and raises its invoice.
+// Withdrawn variations and the invoice both follow, because the price is fixed from here.
+func (s *Server) completeIfDone(ctx context.Context, tx pgx.Tx, reqID uuid.UUID) error {
+	var open int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM visits WHERE request_id = $1 AND status IN ('scheduled','checked_in')`, reqID).Scan(&open); err != nil {
+		return err
+	}
+	if open > 0 {
+		return nil
+	}
+	tag, err := tx.Exec(ctx, `UPDATE service_requests SET status = 'awaiting_rating', completed_at = now() WHERE id = $1 AND status = 'in_progress'`, reqID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() > 0 {
+		// The price is fixed from here, so a change nobody answered falls away.
+		if _, err := tx.Exec(ctx, `UPDATE variations SET status = 'withdrawn', decided_at = now() WHERE request_id = $1 AND status = 'pending'`, reqID); err != nil {
+			return err
+		}
+		if _, err := s.createRequestInvoice(ctx, tx, reqID); err != nil {
+			return err
+		}
+	}
+	return emit(ctx, tx, "request.completed", "service_request", reqID, map[string]any{})
+}

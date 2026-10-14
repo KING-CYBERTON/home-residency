@@ -576,6 +576,14 @@ func (s *Server) PostClientRequestsRating(w http.ResponseWriter, r *http.Request
 			return err
 		}
 		gross := int64(math.Round(float64(clientPrice) * qty))
+		// Approved variations are part of the job: the client paid for them and the provider earns their share.
+		var varClient, varProvider int64
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(sum(client_delta_minor),0), COALESCE(sum(provider_delta_minor),0) FROM variations WHERE request_id = $1 AND status = 'approved'`, id).
+			Scan(&varClient, &varProvider); err != nil {
+			return err
+		}
+		gross += varClient
+		providerPay += varProvider
 		held := domain.OpensComplaint(in.Stars, s.setting(ctx, tx, "rating.complaint_threshold", 3))
 		earnStatus, holdReason := "pending", (*string)(nil)
 		if held {

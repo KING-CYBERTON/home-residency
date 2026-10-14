@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -22,7 +23,13 @@ func (s *Server) loadRequestStaff(ctx context.Context, q db, id uuid.UUID) (requ
 		return requestStaffDTO{}, err
 	}
 	out := requestStaffDTO{requestDTO: base, ProviderPayMinor: rr.providerPay, Priority: rr.priority, TriageOfficerID: rr.triageOfficerID,
-		Variations: []any{}, Exceptions: []any{}}
+		Variations: []json.RawMessage{}, Exceptions: []json.RawMessage{}}
+	if out.Variations, err = rawAll(ctx, q, variationJSON+` WHERE v.request_id = $1 ORDER BY v.created_at`, id); err != nil {
+		return out, err
+	}
+	if out.Exceptions, err = rawAll(ctx, q, exceptionJSON+` WHERE x.request_id = $1 ORDER BY x.detected_at`, id); err != nil {
+		return out, err
+	}
 	err = q.QueryRow(ctx, `SELECT u.id, u.full_name, u.phone_e164, u.status::text, c.id_verification::text, u.created_at
 		FROM users u JOIN clients c ON c.user_id = u.id WHERE u.id = $1`, base.ClientID).
 		Scan(&out.Client.ID, &out.Client.FullName, &out.Client.Phone, &out.Client.Status, &out.Client.IDVerification, &out.Client.CreatedAt)

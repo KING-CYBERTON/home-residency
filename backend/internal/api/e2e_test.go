@@ -26,8 +26,8 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
-	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
 )
 
 // These tests need a real PostgreSQL. Set TEST_DATABASE_URL to an empty scratch database; the tests
@@ -124,13 +124,13 @@ func (h *harness) call(who, method, path string, body any, headers ...string) (i
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
 
-	// Validate against the contract (skip 501: unbuilt endpoints answer with the error envelope, which the spec lists as an error).
+	// Validate against the contract.
 	specReq, _ := http.NewRequest(method, "https://api.homendresidence.co.ke"+api.BaseURL+path, nil)
 	route, pathParams, err := h.router.FindRoute(specReq)
 	if err != nil {
 		h.t.Fatalf("%s %s is not in openapi.yaml: %v", method, path, err)
 	}
-	if resp.StatusCode != http.StatusNotImplemented {
+	if resp.StatusCode != 0 {
 		in := &openapi3filter.ResponseValidationInput{
 			RequestValidationInput: &openapi3filter.RequestValidationInput{Request: specReq, PathParams: pathParams, Route: route},
 			Status:                 resp.StatusCode,
@@ -274,7 +274,7 @@ func TestEndToEnd(t *testing.T) {
 		h.expect(403, "triage", "GET", "/client/addresses", nil)
 		h.expect(403, "admin", "GET", "/console/requests", nil)      // admin is not implied for triage
 		h.expect(403, "triage", "GET", "/console/applications", nil) // not a vetting role
-		h.expect(501, "admin", "GET", "/console/staff", nil)
+		h.expectList(200, "admin", "GET", "/console/staff")
 		// rate limit: a second code to the same phone within a minute
 		h.expect(200, "", "POST", "/auth/otp/request", map[string]any{"phone": "+254700000009", "purpose": "register"})
 		h.expect(429, "", "POST", "/auth/otp/request", map[string]any{"phone": "+254700000009", "purpose": "register"})

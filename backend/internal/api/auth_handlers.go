@@ -354,30 +354,34 @@ func (s *Server) PatchMe(w http.ResponseWriter, r *http.Request) {
 // CreateStaff creates an active staff user with a random password and a fresh TOTP secret.
 // It backs the `api create-staff` command; the secrets are returned once and never stored in plain text.
 func (s *Server) CreateStaff(ctx context.Context, name, email string, roles []string) (password, totpSecret, totpURI string, err error) {
+	_, password, totpSecret, totpURI, err = s.createStaff(ctx, name, email, "", roles)
+	return
+}
+
+func (s *Server) createStaff(ctx context.Context, name, email, phone string, roles []string) (id uuid.UUID, password, totpSecret, totpURI string, err error) {
 	if len(roles) == 0 {
-		return "", "", "", errors.New("at least one role is required")
+		return id, "", "", "", errors.New("at least one role is required")
 	}
 	pw, err := s.Auth.NewCode()
 	if err != nil {
-		return "", "", "", err
+		return id, "", "", "", err
 	}
 	pw = "Hr-" + uuid.NewString()[:13] + pw[:2]
 	hash, err := auth.HashPassword(pw)
 	if err != nil {
-		return "", "", "", err
+		return id, "", "", "", err
 	}
 	secret, uri, err := auth.NewTOTP(email)
 	if err != nil {
-		return "", "", "", err
+		return id, "", "", "", err
 	}
 	enc, err := s.Cipher.Encrypt([]byte(secret))
 	if err != nil {
-		return "", "", "", err
+		return id, "", "", "", err
 	}
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
-		var id uuid.UUID
-		if err := tx.QueryRow(ctx, `INSERT INTO users (kind, status, full_name, email, email_verified_at, password_hash, totp_secret_enc)
-			VALUES ('staff','active',$1,$2,now(),$3,$4) RETURNING id`, name, email, hash, enc).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO users (kind, status, full_name, email, email_verified_at, password_hash, totp_secret_enc, phone_e164)
+			VALUES ('staff','active',$1,$2,now(),$3,$4,NULLIF($5,'')) RETURNING id`, name, email, hash, enc, phone).Scan(&id); err != nil {
 			return err
 		}
 		for _, role := range roles {
@@ -387,5 +391,5 @@ func (s *Server) CreateStaff(ctx context.Context, name, email string, roles []st
 		}
 		return audit(ctx, tx, "staff.create", "user", id, nil, map[string]any{"email": email, "roles": roles}, "created from the command line")
 	})
-	return pw, secret, uri, mapErr(err)
+	return id, pw, secret, uri, mapErr(err)
 }

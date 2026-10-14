@@ -38,23 +38,51 @@ func (h *harness) newWorld() *world {
 	return w
 }
 
-// runJob books, assigns, accepts, works and checks out a job, leaving it awaiting the client's rating.
-func (h *harness) runJob(w *world, triage string) (reqID, visitID string) {
+// accepted books and assigns a job and has the provider accept it, leaving one visit scheduled.
+func (h *harness) accepted(w *world, triage string) (reqID, assignID, visitID string) {
 	h.t.Helper()
 	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
 		"requested_start": time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339)})
 	reqID = r["id"].(string)
 	h.expect(200, triage, "POST", "/console/requests/"+reqID+"/claim", nil)
 	a := h.expect(201, triage, "POST", "/console/requests/"+reqID+"/assignments", map[string]any{"provider_id": w.providerID, "selection_reason": "Closest"})
-	h.expect(200, "provider", "POST", "/provider/offers/"+a["id"].(string)+"/accept", nil)
+	assignID = a["id"].(string)
+	h.expect(200, "provider", "POST", "/provider/offers/"+assignID+"/accept", nil)
 	for _, v := range h.expectList(200, "provider", "GET", "/provider/visits") {
 		if v.(map[string]any)["request_id"] == reqID {
 			visitID = v.(map[string]any)["id"].(string)
 		}
 	}
+	return reqID, assignID, visitID
+}
+
+// checkIn checks the provider in with the client's door code.
+func (h *harness) checkIn(visitID string) {
+	h.t.Helper()
 	code := h.expect(200, "client", "GET", "/client/visits/"+visitID+"/checkin-code", nil)["code"].(string)
-	now := time.Now().UTC().Format(time.RFC3339)
-	h.expect(200, "provider", "POST", "/provider/visits/"+visitID+"/check-in", map[string]any{"client_event_id": uuid.NewString(), "method": "code", "code": code, "device_recorded_at": now})
-	h.expect(200, "provider", "POST", "/provider/visits/"+visitID+"/check-out", map[string]any{"client_event_id": uuid.NewString(), "device_recorded_at": time.Now().UTC().Format(time.RFC3339)})
+	h.expect(200, "provider", "POST", "/provider/visits/"+visitID+"/check-in", map[string]any{"client_event_id": uuid.NewString(), "method": "code", "code": code,
+		"device_recorded_at": time.Now().UTC().Format(time.RFC3339)})
+}
+
+func (h *harness) checkOut(visitID string) {
+	h.t.Helper()
+	h.expect(200, "provider", "POST", "/provider/visits/"+visitID+"/check-out", map[string]any{"client_event_id": uuid.NewString(), "device_recorded_at": time.Now().Add(2 * time.Second).UTC().Format(time.RFC3339)})
+}
+
+// runJob books, assigns, accepts, works and checks out a job, leaving it awaiting the client's rating.
+func (h *harness) runJob(w *world, triage string) (reqID, visitID string) {
+	h.t.Helper()
+	reqID, _, visitID = h.accepted(w, triage)
+	h.checkIn(visitID)
+	h.checkOut(visitID)
 	return reqID, visitID
+}
+
+func (h *harness) reqOfVisit(visitID string) string {
+	h.t.Helper()
+	var id string
+	if err := h.pool.QueryRow(context.Background(), `SELECT request_id FROM visits WHERE id = $1`, visitID).Scan(&id); err != nil {
+		h.t.Fatal(err)
+	}
+	return id
 }

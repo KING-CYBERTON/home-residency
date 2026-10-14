@@ -16,11 +16,11 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 )
 
-const disciplinaryJSON = `
-	SELECT jsonb_build_object('id', d.id, 'provider_id', d.provider_id, 'complaint_id', d.complaint_id, 'kind', d.kind, 'status', d.status, 'reason', d.reason,
+const disciplinaryObj = `jsonb_build_object('id', d.id, 'provider_id', d.provider_id, 'complaint_id', d.complaint_id, 'kind', d.kind, 'status', d.status, 'reason', d.reason,
 	  'effective_from', d.effective_from, 'effective_to', d.effective_to, 'decided_by', d.decided_by, 'second_authoriser_id', d.second_authoriser_id,
-	  'authorised_at', d.authorised_at, 'created_at', d.created_at)
-	FROM disciplinary_actions d`
+	  'authorised_at', d.authorised_at, 'created_at', d.created_at)`
+
+const disciplinaryJSON = `SELECT ` + disciplinaryObj + ` FROM disciplinary_actions d`
 
 func (s *Server) GetConsoleProviders(w http.ResponseWriter, r *http.Request, params gen.GetConsoleProvidersParams) {
 	cur, err := decodeCursor(params.Cursor)

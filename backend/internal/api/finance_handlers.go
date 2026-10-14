@@ -771,7 +771,14 @@ func (s *Server) GetConsoleLedgerBalances(w http.ResponseWriter, r *http.Request
 // GetConsoleReconciliation lines M-Pesa's own callbacks up against our payments for a period.
 func (s *Server) GetConsoleReconciliation(w http.ResponseWriter, r *http.Request, params gen.GetConsoleReconciliationParams) {
 	ctx := r.Context()
-	from, to := params.From.Time, params.To.Time.AddDate(0, 0, 1)
+	to := time.Now().UTC().AddDate(0, 0, 1)
+	from := to.AddDate(0, 0, -31)
+	if params.From != nil {
+		from = params.From.Time
+	}
+	if params.To != nil {
+		to = params.To.Time.AddDate(0, 0, 1)
+	}
 	var matched int
 	if err := s.DB.QueryRow(ctx, `
 		SELECT count(*) FROM payments p WHERE p.status = 'succeeded' AND p.method IN ('mpesa_stk','mpesa_paybill')
