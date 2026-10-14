@@ -160,6 +160,21 @@
     });
   });
 
+  // Signing out clears everything this portal keeps on the phone (Clear-Site-Data), including
+  // check-ins not yet sent. Try to send them first, and ask before discarding any that remain.
+  $('form[action="/provider/logout"]').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      if (!Q || form.dataset.ready) return;
+      e.preventDefault();
+      var go = function () { form.dataset.ready = '1'; form.submit(); };
+      (navigator.onLine ? Q.flush().catch(function () {}) : Promise.resolve())
+        .then(function () { return Q.all(); })
+        .then(function (left) {
+          if (!left.length || confirm('Not sent yet: ' + left.length + ' check-in or check-out saved on this phone. Signing out deletes it. Sign out anyway?')) go();
+        }, go);
+    });
+  });
+
   $('[data-confirm]').forEach(function (el) {
     var form = el.tagName === 'FORM' ? el : el.form;
     if (form) form.addEventListener('submit', function (e) { if (!confirm(el.getAttribute('data-confirm'))) e.preventDefault(); });

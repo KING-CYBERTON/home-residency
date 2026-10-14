@@ -122,7 +122,9 @@ func (p *Portal) logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// Job pages kept for offline use hold addresses and access details: drop them with the session.
-	w.Header().Set("Clear-Site-Data", `"cache"`)
+	// The service worker's Cache API and the IndexedDB queue fall under "storage", not "cache";
+	// portal.js sends or confirms discarding queued events before the form is submitted.
+	w.Header().Set("Clear-Site-Data", `"cache", "storage"`)
 	p.done(w, r, portal+"/login", "You are signed out.")
 }
 

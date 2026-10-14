@@ -66,7 +66,10 @@
         (body.results || []).forEach(function (x) {
           done.push(x.client_event_id);
           if (x.status === 'rejected') {
-            rejected.push({ client_event_id: x.client_event_id, event: byId[x.client_event_id], error: (x.error && x.error.message) || 'Not accepted' });
+            // The door code is not kept once the server has answered: only the reason is shown.
+            var ev = byId[x.client_event_id];
+            if (ev && ev.payload) delete ev.payload.code;
+            rejected.push({ client_event_id: x.client_event_id, event: ev, error: (x.error && x.error.message) || 'Not accepted' });
           }
         });
         return tx(EVENTS, 'readwrite', function (s) { done.forEach(function (id) { s.delete(id); }); })

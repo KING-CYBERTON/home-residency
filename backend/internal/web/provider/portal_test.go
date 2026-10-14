@@ -462,7 +462,7 @@ func TestJobOfferCheckInOfflineAndPay(t *testing.T) {
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	b.c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := b.c.Do(req)
-	must(t, err == nil && resp.Header.Get("Clear-Site-Data") == `"cache"`, "logout clears cache: %v", resp.Header)
+	must(t, err == nil && resp.Header.Get("Clear-Site-Data") == `"cache", "storage"`, "logout clears cache and storage: %v", resp.Header)
 	e.checkBudget(t)
 }
 
