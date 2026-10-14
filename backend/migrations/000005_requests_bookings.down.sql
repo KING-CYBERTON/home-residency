@@ -1,0 +1,16 @@
+DROP TABLE IF EXISTS job_exceptions;
+DROP TYPE IF EXISTS exception_kind;
+DROP TABLE IF EXISTS ratings;
+DROP TABLE IF EXISTS variations;
+DROP TYPE IF EXISTS variation_status;
+DROP TABLE IF EXISTS visit_events;
+DROP TABLE IF EXISTS visits;
+DROP TYPE IF EXISTS checkin_method;
+DROP TYPE IF EXISTS visit_status;
+DROP TABLE IF EXISTS assignments;
+DROP TYPE IF EXISTS channel;
+DROP TYPE IF EXISTS assignment_status;
+DROP TABLE IF EXISTS shortlist_entries;
+DROP TABLE IF EXISTS service_requests;
+DROP TYPE IF EXISTS party;
+DROP TYPE IF EXISTS request_status;

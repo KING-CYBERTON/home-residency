@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS appraisal_snapshots;
+DROP TABLE IF EXISTS spot_checks;
+ALTER TABLE IF EXISTS refunds DROP CONSTRAINT IF EXISTS refunds_complaint_fk;
+ALTER TABLE IF EXISTS training_enrolments DROP CONSTRAINT IF EXISTS training_enrolments_complaint_fk;
+DROP TABLE IF EXISTS disciplinary_actions;
+DROP TYPE IF EXISTS disciplinary_action_status;
+DROP TYPE IF EXISTS disciplinary_action_kind;
+DROP TABLE IF EXISTS complaint_events;
+DROP TABLE IF EXISTS complaints;
+DROP TYPE IF EXISTS complaint_source;
+DROP TYPE IF EXISTS complaint_status;
+DROP TYPE IF EXISTS complaint_severity;

@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS training_courses;
+DROP TABLE IF EXISTS checklist_template_items;
+DROP TABLE IF EXISTS checklist_templates;
+DROP TYPE IF EXISTS document_type;
+DROP TYPE IF EXISTS checklist_item_kind;
+DROP TABLE IF EXISTS rate_card_entries;
+DROP TABLE IF EXISTS services;
+DROP TYPE IF EXISTS pricing_unit;
+DROP TABLE IF EXISTS service_categories;
+DROP TYPE IF EXISTS vetting_tier;
+DROP TYPE IF EXISTS engagement_type;
