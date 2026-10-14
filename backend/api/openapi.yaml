@@ -107,6 +107,8 @@ paths:
                     type: string
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /auth/otp/request:
     post:
       tags:
@@ -132,6 +134,8 @@ paths:
           $ref: '#/components/responses/E400'
         '429':
           $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
   /auth/otp/verify:
     post:
       tags:
@@ -156,6 +160,8 @@ paths:
           $ref: '#/components/responses/E400'
         '429':
           $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
   /auth/staff/login:
     post:
       tags:
@@ -181,6 +187,8 @@ paths:
           $ref: '#/components/responses/E400'
         '429':
           $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
   /auth/staff/mfa:
     post:
       tags:
@@ -214,6 +222,8 @@ paths:
           $ref: '#/components/responses/E422'
         '429':
           $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
   /auth/logout:
     post:
       tags:
@@ -235,6 +245,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /me:
     get:
       tags:
@@ -256,6 +268,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     patch:
       tags:
       - Auth
@@ -286,6 +300,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /me/consents:
     post:
       tags:
@@ -315,6 +331,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/service-areas:
     get:
       tags:
@@ -333,6 +351,8 @@ paths:
                   $ref: '#/components/schemas/ServiceArea'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/categories:
     get:
       tags:
@@ -351,6 +371,8 @@ paths:
                   $ref: '#/components/schemas/Category'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/categories/{slug}:
     get:
       tags:
@@ -384,6 +406,8 @@ paths:
                       $ref: '#/components/schemas/Faq'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/rate-card:
     get:
       tags:
@@ -414,6 +438,8 @@ paths:
                   $ref: '#/components/schemas/Service'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/subscription-plans:
     get:
       tags:
@@ -432,6 +458,8 @@ paths:
                   $ref: '#/components/schemas/SubscriptionPlan'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/pages/{slug}:
     get:
       tags:
@@ -458,6 +486,8 @@ paths:
                 $ref: '#/components/schemas/ContentPage'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/faqs:
     get:
       tags:
@@ -486,6 +516,8 @@ paths:
                   $ref: '#/components/schemas/Faq'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /public/leads:
     post:
       tags:
@@ -510,6 +542,8 @@ paths:
           $ref: '#/components/responses/E400'
         '429':
           $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
   /documents/uploads:
     post:
       tags:
@@ -541,6 +575,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /documents/{id}/complete:
     post:
       tags:
@@ -569,6 +605,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /documents/{id}:
     get:
       tags:
@@ -593,6 +631,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /documents/{id}/download-url:
     get:
       tags:
@@ -621,6 +661,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /notifications:
     get:
       tags:
@@ -649,6 +691,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /notifications/{id}/read:
     post:
       tags:
@@ -672,6 +716,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /notifications/read-all:
     post:
       tags:
@@ -693,6 +739,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /push-subscriptions:
     post:
       tags:
@@ -720,6 +768,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - Notifications
@@ -746,6 +796,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /conversations:
     get:
       tags:
@@ -770,6 +822,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - Messaging
@@ -800,6 +854,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /conversations/{id}/messages:
     get:
       tags:
@@ -825,6 +881,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - Messaging
@@ -857,6 +915,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/addresses:
     get:
       tags:
@@ -880,6 +940,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - Client
@@ -910,6 +972,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/addresses/{id}:
     patch:
       tags:
@@ -943,6 +1007,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - Client
@@ -965,6 +1031,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/id-verification:
     post:
       tags:
@@ -1000,6 +1068,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/quotes:
     post:
       tags:
@@ -1031,6 +1101,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/requests:
     post:
       tags:
@@ -1065,6 +1137,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     get:
       tags:
       - Client
@@ -1092,6 +1166,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/requests/{id}:
     get:
       tags:
@@ -1115,6 +1191,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/requests/{id}/cancel:
     post:
       tags:
@@ -1149,6 +1227,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/requests/{id}/shortlist:
     get:
       tags:
@@ -1175,6 +1255,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/requests/{id}/shortlist/{entryId}/select:
     post:
       tags:
@@ -1208,6 +1290,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/visits/{id}/checkin-code:
     get:
       tags:
@@ -1231,6 +1315,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/visits/{id}/confirm:
     post:
       tags:
@@ -1258,6 +1344,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/requests/{id}/rating:
     post:
       tags:
@@ -1291,6 +1379,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/requests/{id}/variations:
     get:
       tags:
@@ -1316,6 +1406,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/variations/{id}/approve:
     post:
       tags:
@@ -1343,6 +1435,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/variations/{id}/reject:
     post:
       tags:
@@ -1376,6 +1470,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/invoices:
     get:
       tags:
@@ -1404,6 +1500,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/invoices/{id}:
     get:
       tags:
@@ -1427,6 +1525,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/invoices/{id}/pay:
     post:
       tags:
@@ -1462,6 +1562,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/payments/{id}:
     get:
       tags:
@@ -1485,6 +1587,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/subscription:
     get:
       tags:
@@ -1506,6 +1610,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - Client
@@ -1538,6 +1644,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/subscription/cancel:
     post:
       tags:
@@ -1563,6 +1671,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/complaints:
     post:
       tags:
@@ -1594,6 +1704,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     get:
       tags:
       - Client
@@ -1617,6 +1729,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /client/complaints/{id}:
     get:
       tags:
@@ -1640,6 +1754,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/profile:
     get:
       tags:
@@ -1661,6 +1777,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     patch:
       tags:
       - Provider
@@ -1691,6 +1809,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/checklists/{categoryId}:
     get:
       tags:
@@ -1719,6 +1839,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/applications:
     post:
       tags:
@@ -1751,6 +1873,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     get:
       tags:
       - Provider
@@ -1773,6 +1897,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/applications/{id}:
     get:
       tags:
@@ -1796,6 +1922,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     patch:
       tags:
       - Provider
@@ -1828,6 +1956,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/applications/{id}/referees:
     post:
       tags:
@@ -1861,6 +1991,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/applications/{id}/referees/{refereeId}:
     delete:
       tags:
@@ -1890,6 +2022,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/applications/{id}/submit:
     post:
       tags:
@@ -1918,6 +2052,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/applications/{id}/withdraw:
     post:
       tags:
@@ -1945,6 +2081,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/documents:
     get:
       tags:
@@ -1968,6 +2106,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/trainings:
     get:
       tags:
@@ -1991,6 +2131,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/contract:
     get:
       tags:
@@ -2012,6 +2154,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/contract/sign:
     post:
       tags:
@@ -2043,6 +2187,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/availability:
     get:
       tags:
@@ -2064,6 +2210,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     put:
       tags:
       - Provider
@@ -2094,6 +2242,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/time-off:
     get:
       tags:
@@ -2117,6 +2267,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - Provider
@@ -2147,6 +2299,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/time-off/{id}:
     delete:
       tags:
@@ -2170,6 +2324,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/offers:
     get:
       tags:
@@ -2193,6 +2349,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/offers/{id}/accept:
     post:
       tags:
@@ -2223,6 +2381,8 @@ paths:
           $ref: '#/components/responses/E422'
         '410':
           $ref: '#/components/responses/E410'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/offers/{id}/decline:
     post:
       tags:
@@ -2252,6 +2412,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/jobs:
     get:
       tags:
@@ -2284,6 +2446,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/jobs/{id}:
     get:
       tags:
@@ -2307,6 +2471,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/visits:
     get:
       tags:
@@ -2341,6 +2507,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/visits/{id}/check-in:
     post:
       tags:
@@ -2376,6 +2544,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/visits/{id}/check-out:
     post:
       tags:
@@ -2409,6 +2579,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/sync:
     post:
       tags:
@@ -2441,6 +2613,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/jobs/{id}/variations:
     post:
       tags:
@@ -2474,6 +2648,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/earnings:
     get:
       tags:
@@ -2502,6 +2678,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/earnings/summary:
     get:
       tags:
@@ -2523,6 +2701,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/payouts:
     get:
       tags:
@@ -2547,6 +2727,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/appraisal:
     get:
       tags:
@@ -2568,6 +2750,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/complaints:
     get:
       tags:
@@ -2591,6 +2775,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /provider/complaints/{id}/account:
     post:
       tags:
@@ -2625,6 +2811,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/dashboard:
     get:
       tags:
@@ -2649,6 +2837,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications:
     get:
       tags:
@@ -2702,6 +2892,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}:
     get:
       tags:
@@ -2731,6 +2923,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/claim:
     post:
       tags:
@@ -2761,6 +2955,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/return:
     post:
       tags:
@@ -2807,6 +3003,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/items/{itemId}:
     patch:
       tags:
@@ -2850,6 +3048,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/referees/{refereeId}/record:
     post:
       tags:
@@ -2892,6 +3092,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/clearance-checks:
     post:
       tags:
@@ -2928,6 +3130,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/clearance-checks/{id}:
     patch:
       tags:
@@ -2964,6 +3168,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/assessments:
     post:
       tags:
@@ -3000,6 +3206,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/complete-vetting:
     post:
       tags:
@@ -3036,6 +3244,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/applications/{id}/decision:
     post:
       tags:
@@ -3072,6 +3282,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/documents/{id}/verify:
     post:
       tags:
@@ -3109,6 +3321,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/documents/{id}/reject:
     post:
       tags:
@@ -3146,6 +3360,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/documents/{id}/access-log:
     get:
       tags:
@@ -3175,6 +3391,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/compliance/expiring-documents:
     get:
       tags:
@@ -3207,6 +3425,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}/reverification:
     post:
       tags:
@@ -3249,6 +3469,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers:
     get:
       tags:
@@ -3303,6 +3525,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}:
     get:
       tags:
@@ -3337,6 +3561,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     patch:
       tags:
       - 'Console: Providers'
@@ -3373,6 +3599,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}/activate:
     post:
       tags:
@@ -3409,6 +3637,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}/suspend:
     post:
       tags:
@@ -3447,6 +3677,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}/reinstate:
     post:
       tags:
@@ -3487,6 +3719,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}/timeline:
     get:
       tags:
@@ -3523,6 +3757,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}/appraisal:
     get:
       tags:
@@ -3557,6 +3793,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/providers/{id}/disciplinary-actions:
     get:
       tags:
@@ -3593,6 +3831,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Complaints'
@@ -3632,6 +3872,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/disciplinary-actions/{id}/authorise:
     post:
       tags:
@@ -3667,6 +3909,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/disciplinary-actions/{id}/revoke:
     post:
       tags:
@@ -3703,6 +3947,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/training-courses:
     get:
       tags:
@@ -3730,6 +3976,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Training'
@@ -3764,6 +4012,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/training-courses/{id}:
     patch:
       tags:
@@ -3801,6 +4051,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/trainings:
     get:
       tags:
@@ -3852,6 +4104,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Training'
@@ -3885,6 +4139,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/trainings/{id}:
     patch:
       tags:
@@ -3921,6 +4177,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests:
     get:
       tags:
@@ -3988,6 +4246,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}:
     get:
       tags:
@@ -4017,6 +4277,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}/claim:
     post:
       tags:
@@ -4047,6 +4309,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}/shortlist:
     post:
       tags:
@@ -4089,6 +4353,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     get:
       tags:
       - 'Console: Triage'
@@ -4116,6 +4382,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}/share-shortlist:
     post:
       tags:
@@ -4162,6 +4430,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}/assignments:
     post:
       tags:
@@ -4199,6 +4469,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/assignments/{id}/withdraw:
     post:
       tags:
@@ -4235,6 +4507,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}/visits:
     post:
       tags:
@@ -4273,6 +4547,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/visits/{id}:
     patch:
       tags:
@@ -4310,6 +4586,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/visits/{id}/manual-check-in:
     post:
       tags:
@@ -4356,6 +4634,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}/mark-unfilled:
     post:
       tags:
@@ -4392,6 +4672,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/requests/{id}/cancel:
     post:
       tags:
@@ -4442,6 +4724,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/variations:
     get:
       tags:
@@ -4473,6 +4757,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/variations/{id}/decision:
     post:
       tags:
@@ -4519,6 +4805,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/exceptions:
     get:
       tags:
@@ -4566,6 +4854,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/exceptions/{id}/resolve:
     post:
       tags:
@@ -4603,6 +4893,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/clients:
     get:
       tags:
@@ -4646,6 +4938,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/clients/{id}:
     get:
       tags:
@@ -4675,6 +4969,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/clients/{id}/id-decision:
     post:
       tags:
@@ -4712,6 +5008,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/clients/{id}/suspend:
     post:
       tags:
@@ -4749,6 +5047,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/clients/{id}/reinstate:
     post:
       tags:
@@ -4786,6 +5086,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints:
     get:
       tags:
@@ -4843,6 +5145,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Complaints'
@@ -4878,6 +5182,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}:
     get:
       tags:
@@ -4905,6 +5211,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/assign:
     post:
       tags:
@@ -4941,6 +5249,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/events:
     post:
       tags:
@@ -4978,6 +5288,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/request-provider-account:
     post:
       tags:
@@ -5009,6 +5321,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/provider-account:
     post:
       tags:
@@ -5046,6 +5360,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/report:
     post:
       tags:
@@ -5082,6 +5398,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/decision:
     post:
       tags:
@@ -5118,6 +5436,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/communicate:
     post:
       tags:
@@ -5155,6 +5475,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/complaints/{id}/close:
     post:
       tags:
@@ -5188,6 +5510,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/spot-checks:
     get:
       tags:
@@ -5231,6 +5555,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Quality'
@@ -5264,6 +5590,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/invoices:
     get:
       tags:
@@ -5310,6 +5638,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/invoices/{id}:
     get:
       tags:
@@ -5337,6 +5667,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/invoices/{id}/void:
     post:
       tags:
@@ -5373,6 +5705,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/payments:
     get:
       tags:
@@ -5418,6 +5752,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/payments/manual:
     post:
       tags:
@@ -5454,6 +5790,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/payments/{id}/requery:
     post:
       tags:
@@ -5484,6 +5822,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/refunds:
     get:
       tags:
@@ -5515,6 +5855,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Finance'
@@ -5551,6 +5893,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/refunds/{id}/approve:
     post:
       tags:
@@ -5584,6 +5928,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/refunds/{id}/reject:
     post:
       tags:
@@ -5620,6 +5966,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/earnings:
     get:
       tags:
@@ -5656,6 +6004,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/earnings/{id}/hold:
     post:
       tags:
@@ -5693,6 +6043,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/earnings/{id}/release:
     post:
       tags:
@@ -5730,6 +6082,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/payout-batches:
     get:
       tags:
@@ -5761,6 +6115,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Finance'
@@ -5796,6 +6152,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/payout-batches/{id}:
     get:
       tags:
@@ -5822,6 +6180,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/payout-batches/{id}/approve:
     post:
       tags:
@@ -5855,6 +6215,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/payouts/{id}/retry:
     post:
       tags:
@@ -5885,6 +6247,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/ledger/balances:
     get:
       tags:
@@ -5917,6 +6281,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/reconciliation:
     get:
       tags:
@@ -5971,6 +6337,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/service-areas:
     get:
       tags:
@@ -5998,6 +6366,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Catalogue'
@@ -6031,6 +6401,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/service-areas/{id}:
     patch:
       tags:
@@ -6067,6 +6439,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - 'Console: Catalogue'
@@ -6095,6 +6469,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/categories:
     get:
       tags:
@@ -6122,6 +6498,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Catalogue'
@@ -6155,6 +6533,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/categories/{id}:
     patch:
       tags:
@@ -6191,6 +6571,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - 'Console: Catalogue'
@@ -6219,6 +6601,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/services:
     get:
       tags:
@@ -6246,6 +6630,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Catalogue'
@@ -6279,6 +6665,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/services/{id}:
     patch:
       tags:
@@ -6315,6 +6703,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - 'Console: Catalogue'
@@ -6343,6 +6733,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/subscription-plans:
     get:
       tags:
@@ -6371,6 +6763,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Catalogue'
@@ -6405,6 +6799,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/subscription-plans/{id}:
     patch:
       tags:
@@ -6442,6 +6838,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - 'Console: Catalogue'
@@ -6471,6 +6869,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/content-pages:
     get:
       tags:
@@ -6498,6 +6898,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Content'
@@ -6531,6 +6933,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/content-pages/{id}:
     patch:
       tags:
@@ -6567,6 +6971,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - 'Console: Content'
@@ -6595,6 +7001,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/faqs:
     get:
       tags:
@@ -6622,6 +7030,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Content'
@@ -6655,6 +7065,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/faqs/{id}:
     patch:
       tags:
@@ -6691,6 +7103,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - 'Console: Content'
@@ -6719,6 +7133,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/notification-templates:
     get:
       tags:
@@ -6746,6 +7162,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Content'
@@ -6779,6 +7197,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/notification-templates/{id}:
     patch:
       tags:
@@ -6815,6 +7235,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
     delete:
       tags:
       - 'Console: Content'
@@ -6843,6 +7265,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/rate-card:
     get:
       tags:
@@ -6885,6 +7309,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Catalogue'
@@ -6922,6 +7348,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/checklists:
     get:
       tags:
@@ -6956,6 +7384,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Catalogue'
@@ -6989,6 +7419,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/checklists/{id}/publish:
     post:
       tags:
@@ -7022,6 +7454,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/staff:
     get:
       tags:
@@ -7057,6 +7491,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - 'Console: Admin'
@@ -7090,6 +7526,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/staff/{id}:
     patch:
       tags:
@@ -7126,6 +7564,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/staff/{id}/roles:
     put:
       tags:
@@ -7165,6 +7605,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/staff/{id}/reset-mfa:
     post:
       tags:
@@ -7191,6 +7633,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/settings:
     get:
       tags:
@@ -7218,6 +7662,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/settings/{key}:
     put:
       tags:
@@ -7258,6 +7704,8 @@ paths:
           $ref: '#/components/responses/E409'
         '422':
           $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/audit-log:
     get:
       tags:
@@ -7314,6 +7762,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/leads:
     get:
       tags:
@@ -7352,6 +7802,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/reports/{report}:
     get:
       tags:
@@ -7422,6 +7874,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/reports/{report}/export:
     get:
       tags:
@@ -7472,6 +7926,8 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/mpesa/stk:
     post:
       tags:
@@ -7497,6 +7953,8 @@ paths:
                 $ref: '#/components/schemas/DarajaAck'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/mpesa/c2b/validation:
     post:
       tags:
@@ -7522,6 +7980,8 @@ paths:
                 $ref: '#/components/schemas/DarajaAck'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/mpesa/c2b/confirmation:
     post:
       tags:
@@ -7547,6 +8007,8 @@ paths:
                 $ref: '#/components/schemas/DarajaAck'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/mpesa/b2c/result:
     post:
       tags:
@@ -7572,6 +8034,8 @@ paths:
                 $ref: '#/components/schemas/DarajaAck'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/mpesa/b2c/timeout:
     post:
       tags:
@@ -7597,6 +8061,8 @@ paths:
                 $ref: '#/components/schemas/DarajaAck'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/mpesa/reversal/result:
     post:
       tags:
@@ -7622,6 +8088,8 @@ paths:
                 $ref: '#/components/schemas/DarajaAck'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/ussd:
     post:
       tags:
@@ -7649,6 +8117,8 @@ paths:
                   2. Decline'
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/sms/inbound:
     post:
       tags:
@@ -7668,6 +8138,8 @@ paths:
           description: Done
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/sms/delivery:
     post:
       tags:
@@ -7687,6 +8159,8 @@ paths:
           description: Done
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
   /webhooks/whatsapp:
     get:
       tags:
@@ -7716,6 +8190,8 @@ paths:
                 type: string
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
     post:
       tags:
       - Webhooks
@@ -7735,6 +8211,8 @@ paths:
           description: Done
         '400':
           $ref: '#/components/responses/E400'
+        default:
+          $ref: '#/components/responses/Edefault'
 components:
   securitySchemes:
     bearerAuth:
@@ -7860,6 +8338,16 @@ components:
           example:
             code: rate_limited
             message: Too many attempts
+            request_id: 01J...
+    Edefault:
+      description: Any other error (validation_failed, rule_violation, not_implemented, internal)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: validation_failed
+            message: Any other error (validation_failed, rule_violation, not_implemented, internal)
             request_id: 01J...
   schemas:
     UserKind:
@@ -8379,10 +8867,12 @@ components:
             items:
               $ref: '#/components/schemas/StaffRole'
           provider_status:
-            $ref: '#/components/schemas/ProviderStatus'
+            allOf:
+            - $ref: '#/components/schemas/ProviderStatus'
             nullable: true
           id_verification:
-            $ref: '#/components/schemas/IdVerificationStatus'
+            allOf:
+            - $ref: '#/components/schemas/IdVerificationStatus'
             nullable: true
     MeUpdate:
       type: object
@@ -8541,7 +9031,8 @@ components:
         is_active:
           type: boolean
         current_price:
-          $ref: '#/components/schemas/RateCardEntry'
+          allOf:
+          - $ref: '#/components/schemas/RateCardEntry'
           nullable: true
       required:
       - id
@@ -8664,7 +9155,8 @@ components:
         kind:
           $ref: '#/components/schemas/ChecklistItemKind'
         document_type:
-          $ref: '#/components/schemas/DocumentType'
+          allOf:
+          - $ref: '#/components/schemas/DocumentType'
           nullable: true
         label:
           type: string
@@ -9194,7 +9686,8 @@ components:
         offer_client_choice:
           type: boolean
         provider:
-          $ref: '#/components/schemas/ProviderPublic'
+          allOf:
+          - $ref: '#/components/schemas/ProviderPublic'
           nullable: true
         visits:
           type: array
@@ -9226,7 +9719,8 @@ components:
           format: date-time
           nullable: true
         cancelled_by:
-          $ref: '#/components/schemas/Party'
+          allOf:
+          - $ref: '#/components/schemas/Party'
           nullable: true
         cancel_reason:
           type: string
@@ -9466,7 +9960,8 @@ components:
           format: date-time
           nullable: true
         checkin_method:
-          $ref: '#/components/schemas/CheckinMethod'
+          allOf:
+          - $ref: '#/components/schemas/CheckinMethod'
           nullable: true
         checked_out_at:
           type: string
@@ -9622,7 +10117,8 @@ components:
                 - duplicate
                 - rejected
               error:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                - $ref: '#/components/schemas/Error'
                 nullable: true
             required:
             - client_event_id
@@ -9658,7 +10154,8 @@ components:
           format: date-time
           nullable: true
         response_channel:
-          $ref: '#/components/schemas/Channel'
+          allOf:
+          - $ref: '#/components/schemas/Channel'
           nullable: true
         decline_reason:
           type: string
@@ -9707,7 +10204,8 @@ components:
           type: string
           nullable: true
         service_area:
-          $ref: '#/components/schemas/ServiceArea'
+          allOf:
+          - $ref: '#/components/schemas/ServiceArea'
           nullable: true
         requested_start:
           type: string
@@ -10066,7 +10564,8 @@ components:
             items:
               $ref: '#/components/schemas/TrainingEnrolment'
           contract:
-            $ref: '#/components/schemas/Contract'
+            allOf:
+            - $ref: '#/components/schemas/Contract'
             nullable: true
           open_complaints:
             type: integer
@@ -11334,10 +11833,12 @@ components:
       - type: object
         properties:
           client:
-            $ref: '#/components/schemas/ClientSummary'
+            allOf:
+            - $ref: '#/components/schemas/ClientSummary'
             nullable: true
           provider:
-            $ref: '#/components/schemas/ProviderSummary'
+            allOf:
+            - $ref: '#/components/schemas/ProviderSummary'
             nullable: true
           visit_id:
             type: string
@@ -11661,7 +12162,8 @@ components:
             items:
               $ref: '#/components/schemas/Address'
           subscription:
-            $ref: '#/components/schemas/Subscription'
+            allOf:
+            - $ref: '#/components/schemas/Subscription'
             nullable: true
           request_count:
             type: integer
@@ -11844,7 +12346,8 @@ components:
           format: uuid
           nullable: true
         actor_kind:
-          $ref: '#/components/schemas/UserKind'
+          allOf:
+          - $ref: '#/components/schemas/UserKind'
           nullable: true
         action:
           type: string
