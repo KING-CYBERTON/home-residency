@@ -305,7 +305,7 @@ func (p *Portal) renderStatus(w http.ResponseWriter, r *http.Request, page strin
 			if msg, err := url.QueryUnescape(c.Value); err == nil {
 				v.Flash = msg
 			}
-			http.SetCookie(w, &http.Cookie{Name: "hr_flash", Path: p.Base, MaxAge: -1})
+			http.SetCookie(w, &http.Cookie{Name: "hr_flash", Path: p.Base, MaxAge: -1, HttpOnly: true, Secure: p.CookieSecure, SameSite: http.SameSiteLaxMode})
 		}
 	}
 	p.Site.Render(w, r, t, status, &web.Page{Title: v.Title, NoIndex: true, Section: "account", Data: v})
