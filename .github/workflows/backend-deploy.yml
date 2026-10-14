@@ -25,9 +25,12 @@ permissions:
 jobs:
   build:
     name: Build and push image
+    # Skipped, not failed, until the AWS side exists: without this every push to main would
+    # go red before anyone has applied infra/ and set the GitHub environment variables.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+      vars.AWS_ECR_PUSH_ROLE_ARN != '' && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
