@@ -1,0 +1,43 @@
+{{define "offers"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  <h1 class="text-xl font-bold text-slate-900">Job offers</h1>
+  <p class="mt-1 text-sm text-slate-600">Answer before the offer expires, or it goes to someone else.</p>
+  <ul class="mt-4 space-y-3">
+    {{range .V}}{{template "offer-card" .}}{{else}}<li class="text-sm text-slate-600">No offers right now. We will SMS you when there is one.</li>{{end}}
+  </ul>
+</section>
+{{end}}{{end}}
+
+{{define "offer-card"}}
+<li class="card" id="offer-{{.Id}}">
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <p class="font-semibold text-slate-900">{{.Service.Name}}</p>
+      <p class="text-sm text-slate-600">{{when .RequestedStart}}{{with .RequestedEnd}} to {{clock .}}{{end}}</p>
+      <p class="text-sm text-slate-600">{{with .Estate}}{{.}}{{end}}{{with .ServiceArea}}{{if $.Estate}}, {{end}}{{.Name}}{{end}}</p>
+    </div>
+    <p class="text-lg font-bold text-slate-900">{{kes .ProviderPayMinor}}</p>
+  </div>
+  {{with .RecurrenceRule}}<p class="mt-1 text-sm text-slate-600">Repeats: {{.}}</p>{{end}}
+  {{with .ClientNotes}}<p class="mt-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">{{.}}</p>{{end}}
+  {{with .Service.ScopeItems}}<p class="mt-2 text-sm text-slate-600">Includes: {{range $i, $s := .}}{{if $i}}, {{end}}{{$s}}{{end}}</p>{{end}}
+  <p class="mt-2 text-xs text-slate-500">Answer by {{when .OfferExpiresAt}}. You see the full address once you accept.</p>
+  <div class="mt-3 grid grid-cols-2 gap-2">
+    <form method="post" action="/provider/offers/{{.Id}}/accept" hx-post="/provider/offers/{{.Id}}/accept" hx-target="#offer-{{.Id}}" hx-swap="outerHTML">
+      <input type="hidden" name="idempotency_key" value="{{newID}}">
+      <button type="submit" class="btn-primary w-full">Accept</button>
+    </form>
+    <form method="post" action="/provider/offers/{{.Id}}/decline" hx-post="/provider/offers/{{.Id}}/decline" hx-target="#offer-{{.Id}}" hx-swap="outerHTML">
+      <button type="submit" class="btn-secondary w-full">Decline</button>
+    </form>
+  </div>
+</li>
+{{end}}
+
+{{define "offer-result"}}
+<li class="card {{if .OK}}bg-brand-50{{else}}bg-red-50{{end}}" role="status">
+  <p class="text-sm {{if .OK}}text-brand-900{{else}}text-red-800{{end}}">{{.Message}}</p>
+  {{if and .OK .JobID (ne .JobID "00000000-0000-0000-0000-000000000000")}}<a href="/provider/jobs/{{.JobID}}" class="mt-2 inline-block font-medium text-brand-700">Open the job</a>{{end}}
+</li>
+{{end}}

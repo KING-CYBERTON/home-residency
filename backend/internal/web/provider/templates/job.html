@@ -1,0 +1,85 @@
+{{define "job"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "back" "/provider/jobs"}}
+  {{template "top" .}}
+  {{with .V}}{{$j := .Job}}
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-bold text-slate-900">{{$j.Service.Name}}</h1>
+      <p class="text-sm text-slate-600">{{$j.RequestReference}}{{with $j.ClientDisplayName}} · {{.}}{{end}}</p>
+    </div>
+    <div class="text-right">{{with $j.Status}}{{template "badge" .}}{{end}}<p class="mt-1 font-semibold">{{kes $j.ProviderPayMinor}}</p></div>
+  </div>
+
+  {{with $j.Address}}
+  <div class="card mt-4">
+    <h2 class="font-semibold text-slate-900">Where</h2>
+    <p class="mt-1">{{with .HouseNumber}}{{.}}, {{end}}{{with .Street}}{{.}}, {{end}}{{val .Estate}}</p>
+    {{with .Landmark}}<p class="text-sm text-slate-600">Near {{.}}</p>{{end}}
+    {{with .AccessDetails}}<p class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">Access: {{.}}</p>{{end}}
+    {{if and .Lat .Lng}}<a href="https://www.google.com/maps/search/?api=1&amp;query={{val .Lat}},{{val .Lng}}" class="mt-2 inline-block text-sm font-medium text-brand-700" rel="noopener">Open in maps</a>{{end}}
+    <p class="mt-2 text-xs text-slate-500">Keep these details private. Calls to the client go through the office.</p>
+  </div>
+  {{end}}
+
+  {{with $j.Service.ScopeItems}}
+  <div class="card mt-4">
+    <h2 class="font-semibold text-slate-900">What to do</h2>
+    <ul class="mt-2 list-disc pl-5 text-sm text-slate-700">{{range .}}<li>{{.}}</li>{{end}}</ul>
+  </div>
+  {{end}}
+
+  <h2 class="mt-6 font-semibold text-slate-900">Visits</h2>
+  <div class="mt-2 space-y-3">
+    {{range $j.Visits}}{{$st := print .Status}}
+    <div class="card" data-visit="{{.Id}}">
+      <div class="flex items-start justify-between gap-3">
+        <p class="font-medium">{{when .ScheduledStart}} to {{clock .ScheduledEnd}}</p>
+        {{template "badge" .Status}}
+      </div>
+      {{with .CheckedInAt}}<p class="text-sm text-slate-600">Checked in {{clock .}}</p>{{end}}
+      {{with .CheckedOutAt}}<p class="text-sm text-slate-600">Checked out {{clock .}}</p>{{end}}
+      <p data-pending hidden class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"></p>
+
+      {{if eq $st "scheduled" "checked_in"}}
+      <form method="post" action="/provider/visits/{{.Id}}/check-in" data-offline="check_in" data-visit-id="{{.Id}}" class="mt-3 space-y-3"{{if ne $st "scheduled"}} hidden{{end}}>
+        <input type="hidden" name="job" value="{{$j.AssignmentId}}">
+        <input type="hidden" name="client_event_id" value="{{newID}}">
+        <fieldset class="flex gap-4 text-sm">
+          <legend class="sr-only">How to check in</legend>
+          <label class="flex items-center gap-2"><input type="radio" name="method" value="code" data-method checked> Door code from the client</label>
+          <label class="flex items-center gap-2" data-needs-js hidden><input type="radio" name="method" value="geo" data-method> My location</label>
+        </fieldset>
+        <div data-code-box>
+          <label class="field-label" for="code-{{.Id}}">4-digit code</label>
+          <input id="code-{{.Id}}" name="code" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" class="field-input text-center text-2xl tracking-widest">
+        </div>
+        <button type="submit" class="btn-primary w-full">Check in</button>
+      </form>
+      <form method="post" action="/provider/visits/{{.Id}}/check-out" data-offline="check_out" data-visit-id="{{.Id}}" class="mt-3 space-y-3"{{if ne $st "checked_in"}} hidden{{end}}>
+        <input type="hidden" name="job" value="{{$j.AssignmentId}}">
+        <input type="hidden" name="client_event_id" value="{{newID}}">
+        <label class="field-label" for="notes-{{.Id}}">Notes for the office (optional)</label>
+        <textarea id="notes-{{.Id}}" name="notes" rows="2" maxlength="2000" class="field-input"></textarea>
+        <button type="submit" class="btn-primary w-full">Work done, check out</button>
+      </form>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+  <p class="mt-3 text-xs text-slate-500">No signal at the house? Check in anyway: it is saved on your phone with the time and sent when you are back online.</p>
+
+  {{if .CanVary}}
+  <details class="card mt-6">
+    <summary class="cursor-pointer font-medium text-brand-700">The client wants more work done</summary>
+    <form method="post" action="/provider/jobs/{{$j.AssignmentId}}/variations" class="mt-3 space-y-3">
+      <p class="text-sm text-slate-600">Do not agree extra work or money with the client directly. Send it here and we confirm it with them first.</p>
+      <div><label class="field-label" for="var-desc">What extra work</label><textarea id="var-desc" name="description" rows="2" required class="field-input"></textarea></div>
+      <div><label class="field-label" for="var-qty">How many (optional)</label><input id="var-qty" name="quantity" type="number" min="0" step="0.5" inputmode="decimal" class="field-input"></div>
+      <button type="submit" class="btn-secondary w-full">Send to the office</button>
+    </form>
+  </details>
+  {{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

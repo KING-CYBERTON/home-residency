@@ -1,0 +1,35 @@
+{{define "login"}}{{with .Data}}
+<section class="mx-auto max-w-sm px-4 py-8">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-2xl font-bold text-slate-900">Provider sign in</h1>
+  {{if not .OtpID}}
+  <p class="mt-2 text-slate-600">We will send a code to your phone by SMS.</p>
+  <form method="post" action="/provider/login" class="mt-6 space-y-4">
+    <input type="hidden" name="next" value="{{.Next}}">
+    <div>
+      <label for="phone" class="field-label">Mobile number</label>
+      <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="0712 345 678" value="{{.Phone}}" class="field-input">
+      {{template "field-error" .Error}}
+    </div>
+    <button type="submit" class="btn-primary w-full">Send code</button>
+  </form>
+  <p class="mt-6 text-sm text-slate-600">New to Homend Residence? <a href="/join" class="font-medium text-brand-700">Apply to work with us</a></p>
+  {{else}}
+  <p class="mt-2 text-slate-600">Enter the code we sent to {{.Phone}}.</p>
+  <form method="post" action="/provider/login/verify" class="mt-6 space-y-4">
+    <input type="hidden" name="next" value="{{.Next}}">
+    <input type="hidden" name="phone" value="{{.Phone}}">
+    <input type="hidden" name="otp_id" value="{{.OtpID}}">
+    <div>
+      <label for="code" class="field-label">Code</label>
+      <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" required class="field-input text-center text-2xl tracking-widest">
+      {{template "field-error" .Error}}
+    </div>
+    <button type="submit" class="btn-primary w-full">Sign in</button>
+  </form>
+  <a href="/provider/login" class="mt-4 inline-block text-sm text-brand-700">Use a different number</a>
+  {{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

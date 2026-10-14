@@ -1,0 +1,35 @@
+{{/* Overrides of the shared layout's blocks for the provider portal. */}}
+
+{{define "head"}}{{if not .Data.Public}}
+<link rel="manifest" href="{{providerPath}}/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+{{end}}{{end}}
+
+{{define "header"}}{{if .Data.Public}}{{template "public-header" .}}{{else}}
+<header class="sticky top-0 z-30 border-b border-slate-200 bg-white">
+  <div class="mx-auto flex max-w-xl items-center justify-between px-4 py-2.5">
+    <a href="{{providerPath}}/" class="flex items-center gap-2 font-bold text-slate-900">
+      <img src="{{asset "img/favicon.svg"}}" alt="" width="24" height="24">
+      <span>Homend <span class="font-medium text-brand-700">Work</span></span>
+    </a>
+    {{if .Data.SignedIn}}<a href="{{providerPath}}/inbox" class="text-sm font-medium text-slate-700">Messages</a>{{end}}
+  </div>
+</header>
+{{end}}{{end}}
+
+{{define "footer"}}{{if .Data.Public}}{{template "public-footer" .}}{{else if .Data.SignedIn}}
+<nav aria-label="Portal" class="sticky bottom-0 z-30 border-t border-slate-200 bg-white">
+  <div class="mx-auto grid max-w-xl grid-cols-5 text-center text-xs font-medium">
+    <a href="{{providerPath}}/" class="block px-1 py-3 {{if eq .Data.Nav "home"}}font-semibold text-brand-700{{else}}text-slate-600{{end}}"{{if eq .Data.Nav "home"}} aria-current="page"{{end}}>Home</a>
+    <a href="{{providerPath}}/offers" class="block px-1 py-3 {{if eq .Data.Nav "offers"}}font-semibold text-brand-700{{else}}text-slate-600{{end}}"{{if eq .Data.Nav "offers"}} aria-current="page"{{end}}>Offers</a>
+    <a href="{{providerPath}}/jobs" class="block px-1 py-3 {{if eq .Data.Nav "jobs"}}font-semibold text-brand-700{{else}}text-slate-600{{end}}"{{if eq .Data.Nav "jobs"}} aria-current="page"{{end}}>Jobs</a>
+    <a href="{{providerPath}}/pay" class="block px-1 py-3 {{if eq .Data.Nav "pay"}}font-semibold text-brand-700{{else}}text-slate-600{{end}}"{{if eq .Data.Nav "pay"}} aria-current="page"{{end}}>Pay</a>
+    <a href="{{providerPath}}/more" class="block px-1 py-3 {{if eq .Data.Nav "more"}}font-semibold text-brand-700{{else}}text-slate-600{{end}}"{{if eq .Data.Nav "more"}} aria-current="page"{{end}}>More</a>
+  </div>
+</nav>
+{{end}}{{end}}
+
+{{define "scripts"}}{{if not .Data.Public}}
+<script src="{{providerPath}}/static/queue.js" defer></script>
+<script src="{{providerPath}}/static/portal.js" defer></script>
+{{end}}{{end}}

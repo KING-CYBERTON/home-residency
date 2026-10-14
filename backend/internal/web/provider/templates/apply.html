@@ -1,0 +1,41 @@
+{{define "apply"}}{{with .Data}}
+<section class="mx-auto max-w-md px-4 py-10">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-2xl font-bold text-slate-900">Apply to work with us</h1>
+  {{if not .OtpID}}
+  <p class="mt-2 text-slate-600">Start with your name and phone number. We will send you a code by SMS, then you can upload your documents.</p>
+  <form method="post" action="/join/apply" class="mt-6 space-y-4">
+    <input type="hidden" name="category" value="{{.Category}}">
+    <div>
+      <label for="full_name" class="field-label">Full name, as on your ID</label>
+      <input id="full_name" name="full_name" autocomplete="name" required minlength="2" value="{{.Name}}" class="field-input">
+    </div>
+    <div>
+      <label for="phone" class="field-label">Mobile number</label>
+      <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="0712 345 678" value="{{.Phone}}" class="field-input">
+    </div>
+    <label class="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" name="privacy" required class="mt-1"> <span>I have read the <a href="/privacy" class="font-medium text-brand-700">privacy notice</a> and agree that Homend Residence keeps my details and documents to manage my application and work.</span></label>
+    <label class="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" name="vetting" required class="mt-1"> <span>I agree to background checks: my Certificate of Good Conduct, my documents and calls to my referees.</span></label>
+    {{template "field-error" .Error}}
+    <button type="submit" class="btn-primary w-full">Send code</button>
+  </form>
+  <p class="mt-6 text-sm text-slate-600">Already applied? <a href="/provider/login" class="font-medium text-brand-700">Sign in</a></p>
+  {{else}}
+  <p class="mt-2 text-slate-600">Enter the code we sent to {{.Phone}}.</p>
+  <form method="post" action="/join/apply/verify" class="mt-6 space-y-4">
+    <input type="hidden" name="category" value="{{.Category}}">
+    <input type="hidden" name="full_name" value="{{.Name}}">
+    <input type="hidden" name="phone" value="{{.Phone}}">
+    <input type="hidden" name="otp_id" value="{{.OtpID}}">
+    <div>
+      <label for="code" class="field-label">Code</label>
+      <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" required class="field-input text-center text-2xl tracking-widest">
+      {{template "field-error" .Error}}
+    </div>
+    <button type="submit" class="btn-primary w-full">Create my account</button>
+  </form>
+  {{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

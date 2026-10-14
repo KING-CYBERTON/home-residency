@@ -1,0 +1,22 @@
+{{define "jobs"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-xl font-bold text-slate-900">My jobs</h1>
+  <p class="mt-1 text-sm text-slate-600">Open each job once while you have a connection; it then works offline too.</p>
+  <h2 class="mt-5 font-semibold text-slate-900">To do</h2>
+  <div class="mt-2 space-y-2">
+    {{range .Open}}{{template "visit-line" .}}{{else}}<p class="text-sm text-slate-600">Nothing booked. Accept an offer to see it here.</p>{{end}}
+  </div>
+  {{with .Past}}
+  <h2 class="mt-8 font-semibold text-slate-900">Done</h2>
+  <ul class="mt-2 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+    {{range .}}<li><a href="/provider/jobs/{{.AssignmentId}}" class="flex items-center justify-between gap-3 px-4 py-3">
+      <span><span class="font-medium">{{.Service.Name}}</span> <span class="text-sm text-slate-600">{{.RequestReference}}</span></span>
+      {{with .Status}}{{template "badge" .}}{{end}}
+    </a></li>{{end}}
+  </ul>
+  {{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

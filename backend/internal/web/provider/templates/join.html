@@ -1,0 +1,30 @@
+{{define "join"}}{{with .Data}}
+<section class="bg-brand-50">
+  <div class="mx-auto max-w-4xl px-4 py-12">
+    <h1 class="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Work with Homend Residence</h1>
+    <p class="mt-4 max-w-2xl text-lg text-slate-700">Steady, well-paid work in Nairobi homes. We find the clients, agree the price and pay you every week by M-Pesa. You bring your skills and good conduct.</p>
+    <a href="/join/apply" class="btn-primary mt-6">Apply now</a>
+    <p class="mt-3 text-sm text-slate-600">Already applied? <a href="/provider/login" class="font-medium text-brand-700">Sign in</a></p>
+  </div>
+</section>
+<section class="mx-auto max-w-4xl px-4 py-10">
+  <h2 class="text-xl font-bold text-slate-900">How it works</h2>
+  <ol class="mt-4 grid gap-4 sm:grid-cols-2">
+    <li class="card"><p class="font-semibold">1. Apply on your phone</p><p class="mt-1 text-sm text-slate-600">Choose the work you do and upload your ID, Certificate of Good Conduct and other documents.</p></li>
+    <li class="card"><p class="font-semibold">2. Vetting</p><p class="mt-1 text-sm text-slate-600">We call your referees, check your documents and meet you for an interview or practical test.</p></li>
+    <li class="card"><p class="font-semibold">3. Training and contract</p><p class="mt-1 text-sm text-slate-600">Short training on our standards and code of conduct. You sign your contract with an SMS code.</p></li>
+    <li class="card"><p class="font-semibold">4. Get jobs, get paid</p><p class="mt-1 text-sm text-slate-600">Accept offers in the app, by SMS or USSD. Check in at the house, finish the job, and get paid weekly.</p></li>
+  </ol>
+</section>
+{{with .V.Categories}}
+<section class="mx-auto max-w-4xl px-4 pb-12">
+  <h2 class="text-xl font-bold text-slate-900">We are looking for</h2>
+  <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+    {{range .}}<li class="card flex items-center justify-between gap-3">
+      <div><p class="font-semibold text-slate-900">{{.Name}}</p>{{with .Description}}<p class="mt-1 text-sm text-slate-600">{{.}}</p>{{end}}</div>
+      <a href="/join/apply?category={{.Id}}" class="btn-secondary shrink-0">Apply</a>
+    </li>{{end}}
+  </ul>
+</section>
+{{end}}
+{{end}}{{end}}

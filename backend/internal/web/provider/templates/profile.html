@@ -1,0 +1,54 @@
+{{define "profile"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}{{$v := .}}{{$p := .Profile}}
+  <h1 class="text-xl font-bold text-slate-900">My profile</h1>
+  <p class="mt-1 text-sm text-slate-600">{{$p.FullName}} · {{label $p.Status}}{{with $p.RatingAvg}} · rating {{score .}}{{end}}{{with $p.CompletedJobs}} · {{.}} jobs{{end}}</p>
+  <form method="post" action="/provider/profile" class="mt-4 space-y-4">
+    <div>
+      <label class="field-label" for="payout">M-Pesa number for your pay</label>
+      <input id="payout" name="payout_msisdn" type="tel" inputmode="tel" value="{{val $p.PayoutMsisdn}}" class="field-input">
+    </div>
+    <div>
+      <label class="field-label" for="years">Years of experience</label>
+      <input id="years" name="years_experience" type="number" min="0" max="60" inputmode="numeric" value="{{val $p.YearsExperience}}" class="field-input">
+    </div>
+    <div>
+      <label class="field-label" for="langs">Languages (comma separated)</label>
+      <input id="langs" name="languages" value="{{with $p.Languages}}{{range $i, $l := .}}{{if $i}}, {{end}}{{$l}}{{end}}{{end}}" placeholder="English, Kiswahili" class="field-input">
+    </div>
+    <div>
+      <label class="field-label" for="dob">Date of birth</label>
+      <input id="dob" name="date_of_birth" type="date" value="{{with $p.DateOfBirth}}{{.}}{{end}}" class="field-input">
+    </div>
+    <div>
+      <label class="field-label" for="bio">About me (clients do not see your phone number)</label>
+      <textarea id="bio" name="bio" rows="3" maxlength="1000" class="field-input">{{val $p.Bio}}</textarea>
+    </div>
+    {{with $v.Areas}}
+    <div>
+      <label class="field-label" for="home">Where I live</label>
+      <select id="home" name="home_service_area_id" class="field-input">
+        <option value="">Choose…</option>
+        {{range .}}<option value="{{.Id}}"{{if eq2 $p.HomeServiceAreaId .Id}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </div>
+    <fieldset>
+      <legend class="field-label">Areas I can work in</legend>
+      <input type="hidden" name="areas_shown" value="1">
+      <div class="mt-2 grid grid-cols-2 gap-2">
+        {{range .}}<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="service_area_ids" value="{{.Id}}"{{if index $v.InArea .Id}} checked{{end}}> {{.Name}}</label>{{end}}
+      </div>
+    </fieldset>
+    {{end}}
+    <details>
+      <summary class="cursor-pointer text-sm font-medium text-brand-700">ID number and KRA PIN</summary>
+      <p class="mt-2 text-sm text-slate-600">Stored encrypted. Leave empty to keep what we have.</p>
+      <div class="mt-2"><label class="field-label" for="nid">National ID number</label><input id="nid" name="national_id_number" inputmode="numeric" autocomplete="off" class="field-input"></div>
+      <div class="mt-2"><label class="field-label" for="kra">KRA PIN</label><input id="kra" name="kra_pin" autocomplete="off" class="field-input"></div>
+    </details>
+    <button type="submit" class="btn-primary w-full">Save</button>
+  </form>
+  {{end}}
+</section>
+{{end}}{{end}}

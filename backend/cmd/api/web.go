@@ -6,6 +6,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/web/provider"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web/public"
 )
 
@@ -20,6 +21,10 @@ func mountWeb(srv *api.Server, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
+	providerPortal, err := provider.New(srv, site, provider.Options{CookieSecure: cfg.CookieSecure})
+	if err != nil {
+		return err
+	}
 	srv.Web = func(r chi.Router) {
 		r.NotFound(site.NotFound)
 		r.Handle("/static/*", site.StaticHandler())
@@ -27,8 +32,8 @@ func mountWeb(srv *api.Server, cfg config.Config) error {
 			r.Use(site.Middleware)
 			pub.Routes(r) // /, /services/..., /areas/..., /pricing, /contact, /sitemap.xml
 			// Client portal:   r.Mount(web.ClientPortalPath, ...)   (internal/web/client)
-			// Provider portal: r.Mount(web.ProviderPortalPath, ...) (internal/web/provider)
-			// Recruitment:     r.Mount(web.JoinPath, ...)           (internal/web/provider)
+			r.Mount(web.ProviderPortalPath, providerPortal.Routes()) // internal/web/provider
+			r.Mount(web.JoinPath, providerPortal.JoinRoutes())       // recruitment, internal/web/provider
 		})
 	}
 	return nil
