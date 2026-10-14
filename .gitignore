@@ -1,1 +1,4 @@
 /.DS_Store
+# Go / local
+backend/bin/
+.env

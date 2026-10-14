@@ -1,0 +1,9 @@
+# Default gitleaks rules, plus one allow-listed value: the development-only field
+# encryption key in internal/config/config.go, which the config refuses to use when
+# APP_ENV=prod. Add nothing here without a comment saying why it is not a secret.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Published development-only FIELD_ENCRYPTION_KEY"
+regexes = ['''ZGV2LW9ubHkta2V5LWRvLW5vdC11c2UtaW4tcHJvZCE=''']
