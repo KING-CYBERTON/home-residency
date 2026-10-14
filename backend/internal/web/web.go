@@ -122,9 +122,18 @@ func (s *Site) AbsURL(p string) string {
 
 // Templates clones the base layout and parses a surface's own templates on top of it.
 func (s *Site) Templates(fsys fs.FS, patterns ...string) (*template.Template, error) {
+	return s.TemplatesWithFuncs(nil, fsys, patterns...)
+}
+
+// TemplatesWithFuncs is Templates with extra template functions for the surface's own files.
+// A name that matches a base function replaces it for this surface only.
+func (s *Site) TemplatesWithFuncs(funcs template.FuncMap, fsys fs.FS, patterns ...string) (*template.Template, error) {
 	t, err := s.base.Clone()
 	if err != nil {
 		return nil, err
+	}
+	if funcs != nil {
+		t = t.Funcs(funcs)
 	}
 	return t.ParseFS(fsys, patterns...)
 }

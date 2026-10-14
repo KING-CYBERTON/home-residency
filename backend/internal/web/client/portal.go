@@ -6,7 +6,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -36,10 +35,12 @@ type Deps struct {
 	API          gen.ServerInterface // the API handlers, called in process
 	Auth         *auth.Service       // resolves the session cookie when the portal is mounted outside the API middleware
 	CookieSecure bool
+	PushKey      string // VAPID public key; empty hides the push sign-up
 	Base         string // mount path, default web.ClientPortalPath
 	// Invoke runs one API handler in process. It defaults to an in-memory recorder; the service can
 	// pass api.Invoke so every HTML portal shares one implementation.
-	Invoke func(ctx context.Context, body any, h func(http.ResponseWriter, *http.Request)) (int, json.RawMessage)
+	// Same signature as api.Invoke (Provider portal).
+	Invoke func(parent *http.Request, body any, h func(http.ResponseWriter, *http.Request)) (int, http.Header, json.RawMessage)
 	Now    func() time.Time
 }
 
@@ -67,11 +68,7 @@ func New(d Deps) (*Portal, error) {
 		return nil, err
 	}
 	for _, f := range names {
-		// A clone of the shared layout, with the portal's helpers added before its own files are parsed.
-		t, err := d.Site.Templates(assets, "templates/clone.html")
-		if err == nil {
-			t, err = t.Funcs(p.funcs()).ParseFS(assets, "templates/portal.html", "templates/partials/*.html", f)
-		}
+		t, err := d.Site.TemplatesWithFuncs(p.funcs(), assets, "templates/portal.html", "templates/partials/*.html", f)
 		if err != nil {
 			return nil, fmt.Errorf("client portal: %s: %w", f, err)
 		}
@@ -144,6 +141,7 @@ func (p *Portal) Routes() chi.Router {
 
 		r.Get("/notifications", p.notificationsPage)
 		r.Post("/notifications/read-all", p.notificationsReadAll)
+		r.Post("/push", p.pushSubscribe)
 		r.Get("/messages", p.messagesPage)
 		r.Post("/messages", p.conversationCreate)
 		r.Get("/messages/{id}", p.conversationPage)
@@ -166,7 +164,7 @@ func (e *apiError) Error() string { return e.Message }
 
 // call runs h as the signed-in user and decodes a 2xx answer into out (which may be nil).
 func (p *Portal) call(r *http.Request, body any, out any, h func(http.ResponseWriter, *http.Request)) error {
-	code, raw := p.Invoke(r.Context(), body, h)
+	code, _, raw := p.Invoke(r, body, h)
 	if code < 200 || code > 299 {
 		e := &apiError{Status: code}
 		if json.Unmarshal(raw, e) != nil || e.Message == "" {
@@ -185,16 +183,20 @@ func (p *Portal) call(r *http.Request, body any, out any, h func(http.ResponseWr
 }
 
 // invoke is the default in-process runner: it hands the handler a JSON request and records the answer.
-func invoke(ctx context.Context, body any, h func(http.ResponseWriter, *http.Request)) (int, json.RawMessage) {
+func invoke(parent *http.Request, body any, h func(http.ResponseWriter, *http.Request)) (int, http.Header, json.RawMessage) {
 	b, _ := json.Marshal(body)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "/", bytes.NewReader(b))
+	req, _ := http.NewRequestWithContext(parent.Context(), http.MethodPost, parent.URL.Path, bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = parent.RemoteAddr
+	if v := parent.Header.Get("User-Agent"); v != "" {
+		req.Header.Set("User-Agent", v)
+	}
 	rec := &recorder{h: http.Header{}}
 	h(rec, req)
 	if rec.code == 0 {
 		rec.code = http.StatusOK
 	}
-	return rec.code, rec.buf.Bytes()
+	return rec.code, rec.h, rec.buf.Bytes()
 }
 
 type recorder struct {
@@ -264,6 +266,7 @@ type view struct {
 	Flash  string
 	Error  string
 	Unread int
+	Push   string // VAPID public key, when push is configured
 	Data   any
 }
 
@@ -279,6 +282,7 @@ func (p *Portal) renderStatus(w http.ResponseWriter, r *http.Request, page strin
 		return
 	}
 	v.Base = p.Base
+	v.Push = p.PushKey
 	if v.Me == nil {
 		if pr := auth.FromContext(r.Context()); pr != nil && pr.Kind == auth.KindClient {
 			var me gen.Me

@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -275,6 +276,20 @@ func (p *Portal) notificationsPage(w http.ResponseWriter, r *http.Request) {
 func (p *Portal) notificationsReadAll(w http.ResponseWriter, r *http.Request) {
 	_ = p.call(r, nil, nil, p.API.PostNotificationsReadAll)
 	p.redirect(w, r, p.Base+"/notifications")
+}
+
+// pushSubscribe stores the browser's push subscription (client.js posts PushSubscription.toJSON()).
+func (p *Portal) pushSubscribe(w http.ResponseWriter, r *http.Request) {
+	var in gen.PushSubscriptionInput
+	if err := json.NewDecoder(io.LimitReader(r.Body, 8<<10)).Decode(&in); err != nil || in.Endpoint == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "That subscription could not be read."})
+		return
+	}
+	if err := p.call(r, in, nil, p.API.PostPushSubscriptions); err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": errText(err)})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (p *Portal) messagesPage(w http.ResponseWriter, r *http.Request) {

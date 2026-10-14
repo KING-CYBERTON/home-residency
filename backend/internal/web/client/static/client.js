@@ -81,4 +81,47 @@
   document.addEventListener("change", function (e) {
     if (e.target.matches("input[type=file][data-upload]")) upload(e.target);
   });
+  // Web push: the Notifications page shows [data-push] (the VAPID public key) when the server has one.
+  function vapidKey(b64) {
+    var s = (b64 + "===".slice((b64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+    var raw = atob(s), out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function pushPanels() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    document.querySelectorAll("[data-push]").forEach(function (box) {
+      navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.getSubscription();
+      }).then(function (sub) {
+        if (!sub || Notification.permission !== "granted") box.classList.remove("hidden");
+      });
+    });
+  }
+  function pushOn(box) {
+    var msg = box.querySelector("[data-push-msg]");
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== "granted") throw new Error("Notifications are blocked for this site in your browser settings.");
+      return navigator.serviceWorker.ready;
+    }).then(function (reg) {
+      return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(box.dataset.push) });
+    }).then(function (sub) {
+      return fetch(box.dataset.pushUrl, {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sub.toJSON())
+      });
+    }).then(function (res) {
+      if (!res.ok) throw new Error("Could not turn on notifications. Try again.");
+      box.classList.add("hidden");
+    }).catch(function (err) {
+      msg.textContent = err.message || "Could not turn on notifications.";
+    });
+  }
+  document.addEventListener("click", function (e) {
+    var box = e.target.closest("[data-push] button");
+    if (box) pushOn(box.closest("[data-push]"));
+  });
+  pushPanels();
+  document.addEventListener("htmx:afterSettle", pushPanels);
 })();

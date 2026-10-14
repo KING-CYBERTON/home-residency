@@ -16,6 +16,7 @@ This package owns what they share; each surface lives in its own package (`inter
 ```go
 site, _ := web.New(web.Options{BaseURL: cfg.PublicBaseURL})
 t, _ := site.Templates(myTemplatesFS, "templates/*.html")    // clone of the base layout + your files
+t, _ = site.TemplatesWithFuncs(template.FuncMap{...}, myTemplatesFS, "templates/*.html") // plus your own funcs
 site.Render(w, r, t, http.StatusOK, &web.Page{Title: "Jobs", NoIndex: true, Data: rows})
 site.RenderBlock(w, r, t, "job-row", http.StatusOK, row)      // HTMX fragment
 ```

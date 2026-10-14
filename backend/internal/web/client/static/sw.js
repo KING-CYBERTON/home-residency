@@ -1,7 +1,7 @@
 // Service worker for the Homend client portal. __BASE__ is replaced with the mount path when served.
 // Pages are network-first (bookings and payments must be live); the last copy of each page is kept so
 // a household on a patchy connection can still see their bookings, and the offline page covers the rest.
-const VERSION = "client-v1";
+const VERSION = "client-v2";
 const BASE = "__BASE__";
 const SHELL = [BASE + "/offline", BASE + "/static/client.js", BASE + "/manifest.webmanifest"];
 

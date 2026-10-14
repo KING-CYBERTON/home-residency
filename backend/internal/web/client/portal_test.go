@@ -104,14 +104,27 @@ func newEnv(t *testing.T) *env {
 		t.Skip("TEST_DATABASE_URL not set")
 	}
 	ctx := context.Background()
-	scratch, err := db.Open(ctx, dsn)
+	// go test runs packages in parallel and the API and public site tests use their own databases,
+	// so the portal resets a database of its own next to them.
+	u, err := url.Parse(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := scratch.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public`); err != nil {
+	name := strings.TrimPrefix(u.Path, "/") + "_client"
+	admin, err := db.Open(ctx, dsn)
+	if err != nil {
 		t.Fatal(err)
 	}
-	scratch.Close()
+	_, err = admin.Exec(ctx, `DROP DATABASE IF EXISTS `+name+` WITH (FORCE)`)
+	if err == nil {
+		_, err = admin.Exec(ctx, `CREATE DATABASE `+name)
+	}
+	admin.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Path = "/" + name
+	dsn = u.String()
 	if err := db.Migrate(ctx, dsn, "up"); err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +149,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	portal, err := client.New(client.Deps{Site: site, API: app, Auth: app.Auth})
+	portal, err := client.New(client.Deps{Site: site, API: app, Auth: app.Auth, PushKey: "BPushTestKey"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +452,17 @@ func TestHouseholdJourney(t *testing.T) {
 	_, page, _ = b.post("/account/profile", url.Values{"full_name": {"Wanjiru K."}, "email": {"wanjiru@example.com"}, "language": {"sw"}}, false)
 	must(t, page, "Saved.", "Wanjiru K.")
 	b.get("/account/plans")
-	b.get("/account/notifications")
+	page, _ = b.get("/account/notifications")
+	must(t, page, `data-push="BPushTestKey"`)
+	req, _ = http.NewRequest("POST", e.srv.URL+"/account/push", strings.NewReader(`{"endpoint":"https://push.example/abc","keys":{"p256dh":"BKey","auth":"secret"}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	if code, body, _ := b.do(req); code != http.StatusNoContent {
+		t.Fatalf("push subscribe: %d %s", code, body)
+	}
+	if n := e.scan(`SELECT count(*)::text FROM web_push_subscriptions WHERE endpoint = 'https://push.example/abc'`); n != "1" {
+		t.Fatalf("push subscriptions stored: %s", n)
+	}
 
 	// Another household cannot open this booking or invoice.
 	other := e.browser()

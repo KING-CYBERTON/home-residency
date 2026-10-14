@@ -57,41 +57,19 @@ func currentRate(ctx context.Context, q db, serviceID uuid.UUID, areaID *uuid.UU
 }
 
 func (s *Server) GetPublicServiceAreas(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.Query(r.Context(), `
-		SELECT id, slug, name, county, is_active, centre_lat::float8, centre_lng::float8, radius_km::float8
-		FROM service_areas WHERE is_active ORDER BY name`)
+	out, err := s.PublicAreas(r.Context())
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
-	}
-	defer rows.Close()
-	out := []serviceAreaDTO{}
-	for rows.Next() {
-		var a serviceAreaDTO
-		if err := rows.Scan(&a.ID, &a.Slug, &a.Name, &a.County, &a.IsActive, &a.CentreLat, &a.CentreLng, &a.RadiusKm); err != nil {
-			httpx.Fail(w, r, err)
-			return
-		}
-		out = append(out, a)
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }
 
 func (s *Server) GetPublicCategories(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.Query(r.Context(), `SELECT `+categoryCols+` FROM service_categories c WHERE c.is_active ORDER BY c.sort_order, c.name`)
+	out, err := s.PublicCategories(r.Context())
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
-	}
-	defer rows.Close()
-	out := []categoryDTO{}
-	for rows.Next() {
-		c, err := scanCategory(rows)
-		if err != nil {
-			httpx.Fail(w, r, err)
-			return
-		}
-		out = append(out, c)
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }
@@ -160,27 +138,18 @@ func (s *Server) GetPublicRateCard(w http.ResponseWriter, r *http.Request, param
 }
 
 func (s *Server) GetPublicSubscriptionPlans(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.Query(r.Context(), `
-		SELECT id, code, name, description, price_minor, billing_period, benefits, is_active
-		FROM subscription_plans WHERE is_active ORDER BY price_minor`)
+	out, err := s.PublicPlans(r.Context())
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
 	}
-	defer rows.Close()
-	out := []planDTO{}
-	for rows.Next() {
-		var p planDTO
-		var benefits []byte
-		if err := rows.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &p.PriceMinor, &p.BillingPeriod, &benefits, &p.IsActive); err != nil {
-			httpx.Fail(w, r, err)
-			return
-		}
-		p.Benefits = map[string]any{}
-		_ = json.Unmarshal(benefits, &p.Benefits)
-		out = append(out, p)
-	}
 	httpx.JSON(w, http.StatusOK, out)
+}
+
+func decodeBenefits(b []byte) map[string]any {
+	out := map[string]any{}
+	_ = json.Unmarshal(b, &out)
+	return out
 }
 
 func (s *Server) faqs(ctx context.Context, categoryID *uuid.UUID, lang string) ([]faqDTO, error) {
@@ -227,32 +196,16 @@ func (s *Server) PostPublicLeads(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, err)
 		return
 	}
-	name := strings.TrimSpace(body.FullName)
-	if len(name) < 2 {
-		httpx.Fail(w, r, httpx.Invalid("full_name is required"))
-		return
-	}
-	if body.Phone != nil && !phoneRE.MatchString(*body.Phone) {
-		httpx.Fail(w, r, httpx.Invalid("Phone must be in international format"))
-		return
-	}
-	if body.Phone == nil && body.Email == nil {
-		httpx.Fail(w, r, httpx.Invalid("Give a phone number or an email so we can reply"))
-		return
-	}
 	var email *string
 	if body.Email != nil {
 		e := string(*body.Email)
 		email = &e
 	}
-	var id uuid.UUID
-	var created any
-	err = s.DB.QueryRow(r.Context(), `
-		INSERT INTO leads (full_name, phone_e164, email, service_area_id, category_id, message, source)
-		VALUES ($1,$2,$3::citext,$4,$5,$6,$7) RETURNING id, created_at`,
-		name, body.Phone, email, body.ServiceAreaId, body.CategoryId, body.Message, body.Source).Scan(&id, &created)
+	name := strings.TrimSpace(body.FullName)
+	id, created, err := s.CreateLead(r.Context(), Lead{FullName: name, Phone: body.Phone, Email: email,
+		ServiceAreaID: body.ServiceAreaId, CategoryID: body.CategoryId, Message: body.Message, Source: body.Source})
 	if err != nil {
-		httpx.Fail(w, r, mapErr(err))
+		httpx.Fail(w, r, err)
 		return
 	}
 	out := map[string]any{"id": id, "created_at": created, "full_name": name}
