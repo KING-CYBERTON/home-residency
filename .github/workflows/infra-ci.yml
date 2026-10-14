@@ -19,13 +19,29 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.13.3
+          terraform_wrapper: false
       - name: terraform fmt
         run: terraform fmt -recursive -check -diff infra
+      # Errors are also written as annotations, so they show on the PR without the log.
       - name: terraform validate
         run: |
+          failed=0
           for dir in infra/bootstrap infra/global infra/envs/staging infra/envs/production; do
             echo "::group::$dir"
-            terraform -chdir="$dir" init -backend=false -input=false
-            terraform -chdir="$dir" validate
+            if ! terraform -chdir="$dir" init -backend=false -input=false -no-color > "$RUNNER_TEMP/init.log" 2>&1; then
+              cat "$RUNNER_TEMP/init.log"
+              echo "::error title=terraform init failed in $dir::$(grep -A3 'Error' "$RUNNER_TEMP/init.log" | tr '\n' ' ' | cut -c1-900)"
+              failed=1
+              echo "::endgroup::"
+              continue
+            fi
+            out="$(terraform -chdir="$dir" validate -json -no-color)" || true
+            echo "$out"
+            if [[ "$(jq -r .valid <<<"$out")" != "true" ]]; then
+              jq -r --arg dir "$dir" '.diagnostics[] | select(.severity == "error")
+                | "::error file=\($dir)/\(.range.filename // ""),line=\(.range.start.line // 1),title=\(.summary)::\(.detail // "" | gsub("\n"; " "))"' <<<"$out"
+              failed=1
+            fi
             echo "::endgroup::"
           done
+          exit "$failed"
