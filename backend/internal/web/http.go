@@ -7,11 +7,18 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 )
 
-// contentSecurityPolicy allows same-origin resources only. HTMX is configured (in the layout)
-// not to inject inline styles or use eval, so no 'unsafe-*' source is needed.
-const contentSecurityPolicy = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; " +
-	"connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; " +
-	"frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+// contentSecurityPolicy allows same-origin resources, plus the document vault's origin for the
+// browser's direct presigned uploads and downloads. HTMX is configured (in the layout) not to inject
+// inline styles or use eval, so no 'unsafe-*' source is needed.
+func contentSecurityPolicy(storageOrigin string) string {
+	extra := ""
+	if storageOrigin != "" {
+		extra = " " + storageOrigin
+	}
+	return "default-src 'self'; img-src 'self' data:" + extra + "; style-src 'self'; script-src 'self'; " +
+		"connect-src 'self'" + extra + "; font-src 'self'; manifest-src 'self'; worker-src 'self'; " +
+		"frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+}
 
 // Middleware wraps every HTML route: security headers, and protection against cross-site form
 // posts (the portals authenticate with a cookie). http.CrossOriginProtection rejects unsafe
@@ -25,7 +32,7 @@ func (s *Site) Middleware(next http.Handler) http.Handler {
 	}))
 	return cop.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		h.Set("Content-Security-Policy", s.csp)
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Permissions-Policy", "camera=(self), geolocation=(self), microphone=()")
@@ -59,7 +66,7 @@ func (s *Site) NotFound(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, httpx.ErrNotFound)
 		return
 	}
-	w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+	w.Header().Set("Content-Security-Policy", s.csp)
 	// The base layout's default "content" block is the 404 body.
 	s.Render(w, r, s.base, http.StatusNotFound, &Page{Title: "Page not found", NoIndex: true})
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web/client"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web/public"
@@ -13,7 +14,11 @@ import (
 // mountWeb attaches the server-rendered surfaces (ADR-0001) to srv's router. Each surface lives in
 // its own package under internal/web and owns its URL prefix; this is the one place they are wired.
 func mountWeb(srv *api.Server, cfg config.Config) error {
-	site, err := web.New(web.Options{BaseURL: cfg.PublicBaseURL})
+	opts := web.Options{BaseURL: cfg.PublicBaseURL}
+	if s3, ok := srv.Store.(*storage.S3); ok {
+		opts.StorageOrigin = s3.Origin()
+	}
+	site, err := web.New(opts)
 	if err != nil {
 		return err
 	}

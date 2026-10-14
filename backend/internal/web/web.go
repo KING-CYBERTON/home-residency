@@ -50,10 +50,15 @@ type Options struct {
 	// BaseURL is the public origin (no trailing slash) used for canonical links, the sitemap and
 	// structured data, e.g. https://homend.co.ke.
 	BaseURL string
+	// StorageOrigin is the document vault's origin (e.g. https://bucket.s3.af-south-1.amazonaws.com),
+	// which the browser PUTs uploads to and loads presigned files from. Empty when files are served
+	// from this origin (the local storage driver).
+	StorageOrigin string
 }
 
 type Site struct {
 	BaseURL string
+	csp     string
 	base    *template.Template
 	static  fs.FS
 	hashes  map[string]string // static path -> content hash, for cache-busting URLs
@@ -79,7 +84,7 @@ func New(o Options) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Site{BaseURL: strings.TrimRight(o.BaseURL, "/"), static: static, hashes: map[string]string{}}
+	s := &Site{BaseURL: strings.TrimRight(o.BaseURL, "/"), csp: contentSecurityPolicy(o.StorageOrigin), static: static, hashes: map[string]string{}}
 	err = fs.WalkDir(static, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err

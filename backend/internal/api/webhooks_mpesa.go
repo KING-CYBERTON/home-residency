@@ -279,7 +279,8 @@ func (s *Server) processSTK(ctx context.Context, tx pgx.Tx, payload []byte) erro
 	cb := p.Body.StkCallback
 	var paymentID, clientID uuid.UUID
 	var status string
-	if err := tx.QueryRow(ctx, `SELECT id, client_id, status::text FROM payments WHERE mpesa_checkout_request_id = $1 FOR UPDATE`, cb.CheckoutRequestID).Scan(&paymentID, &clientID, &status); err != nil {
+	var expected int64
+	if err := tx.QueryRow(ctx, `SELECT id, client_id, status::text, amount_minor FROM payments WHERE mpesa_checkout_request_id = $1 FOR UPDATE`, cb.CheckoutRequestID).Scan(&paymentID, &clientID, &status, &expected); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("%w: checkout %s", errUnmatched, cb.CheckoutRequestID)
 		}
@@ -316,7 +317,21 @@ func (s *Server) processSTK(ctx context.Context, tx pgx.Tx, payload []byte) erro
 			msisdn = &v
 		}
 	}
-	return s.succeedPayment(ctx, tx, paymentID, receipt, amount, msisdn)
+	// The amount requested is what gets booked. A callback reporting a different amount is never
+	// trusted to rewrite it: the payment is held as failed with the receipt kept for finance to reconcile.
+	if amount == nil || *amount != expected {
+		got := "none"
+		if amount != nil {
+			got = fmtMoney(*amount)
+		}
+		reason := "Callback amount " + got + " does not match " + fmtMoney(expected) + "; reconcile by hand"
+		slog.WarnContext(ctx, "stk amount mismatch", "payment_id", paymentID, "expected_minor", expected, "callback", got)
+		_, err := tx.Exec(ctx, `UPDATE payments SET status = 'failed', failure_reason = $2, completed_at = now(),
+			mpesa_receipt_number = COALESCE($3, mpesa_receipt_number), payer_msisdn = COALESCE($4, payer_msisdn) WHERE id = $1`,
+			paymentID, reason, receipt, msisdn)
+		return err
+	}
+	return s.succeedPayment(ctx, tx, paymentID, receipt, nil, msisdn)
 }
 
 // processC2B books a paybill payment against the invoice named in the account number.

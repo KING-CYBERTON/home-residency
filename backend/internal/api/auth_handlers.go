@@ -227,6 +227,9 @@ func (s *Server) PostAuthStaffLogin(w http.ResponseWriter, r *http.Request) {
 	s.respondSession(w, r, sess, true, id)
 }
 
+// maxMFAAttempts wrong authenticator codes lock the account until an admin resets MFA.
+const maxMFAAttempts = 5
+
 func (s *Server) PostAuthStaffMfa(w http.ResponseWriter, r *http.Request) {
 	body, err := httpx.Decode[gen.MfaVerify](r)
 	if err != nil {
@@ -239,21 +242,54 @@ func (s *Server) PostAuthStaffMfa(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, httpx.ErrForbidden)
 		return
 	}
-	var enc []byte
-	if err := s.DB.QueryRow(ctx, `SELECT totp_secret_enc FROM users WHERE id = $1`, p.UserID).Scan(&enc); err != nil {
-		httpx.Fail(w, r, err)
-		return
-	}
-	if enc == nil {
-		httpx.Fail(w, r, httpx.Forbidden("mfa_not_enrolled", "No authenticator is enrolled for this account. Ask an admin to reset MFA."))
-		return
-	}
-	secret, err := s.Cipher.Decrypt(enc)
+	// Wrong codes are counted per account under a row lock, so parallel guesses cannot all slip under
+	// the cap, and an accepted step is remembered so the same code cannot be replayed.
+	var badCode, locked bool
+	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
+		var enc []byte
+		var failed int
+		var lastStep *int64
+		if err := tx.QueryRow(ctx, `SELECT totp_secret_enc, mfa_failed_attempts, mfa_last_step FROM users WHERE id = $1 FOR UPDATE`, p.UserID).
+			Scan(&enc, &failed, &lastStep); err != nil {
+			return err
+		}
+		if enc == nil {
+			return httpx.Forbidden("mfa_not_enrolled", "No authenticator is enrolled for this account. Ask an admin to reset MFA.")
+		}
+		if failed >= maxMFAAttempts {
+			locked = true
+			return nil
+		}
+		secret, err := s.Cipher.Decrypt(enc)
+		if err != nil {
+			return err
+		}
+		step, ok := auth.MatchTOTP(string(secret), body.Code, s.Now())
+		if !ok || (lastStep != nil && step <= *lastStep) {
+			badCode = true
+			failed++
+			if _, err := tx.Exec(ctx, `UPDATE users SET mfa_failed_attempts = $2 WHERE id = $1`, p.UserID, failed); err != nil {
+				return err
+			}
+			if failed >= maxMFAAttempts {
+				locked = true
+				return audit(ctx, tx, "staff.mfa_locked", "user", p.UserID, nil, nil, "")
+			}
+			return nil
+		}
+		_, err = tx.Exec(ctx, `UPDATE users SET mfa_failed_attempts = 0, mfa_last_step = $2 WHERE id = $1`, p.UserID, step)
+		return err
+	})
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
 	}
-	if !auth.ValidTOTP(string(secret), body.Code) {
+	if locked {
+		_, _ = s.DB.Exec(ctx, `UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, p.UserID)
+		httpx.Fail(w, r, httpx.ErrRateLimited.With("reason", "too many wrong codes; ask an admin to reset MFA"))
+		return
+	}
+	if badCode {
 		httpx.Fail(w, r, httpx.NewError(http.StatusUnauthorized, "invalid_code", "That code is wrong"))
 		return
 	}
