@@ -1,0 +1,142 @@
+name: Backend deploy
+
+# Builds the backend image once, pushes it to ECR, builds the console (when console/
+# exists), and deploys both to staging, then to production after a reviewer approves
+# the "production" environment.
+# Runs after "Backend CI" or "Console CI" passes on a push to main. A commit that
+# changes both deploys twice with the same image and files, which is harmless.
+# Run it by hand on main to redeploy, or give an existing image tag (a commit SHA) to
+# roll back without rebuilding the image.
+on:
+  workflow_run:
+    workflows: ["Backend CI", "Console CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Existing image tag (full commit SHA) to deploy instead of building. Leave empty to build main."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and push image
+    # Skipped, not failed, until the AWS side exists: without this every push to main would
+    # go red before anyone has applied infra/ and set the GitHub environment variables.
+    if: >-
+      vars.AWS_ECR_PUSH_ROLE_ARN != '' && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      console_artifact: ${{ steps.console.outputs.artifact }}
+    env:
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      IMAGE_TAG: ${{ inputs.image_tag || github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Only deploy from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Deploys run from main only (this run is on $GITHUB_REF)."
+          exit 1
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          role-session-name: homend-build-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Is this tag already in ECR?
+        id: existing
+        env:
+          REQUESTED_TAG: ${{ inputs.image_tag }}
+        run: |
+          digest="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$IMAGE_TAG" \
+            --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)"
+          if [[ -n "$digest" && "$digest" != "None" ]]; then
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+            echo "Found $ECR_REPOSITORY:$IMAGE_TAG ($digest), not rebuilding."
+          elif [[ -n "$REQUESTED_TAG" ]]; then
+            echo "::error::Image tag $IMAGE_TAG is not in $ECR_REPOSITORY."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.IMAGE_TAG }}
+      - if: steps.existing.outputs.digest == ''
+        uses: docker/setup-buildx-action@v3
+      - id: push
+        if: steps.existing.outputs.digest == ''
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          provenance: false
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          build-args: VERSION=${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Image reference (pinned by digest)
+        id: image
+        env:
+          DIGEST: ${{ steps.existing.outputs.digest || steps.push.outputs.digest }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          echo "image=$REGISTRY/$ECR_REPOSITORY@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Image: $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
+      # The console is served from the same origin as the API, so it is built without
+      # VITE_API_BASE_URL. Skipped when the commit has no console/.
+      - if: hashFiles('console/package-lock.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - name: Build console
+        if: hashFiles('console/package-lock.json') != ''
+        working-directory: console
+        run: npm ci && npm run build
+      - if: hashFiles('console/package-lock.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-dist
+          path: console/dist
+          if-no-files-found: error
+          retention-days: 30
+      - name: Console artifact
+        id: console
+        if: hashFiles('console/package-lock.json') != ''
+        run: echo "artifact=console-dist" >> "$GITHUB_OUTPUT"
+
+  staging:
+    name: Staging
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/backend-deploy-ecs.yml
+    with:
+      environment: staging
+      image: ${{ needs.build.outputs.image }}
+      console_artifact: ${{ needs.build.outputs.console_artifact }}
+
+  production:
+    name: Production
+    needs: [build, staging]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/backend-deploy-ecs.yml
+    with:
+      environment: production
+      image: ${{ needs.build.outputs.image }}
+      console_artifact: ${{ needs.build.outputs.console_artifact }}

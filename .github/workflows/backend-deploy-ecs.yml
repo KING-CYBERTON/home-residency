@@ -1,0 +1,81 @@
+name: Backend deploy to ECS
+
+# Reusable: deploys one image, and the console build if there is one, to one GitHub
+# environment (staging or production).
+# Environment variables (set on the GitHub environment) say where the service lives;
+# see "Deploying to AWS" in backend/README.md. No AWS keys are stored: the job
+# assumes the environment's IAM role through GitHub OIDC.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image:
+        description: Image to deploy, pinned by digest (registry/repo@sha256:…)
+        required: true
+        type: string
+      console_artifact:
+        description: Name of the console build artifact from the calling run, or empty to skip the console
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Migrate, roll out and publish console
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.PUBLIC_BASE_URL }}
+    concurrency:
+      group: backend-deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: backend/scripts
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: homend-deploy-${{ inputs.environment }}-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Register task definition, run migrations, update service
+        env:
+          IMAGE: ${{ inputs.image }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          ECS_CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME || 'api' }}
+          ECS_SUBNETS: ${{ vars.ECS_SUBNETS }}
+          ECS_SECURITY_GROUPS: ${{ vars.ECS_SECURITY_GROUPS }}
+        run: backend/scripts/deploy-ecs.sh
+      - name: Health check
+        if: vars.PUBLIC_BASE_URL != ''
+        env:
+          BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "$BASE_URL/api/v1/healthz"
+      # Hashed assets first and never deleted, so open tabs on the old index.html keep
+      # working; then index.html and the other root files, which are never cached.
+      - name: Download console build
+        if: inputs.console_artifact != '' && vars.CONSOLE_BUCKET != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.console_artifact }}
+          path: console-dist
+      - name: Upload console to S3 and invalidate CloudFront
+        if: inputs.console_artifact != '' && vars.CONSOLE_BUCKET != ''
+        env:
+          BUCKET: ${{ vars.CONSOLE_BUCKET }}
+          DISTRIBUTION_ID: ${{ vars.CONSOLE_DISTRIBUTION_ID }}
+        run: |
+          aws s3 sync console-dist/assets "s3://$BUCKET/assets" --cache-control "public, max-age=31536000, immutable"
+          aws s3 sync console-dist "s3://$BUCKET" --exclude "assets/*" --delete --cache-control "no-cache"
+          if [[ -n "$DISTRIBUTION_ID" ]]; then
+            aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*" --query 'Invalidation.Id' --output text
+          fi
