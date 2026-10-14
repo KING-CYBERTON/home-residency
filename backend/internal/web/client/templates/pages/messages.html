@@ -1,0 +1,25 @@
+{{define "page"}}
+{{template "h1" "Messages"}}
+<p class="-mt-2 mb-4 text-sm text-slate-600">Talk to the Homend team about a booking, a payment or anything else. We pass messages on to providers when needed.</p>
+{{with .Data}}
+{{if .Page.Data}}
+<div class="space-y-2">
+{{range .Page.Data}}
+  <a href="{{$.Base}}/messages/{{.Id}}" class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+    <span><span class="block font-medium">{{if .Subject}}{{str .Subject}}{{else}}Conversation{{end}}</span>
+      <span class="text-slate-500">{{if .LastMessageAt}}{{whenp .LastMessageAt}}{{else}}{{when .CreatedAt}}{{end}}</span></span>
+    {{if .UnreadCount}}{{if gt (val .UnreadCount) 0}}<span class="rounded-full bg-brand-700 px-2 py-0.5 text-xs text-white">{{val .UnreadCount}}</span>{{end}}{{end}}
+  </a>
+{{end}}
+</div>
+{{end}}
+<form method="post" action="{{$.Base}}/messages" class="mt-6 space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+  
+  <h2 class="font-semibold">New message</h2>
+  {{if .Request}}<input type="hidden" name="request_id" value="{{.Request}}"><p class="text-slate-500">About your booking.</p>{{end}}
+  <input name="subject" placeholder="Subject (optional)" maxlength="120" class="block w-full rounded-lg border border-slate-300 px-3 py-2">
+  <textarea name="message" rows="4" required maxlength="2000" class="block w-full rounded-lg border border-slate-300 px-3 py-2"></textarea>
+  <button class="w-full rounded-lg bg-brand-700 px-4 py-2 font-medium text-white">Send</button>
+</form>
+{{end}}
+{{end}}

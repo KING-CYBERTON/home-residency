@@ -1,0 +1,15 @@
+{{define "head"}}{{template "portal-head" .Data}}{{if or (eq (print .Data.Data.Status) "initiated") (eq (print .Data.Data.Status) "pending")}}<meta http-equiv="refresh" content="4">{{end}}{{end}}
+{{define "page"}}
+{{template "h1" "Payment"}}
+{{template "payment-status" .}}
+<a href="{{.Base}}/invoices/{{.Data.InvoiceId}}" class="mt-4 block text-center text-sm font-medium text-brand-700">Back to the invoice</a>
+{{end}}
+{{define "payment-status"}}
+{{with .Data}}
+<div class="rounded-xl border border-slate-200 bg-white p-4 text-center">
+  <p class="text-lg font-semibold">{{label .Status}}</p>
+  <p class="text-sm text-slate-600">{{kes .AmountMinor}}{{if .MpesaReceiptNumber}} · receipt {{str .MpesaReceiptNumber}}{{end}}</p>
+  {{if .FailureReason}}<p class="mt-1 text-sm text-rose-700">{{str .FailureReason}}</p>{{end}}
+</div>
+{{end}}
+{{end}}

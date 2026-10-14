@@ -1,0 +1,15 @@
+{{define "page"}}
+{{template "h1" "Payments"}}
+{{if .Data.Data}}
+<div class="space-y-3">
+{{range .Data.Data}}
+  <a href="{{$.Base}}/invoices/{{.Id}}" class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+    <span><span class="block font-medium">{{kes .TotalMinor}}</span><span class="text-sm text-slate-500">{{.Reference}}{{if .IssuedAt}} · {{whenp .IssuedAt}}{{end}}</span></span>
+    {{template "badge" .Status}}
+  </a>
+{{end}}
+</div>
+{{template "more" .Data}}
+{{else}}{{template "empty" "No invoices yet. You get one after each completed job."}}{{end}}
+<a href="{{.Base}}/plans" class="mt-6 block rounded-xl border border-slate-200 bg-white p-4 text-sm"><span class="font-medium">Household plans</span><span class="block text-slate-500">Regular help for a fixed monthly price</span></a>
+{{end}}

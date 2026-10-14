@@ -36,6 +36,11 @@ type Config struct {
 	StorageDir    string
 	StorageBucket string
 	StorageKMSKey string
+
+	// Web push (PWA). The keys come from the homend/<env>/push secret; the subject is a mailto: or https: contact.
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string
 }
 
 func Load() (Config, error) {
@@ -60,6 +65,8 @@ func Load() (Config, error) {
 	c.StorageDir = get("STORAGE_DIR", os.TempDir()+"/hr-vault")
 	c.StorageBucket = os.Getenv("STORAGE_BUCKET")
 	c.StorageKMSKey = os.Getenv("STORAGE_KMS_KEY_ID")
+	c.VAPIDPublicKey, c.VAPIDPrivateKey = os.Getenv("VAPID_PUBLIC_KEY"), os.Getenv("VAPID_PRIVATE_KEY")
+	c.VAPIDSubject = os.Getenv("VAPID_SUBJECT")
 	c.CookieSecure = getBool("COOKIE_SECURE", c.Env == "prod")
 	if v := os.Getenv("ALLOWED_ORIGINS"); v != "" {
 		c.AllowedOrigins = strings.Split(v, ",")
