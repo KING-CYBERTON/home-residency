@@ -12,14 +12,15 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Long-cached vendor chunks change rarely; app code changes every deploy.
-        manualChunks: {
-          react: ["react", "react-dom", "react-router"],
-          refine: ["@refinedev/core", "@refinedev/react-router", "@tanstack/react-query"],
-          ui: ["radix-ui", "lucide-react", "sonner"],
+        // One vendor chunk, long-cached across deploys. Splitting React and the libraries
+        // that use it into separate chunks made them import each other in a cycle, and
+        // the built console crashed on load ("reading 'createContext'").
+        manualChunks(id) {
+          if (id.includes("node_modules")) return "vendor";
         },
       },
     },
+    chunkSizeWarningLimit: 1500,
   },
   server: {
     proxy: {

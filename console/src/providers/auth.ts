@@ -82,5 +82,5 @@ function returnPath(): string {
 
 /** Only same-site paths, so a crafted ?to= cannot send staff to another site. */
 export function safeReturnPath(to: string | null): string {
-  return to && to.startsWith("/") && !to.startsWith("//") && !to.startsWith("/login") ? to : "/";
+  return to && to.startsWith("/") && !to.startsWith("//") && !to.includes("\\") && !to.startsWith("/login") ? to : "/";
 }
