@@ -58,14 +58,27 @@ func newEnv(t *testing.T) *env {
 		t.Skip("TEST_DATABASE_URL not set")
 	}
 	ctx := context.Background()
-	scratch, err := db.Open(ctx, dsn)
+	// go test runs packages in parallel and the API tests reset TEST_DATABASE_URL, so this package
+	// works in its own database next to it.
+	u, err := url.Parse(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := scratch.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public`); err != nil {
+	name := strings.TrimPrefix(u.Path, "/") + "_provider"
+	admin, err := db.Open(ctx, dsn)
+	if err != nil {
 		t.Fatal(err)
 	}
-	scratch.Close()
+	_, err = admin.Exec(ctx, `DROP DATABASE IF EXISTS `+name+` WITH (FORCE)`)
+	if err == nil {
+		_, err = admin.Exec(ctx, `CREATE DATABASE `+name)
+	}
+	admin.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Path = "/" + name
+	dsn = u.String()
 	if err := db.Migrate(ctx, dsn, "up"); err != nil {
 		t.Fatal(err)
 	}
