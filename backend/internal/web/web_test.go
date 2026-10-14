@@ -78,6 +78,23 @@ func TestMiddlewareRejectsCrossSitePost(t *testing.T) {
 	}
 }
 
+func TestCSPAllowsStorageOrigin(t *testing.T) {
+	const vault = "https://vault.s3.af-south-1.amazonaws.com"
+	s, err := New(Options{BaseURL: "https://homend.test", StorageOrigin: vault})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	s.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	csp := rec.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "connect-src 'self' "+vault+";") || !strings.Contains(csp, "img-src 'self' data: "+vault+";") {
+		t.Fatalf("presigned uploads would be blocked: %s", csp)
+	}
+	if strings.Contains(newSite(t).csp, "amazonaws") {
+		t.Fatal("local storage should keep the policy same-origin")
+	}
+}
+
 func TestPageTemplatesExtendLayout(t *testing.T) {
 	s := newSite(t)
 	tm, err := s.Templates(files, "templates/*.html") // base only: proves Clone+ParseFS works

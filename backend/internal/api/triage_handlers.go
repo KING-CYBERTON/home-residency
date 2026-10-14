@@ -234,8 +234,10 @@ func (s *Server) PostConsoleRequestsShortlist(w http.ResponseWriter, r *http.Req
 		var defMin *int
 		var lat, lng *float64
 		if err := tx.QueryRow(ctx, `
-			SELECT r.status::text, r.category_id, r.service_area_id, r.requested_start, r.requested_end, sv.default_duration_minutes, a.lat::float8, a.lng::float8
+			SELECT r.status::text, r.category_id, r.service_area_id, r.requested_start, r.requested_end, sv.default_duration_minutes,
+			       COALESCE(a.lat, sa.centre_lat)::float8, COALESCE(a.lng, sa.centre_lng)::float8
 			FROM service_requests r JOIN services sv ON sv.id = r.service_id JOIN addresses a ON a.id = r.address_id
+			LEFT JOIN service_areas sa ON sa.id = a.service_area_id
 			WHERE r.id = $1 FOR UPDATE OF r`, id).Scan(&status, &categoryID, &areaID, &start, &end, &defMin, &lat, &lng); err != nil {
 			return err
 		}
@@ -244,8 +246,11 @@ func (s *Server) PostConsoleRequestsShortlist(w http.ResponseWriter, r *http.Req
 		}
 		ws, we := requestWindow(start, end, defMin)
 		rows, err := tx.Query(ctx, `
-			SELECT p.user_id, p.rating_avg::float8, p.rating_count, p.completed_jobs, p.home_lat::float8, p.home_lng::float8
+			SELECT p.user_id, p.rating_avg::float8, p.rating_count, p.completed_jobs,
+			       -- providers set a home area in the portal, not coordinates: use the area's centre
+			       COALESCE(p.home_lat, ha.centre_lat)::float8, COALESCE(p.home_lng, ha.centre_lng)::float8
 			FROM providers p JOIN provider_categories pc ON pc.provider_id = p.user_id AND pc.category_id = $1 AND pc.status = 'active'
+			LEFT JOIN service_areas ha ON ha.id = p.home_service_area_id
 			WHERE p.status = 'active'
 			  AND ($2::uuid IS NULL OR NOT EXISTS (SELECT 1 FROM provider_service_areas x WHERE x.provider_id = p.user_id)
 			       OR EXISTS (SELECT 1 FROM provider_service_areas x WHERE x.provider_id = p.user_id AND x.service_area_id = $2))`, categoryID, areaID)

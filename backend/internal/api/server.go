@@ -5,7 +5,9 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -55,8 +57,22 @@ func (s *Server) Handler() (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The session cookie authenticates API calls too, and SameSite=Lax does not stop a sibling
+	// subdomain (same site, different origin) from posting a form at the API. Refuse cross-origin
+	// browser requests that change state; server-to-server callers (webhooks) send no Origin and pass.
+	csrf := http.NewCrossOriginProtection()
+	for _, o := range s.Cfg.AllowedOrigins {
+		if o = strings.TrimSpace(o); o != "" {
+			if err := csrf.AddTrustedOrigin(o); err != nil {
+				return nil, fmt.Errorf("ALLOWED_ORIGINS: %w", err)
+			}
+		}
+	}
+	csrf.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpx.Fail(w, r, httpx.Forbidden("cross_origin", "Cross-origin requests are not allowed"))
+	}))
 	r := chi.NewRouter()
-	r.Use(httpx.RequestIDMiddleware, httpx.Recover, httpx.Logging, httpx.SecurityHeaders, s.Auth.Authenticate)
+	r.Use(httpx.RequestIDMiddleware, httpx.Recover, httpx.Logging, httpx.SecurityHeaders, csrf.Handler, s.Auth.Authenticate)
 	r.Get("/openapi.yaml", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/yaml")
 		_, _ = w.Write(apispec.YAML)

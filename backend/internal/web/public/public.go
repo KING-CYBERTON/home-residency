@@ -588,6 +588,7 @@ func (p *Site) render(w http.ResponseWriter, r *http.Request, page *web.Page, na
 }
 
 func (p *Site) fail(w http.ResponseWriter, r *http.Request, err error) {
-	slog.ErrorContext(r.Context(), "public page", "err", err, "path", r.URL.Path, "request_id", httpx.RequestID(r.Context()))
+	// The request log line (httpx.Logging) carries the path; this one is joined to it by request_id.
+	slog.ErrorContext(r.Context(), "public page", "err", err, "request_id", httpx.RequestID(r.Context()))
 	http.Error(w, "Something went wrong on our side. Please try again in a minute.", http.StatusInternalServerError)
 }
