@@ -232,11 +232,7 @@ func (p *Portal) addressCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.flash(w, "Address saved.")
-	next := p.Base + "/addresses"
-	if n := r.PostFormValue("next"); strings.HasPrefix(n, p.Base+"/") && !strings.HasPrefix(n, "//") {
-		next = n
-	}
-	p.redirect(w, r, next)
+	p.redirect(w, r, p.safeNext(r.PostFormValue("next"), p.Base+"/addresses"))
 }
 
 func (p *Portal) addressDefault(w http.ResponseWriter, r *http.Request) {

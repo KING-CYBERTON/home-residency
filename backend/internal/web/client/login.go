@@ -2,6 +2,7 @@ package client
 
 import (
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -109,10 +110,9 @@ func (p *Portal) loginVerify(w http.ResponseWriter, r *http.Request) {
 		p.redirect(w, r, p.Base+"/")
 		return
 	}
-	next := p.Base + "/"
-	if strings.HasPrefix(f.Next, p.Base+"/") && !strings.HasPrefix(f.Next, "//") {
-		next = f.Next
-	}
+	// Pages the service worker cached for whoever used this phone before are dropped.
+	w.Header().Set("Clear-Site-Data", `"cache", "storage"`)
+	next := p.safeNext(f.Next, p.Base+"/")
 	if f.Mode == "register" {
 		p.flash(w, "Welcome, "+sess.User.FullName+". Add your home address to book your first service.")
 		next = p.Base + "/addresses"
@@ -123,5 +123,21 @@ func (p *Portal) loginVerify(w http.ResponseWriter, r *http.Request) {
 func (p *Portal) logout(w http.ResponseWriter, r *http.Request) {
 	_ = p.call(r, nil, nil, p.API.PostAuthLogout)
 	http.SetCookie(w, &http.Cookie{Name: auth.CookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: p.CookieSecure, SameSite: http.SameSiteLaxMode})
+	// "storage" covers the service worker's Cache API copies of address, invoice and profile
+	// pages; "cache" alone is only the HTTP cache. The JS purge in client.js is best effort.
+	w.Header().Set("Clear-Site-Data", `"cache", "storage"`)
 	p.redirect(w, r, p.Base+"/login")
+}
+
+// safeNext returns next if it is a path inside the portal, else fallback. Backslashes and
+// dot segments are refused because http.Redirect cleans the path, and browsers read
+// "/\evil.com" as another host.
+func (p *Portal) safeNext(next, fallback string) string {
+	if !strings.HasPrefix(next, p.Base+"/") || strings.Contains(next, "//") || strings.Contains(next, `\`) {
+		return fallback
+	}
+	if !strings.HasPrefix(path.Clean(next), p.Base+"/") && path.Clean(next) != p.Base {
+		return fallback
+	}
+	return next
 }
