@@ -22,6 +22,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 )
 
@@ -75,7 +76,13 @@ func newServer(ctx context.Context, cfg config.Config) (*api.Server, func(), err
 		return nil, nil, err
 	}
 	api.Version = version
-	return api.NewServer(pool, cfg, sms.New(cfg.SMSProvider), cipher), pool.Close, nil
+	pay, err := mpesa.New(mpesa.Config{Mode: cfg.MpesaMode, ConsumerKey: cfg.MpesaKey, ConsumerSecret: cfg.MpesaSecret, ShortCode: cfg.MpesaShortCode,
+		PassKey: cfg.MpesaPassKey, Initiator: cfg.MpesaInitiator, SecurityCred: cfg.MpesaSecurity, B2CShortCode: cfg.MpesaB2CCode})
+	if err != nil {
+		pool.Close()
+		return nil, nil, err
+	}
+	return api.NewServer(pool, cfg, sms.New(cfg.SMSProvider), cipher, pay), pool.Close, nil
 }
 
 func serve(ctx context.Context, cfg config.Config) error {
@@ -89,6 +96,7 @@ func serve(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	httpSrv := &http.Server{Addr: cfg.HTTPAddr, Handler: h, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 2 * time.Minute}
+	go srv.RunSweepers(ctx)
 	errCh := make(chan error, 1)
 	go func() { errCh <- httpSrv.ListenAndServe() }()
 	slog.Info("listening", "addr", cfg.HTTPAddr, "env", cfg.Env, "version", version)

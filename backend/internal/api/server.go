@@ -17,6 +17,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 )
 
@@ -29,13 +30,14 @@ type Server struct {
 	Auth   *auth.Service
 	SMS    sms.Sender
 	Cipher crypt.Cipher
+	Mpesa  mpesa.Client
 	Cfg    config.Config
 	Now    func() time.Time
 }
 
-func NewServer(db *pgxpool.Pool, cfg config.Config, sender sms.Sender, cipher crypt.Cipher) *Server {
+func NewServer(db *pgxpool.Pool, cfg config.Config, sender sms.Sender, cipher crypt.Cipher, pay mpesa.Client) *Server {
 	return &Server{
-		DB: db, Cfg: cfg, SMS: sender, Cipher: cipher, Now: time.Now,
+		DB: db, Cfg: cfg, SMS: sender, Cipher: cipher, Mpesa: pay, Now: time.Now,
 		Auth: auth.New(db, crypt.SHA256("pepper:"+cfg.FieldKey)),
 	}
 }

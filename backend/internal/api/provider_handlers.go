@@ -446,8 +446,14 @@ func (s *Server) PostProviderVisitsCheckOut(w http.ResponseWriter, r *http.Reque
 			return err
 		}
 		if open == 0 {
-			if _, err := tx.Exec(ctx, `UPDATE service_requests SET status = 'awaiting_rating', completed_at = now() WHERE id = $1 AND status = 'in_progress'`, reqID); err != nil {
+			tag, err := tx.Exec(ctx, `UPDATE service_requests SET status = 'awaiting_rating', completed_at = now() WHERE id = $1 AND status = 'in_progress'`, reqID)
+			if err != nil {
 				return err
+			}
+			if tag.RowsAffected() > 0 {
+				if _, err := s.createRequestInvoice(ctx, tx, reqID); err != nil {
+					return err
+				}
 			}
 			if err := emit(ctx, tx, "request.completed", "service_request", reqID, map[string]any{}); err != nil {
 				return err

@@ -25,6 +25,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 )
 
@@ -42,6 +43,7 @@ type harness struct {
 	t      *testing.T
 	srv    *httptest.Server
 	app    *api.Server
+	mpesa  *mpesa.Fake
 	pool   *pgxpool.Pool
 	sms    *sms.Capture
 	router routers.Router
@@ -73,7 +75,8 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	capture := &sms.Capture{}
-	app := api.NewServer(pool, cfg, capture, cipher)
+	fake := &mpesa.Fake{}
+	app := api.NewServer(pool, cfg, capture, cipher, fake)
 	h, err := app.Handler()
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +92,7 @@ func newHarness(t *testing.T) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &harness{t: t, srv: srv, app: app, pool: pool, sms: capture, router: router, tokens: map[string]string{}}
+	return &harness{t: t, srv: srv, app: app, mpesa: fake, pool: pool, sms: capture, router: router, tokens: map[string]string{}}
 }
 
 // call performs a request and validates the response against openapi.yaml, so the implementation cannot drift from the contract.

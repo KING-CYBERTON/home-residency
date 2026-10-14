@@ -588,6 +588,9 @@ func (s *Server) PostClientRequestsRating(w http.ResponseWriter, r *http.Request
 			VALUES ($1,$2,$3,$4,0,$5,$6::earning_status,$7)`, providerID, id, gross, gross-providerPay, providerPay, earnStatus, holdReason); err != nil {
 			return err
 		}
+		if err := s.releaseEarnings(ctx, tx, id); err != nil {
+			return err
+		}
 		if held {
 			var cmp uuid.UUID
 			if err := tx.QueryRow(ctx, `
