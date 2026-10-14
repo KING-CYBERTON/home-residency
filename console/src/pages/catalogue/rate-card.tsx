@@ -34,7 +34,7 @@ export function RateCardPage() {
               fields={[
                 { name: "service_id", label: "Service", type: "select", options: services, required: true },
                 { name: "service_area_id", label: "Area", type: "select", options: areas, help: "Leave empty for every area." },
-                { name: "client_price_minor", label: "Client price (KES, incl. VAT)", type: "money", required: true },
+                { name: "client_price_minor", label: "Client price (KES, before VAT)", help: "VAT is added on top when the client is quoted and invoiced.", type: "money", required: true },
                 { name: "provider_pay_minor", label: "Provider pay (KES)", type: "money", required: true },
                 { name: "placement_fee_minor", label: "Placement fee (KES)", type: "money" },
                 { name: "valid_from", label: "Valid from", type: "datetime", required: true },

@@ -100,7 +100,7 @@ export function CrudPage<T extends BaseRecord & { id?: string | number }>({
         loading={query.isLoading}
         error={query.error}
         rowKey={(r) => String(r.id)}
-        empty={`No ${noun}s yet.`}
+        empty={`No ${noun.replace(/([^aeiou])y$/, "$1ie")}s yet.`}
         columns={[...columns, actions]}
       />
     </>
