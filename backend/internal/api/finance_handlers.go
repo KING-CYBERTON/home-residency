@@ -592,6 +592,11 @@ func (s *Server) PostConsolePayoutBatches(w http.ResponseWriter, r *http.Request
 		ctx := r.Context()
 		var id uuid.UUID
 		err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
+			// One preparation at a time: without this, two overlapping requests both pass the overlap
+			// check and both insert payouts for the same payable earnings.
+			if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('payout_batches.prepare'))`); err != nil {
+				return err
+			}
 			var overlap int
 			if err := tx.QueryRow(ctx, `SELECT count(*) FROM payout_batches WHERE status IN ('draft','approved','processing') AND daterange(cycle_start, cycle_end, '[]') && daterange($1::date, $2::date, '[]')`,
 				in.CycleStart.Time, in.CycleEnd.Time).Scan(&overlap); err != nil {

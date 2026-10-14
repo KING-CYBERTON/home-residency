@@ -290,6 +290,19 @@ func (s *Server) loadVisit(ctx context.Context, q db, id uuid.UUID) (visitDTO, e
 	return v, mapErr(err)
 }
 
+// loadProviderVisit loads a visit only if it is assigned to the provider. A replayed client_event_id
+// skips the ownership check inside the transaction, so the response must not trust the path id.
+func (s *Server) loadProviderVisit(ctx context.Context, q db, id, providerID uuid.UUID) (visitDTO, error) {
+	var n int
+	if err := q.QueryRow(ctx, `SELECT count(*) FROM visits WHERE id = $1 AND provider_id = $2`, id, providerID).Scan(&n); err != nil {
+		return visitDTO{}, err
+	}
+	if n == 0 {
+		return visitDTO{}, httpx.ErrNotFound
+	}
+	return s.loadVisit(ctx, q, id)
+}
+
 const maxDoorCodeAttempts = 5
 
 func (s *Server) PostProviderVisitsCheckIn(w http.ResponseWriter, r *http.Request, id gen.Id) {
@@ -357,8 +370,10 @@ func (s *Server) PostProviderVisitsCheckIn(w http.ResponseWriter, r *http.Reques
 				return httpx.ErrRateLimited.With("reason", "door code locked until the client generates a new one")
 			}
 			if codeHash == nil || !hmacEqual(codeHash, s.doorCodeHash(uuid.UUID(id), *in.Code)) {
+				// Counted under the row lock and committed, so parallel guesses each see the previous count.
 				badCode = true
-				return nil // commit nothing here; the attempt is counted below, outside this transaction
+				_, err := tx.Exec(ctx, `UPDATE visits SET checkin_attempts = checkin_attempts + 1 WHERE id = $1`, id)
+				return err
 			}
 		} else {
 			if alat != nil && alng != nil {
@@ -391,8 +406,7 @@ func (s *Server) PostProviderVisitsCheckIn(w http.ResponseWriter, r *http.Reques
 		}
 		return audit(ctx, tx, "visit.check_in", "visit", id, nil, map[string]any{"method": method}, "")
 	})
-	if badCode {
-		_, _ = s.DB.Exec(ctx, `UPDATE visits SET checkin_attempts = checkin_attempts + 1 WHERE id = $1 AND provider_id = $2`, id, pid)
+	if badCode && err == nil {
 		httpx.Fail(w, r, httpx.NewError(http.StatusUnprocessableEntity, "invalid_code", "That door code is wrong"))
 		return
 	}
@@ -400,7 +414,7 @@ func (s *Server) PostProviderVisitsCheckIn(w http.ResponseWriter, r *http.Reques
 		httpx.Fail(w, r, mapErr(err))
 		return
 	}
-	v, err := s.loadVisit(ctx, s.DB, id)
+	v, err := s.loadProviderVisit(ctx, s.DB, id, pid)
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
@@ -461,7 +475,7 @@ func (s *Server) PostProviderVisitsCheckOut(w http.ResponseWriter, r *http.Reque
 		httpx.Fail(w, r, mapErr(err))
 		return
 	}
-	v, err := s.loadVisit(ctx, s.DB, id)
+	v, err := s.loadProviderVisit(ctx, s.DB, id, pid)
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
