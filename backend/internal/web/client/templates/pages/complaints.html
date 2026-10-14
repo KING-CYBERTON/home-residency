@@ -1,0 +1,17 @@
+{{define "page"}}
+<div class="mb-4 flex items-center justify-between">
+  <h1 class="text-xl font-semibold tracking-tight">Complaints</h1>
+  <a href="{{.Base}}/complaints/new" class="rounded-lg bg-brand-700 px-3 py-2 text-sm font-medium text-white">Raise one</a>
+</div>
+{{if .Data.Data}}
+<div class="space-y-3">
+{{range .Data.Data}}
+  <a href="{{$.Base}}/complaints/{{.Id}}" class="block rounded-xl border border-slate-200 bg-white p-4">
+    <div class="flex justify-between gap-2"><p class="font-medium">{{.Summary}}</p>{{template "badge" .Status}}</div>
+    <p class="mt-0.5 text-sm text-slate-500">{{.Reference}} · {{when .CreatedAt}}</p>
+  </a>
+{{end}}
+</div>
+{{template "more" .Data}}
+{{else}}{{template "empty" "No complaints. We hope it stays that way."}}{{end}}
+{{end}}

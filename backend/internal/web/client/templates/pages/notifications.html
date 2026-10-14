@@ -1,0 +1,18 @@
+{{define "page"}}
+<div class="mb-4 flex items-center justify-between">
+  <h1 class="text-xl font-semibold tracking-tight">Notifications</h1>
+  {{if .Unread}}<form method="post" action="{{.Base}}/notifications/read-all"><button class="text-sm font-medium text-brand-700">Mark all read</button></form>{{end}}
+</div>
+{{if .Data.Data}}
+<ul class="space-y-2">
+{{range .Data.Data}}
+  <li class="rounded-xl border p-4 text-sm {{if .ReadAt}}border-slate-200 bg-white{{else}}border-brand-200 bg-brand-50{{end}}">
+    {{if .Title}}<p class="font-medium">{{str .Title}}</p>{{end}}
+    <p class="text-slate-700">{{.Body}}</p>
+    <p class="mt-1 text-xs text-slate-500">{{when .CreatedAt}}</p>
+  </li>
+{{end}}
+</ul>
+{{else}}{{template "empty" "Nothing new."}}{{end}}
+<a href="{{.Base}}/messages" class="mt-6 block text-center text-sm font-medium text-brand-700">Messages with Homend</a>
+{{end}}

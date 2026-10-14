@@ -6,6 +6,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/web/client"
 )
 
 // mountWeb attaches the server-rendered surfaces (ADR-0001) to srv's router. Each surface lives in
@@ -15,13 +16,17 @@ func mountWeb(srv *api.Server, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
+	clientPortal, err := client.New(client.Deps{Site: site, API: srv, Auth: srv.Auth, CookieSecure: cfg.CookieSecure})
+	if err != nil {
+		return err
+	}
 	srv.Web = func(r chi.Router) {
 		r.NotFound(site.NotFound)
 		r.Handle("/static/*", site.StaticHandler())
 		r.Group(func(r chi.Router) {
 			r.Use(site.Middleware)
 			// Public site: /, /services/..., /areas/..., /pricing, /sitemap.xml (internal/web/public)
-			// Client portal:   r.Mount(web.ClientPortalPath, ...)   (internal/web/client)
+			r.Mount(web.ClientPortalPath, clientPortal.Routes())
 			// Provider portal: r.Mount(web.ProviderPortalPath, ...) (internal/web/provider)
 			// Recruitment:     r.Mount(web.JoinPath, ...)           (internal/web/provider)
 		})
