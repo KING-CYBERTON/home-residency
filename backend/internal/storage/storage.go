@@ -42,6 +42,7 @@ type S3 struct {
 	presign *s3.PresignClient
 	bucket  string
 	kmsKey  string // empty uses the bucket default key
+	region  string
 }
 
 func NewS3(ctx context.Context, bucket, kmsKey string) (*S3, error) {
@@ -53,7 +54,12 @@ func NewS3(ctx context.Context, bucket, kmsKey string) (*S3, error) {
 		return nil, err
 	}
 	c := s3.NewFromConfig(cfg)
-	return &S3{client: c, presign: s3.NewPresignClient(c), bucket: bucket, kmsKey: kmsKey}, nil
+	return &S3{client: c, presign: s3.NewPresignClient(c), bucket: bucket, kmsKey: kmsKey, region: cfg.Region}, nil
+}
+
+// Origin is where presigned URLs point (virtual-hosted style, the SDK default), for the web CSP.
+func (s *S3) Origin() string {
+	return "https://" + s.bucket + ".s3." + s.region + ".amazonaws.com"
 }
 
 func (s *S3) PresignPut(ctx context.Context, key, contentType string, size int64, ttl time.Duration) (string, map[string]string, error) {
