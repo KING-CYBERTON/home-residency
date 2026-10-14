@@ -795,7 +795,11 @@ func (s *Server) GetConsoleReconciliation(w http.ResponseWriter, r *http.Request
 	unmatchedMpesa, err := rawAll(ctx, s.DB, `
 		SELECT c.payload FROM mpesa_callbacks c
 		WHERE c.callback_type IN ('stk_result','c2b_confirmation') AND c.received_at >= $1 AND c.received_at < $2
-		  AND (c.processed_at IS NULL OR c.process_error IS NOT NULL) ORDER BY c.received_at`, from, to)
+		  AND (c.processed_at IS NULL OR c.process_error IS NOT NULL
+		       -- M-Pesa collected money but the payment was refused (an amount that did not match): reconcile by hand
+		       OR EXISTS (SELECT 1 FROM payments p WHERE p.mpesa_checkout_request_id = c.correlation_id
+		                  AND p.status = 'failed' AND p.mpesa_receipt_number IS NOT NULL))
+		ORDER BY c.received_at`, from, to)
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return

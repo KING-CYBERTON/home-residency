@@ -61,6 +61,12 @@ func TestSTKCallbackAmountMismatchIsNotBooked(t *testing.T) {
 	if got := h.expect(200, "client", "GET", "/client/invoices/"+invID, nil); got["paid_minor"] != 0.0 {
 		t.Fatalf("invoice credited: %v", got)
 	}
+	// M-Pesa still took the money, so finance sees it on the reconciliation to settle by hand.
+	h.staff("finance", "finance@homend.test", "finance")
+	rec := h.expect(200, "finance", "GET", "/console/reconciliation", nil)
+	if um, _ := rec["unmatched_mpesa"].([]any); len(um) != 1 {
+		t.Fatalf("refused callback missing from reconciliation: %v", rec["unmatched_mpesa"])
+	}
 }
 
 func TestCrossOriginStateChangeIsRefused(t *testing.T) {
