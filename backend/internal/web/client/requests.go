@@ -72,6 +72,7 @@ type bookData struct {
 	Notes      string
 	Recurrence string
 	Key        string
+	Area       string // slug or id from a public "Book" link; picks a matching address
 }
 
 type categoryDetail struct {
@@ -107,14 +108,41 @@ func (p *Portal) bookData(r *http.Request, d *bookData, slug string) error {
 	if slug == "" && len(d.Categories) == 1 {
 		slug = d.Categories[0].Slug
 	}
+	// A public "Book" link may name only the service, by slug or id: find its category.
+	if slug == "" && d.ServiceID != "" {
+		for _, c := range d.Categories {
+			if cd, err := p.loadCategory(r, c.Slug); err == nil && cd != nil && findService(cd.Services, d.ServiceID) != nil {
+				slug = c.Slug
+				break
+			}
+		}
+	}
 	cd, err := p.loadCategory(r, slug)
 	if err != nil {
 		return err
 	}
 	if cd != nil {
 		d.Category, d.Services = &cd.Category, cd.Services
-		if d.ServiceID == "" && len(cd.Services) == 1 {
+		if svc := findService(cd.Services, d.ServiceID); svc != nil {
+			d.ServiceID = svc.Id.String()
+		} else if len(cd.Services) == 1 {
 			d.ServiceID = cd.Services[0].Id.String()
+		}
+	}
+	if d.AddressID == "" && d.Area != "" {
+		var areas []gen.ServiceArea
+		if p.call(r, nil, &areas, p.API.GetPublicServiceAreas) == nil {
+			for _, ar := range areas {
+				if ar.Slug != d.Area && ar.Id.String() != d.Area {
+					continue
+				}
+				for _, a := range d.Addresses {
+					if a.ServiceAreaId != nil && *a.ServiceAreaId == ar.Id {
+						d.AddressID = a.Id.String()
+						break
+					}
+				}
+			}
 		}
 	}
 	if d.AddressID == "" {
@@ -129,12 +157,25 @@ func (p *Portal) bookData(r *http.Request, d *bookData, slug string) error {
 
 func (p *Portal) bookPage(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	d := &bookData{ServiceID: q.Get("service"), Quantity: "1", Key: newKey()}
+	d := &bookData{ServiceID: q.Get("service"), Area: q.Get("area"), Quantity: "1", Key: newKey()}
 	if err := p.bookData(r, d, q.Get("category")); err != nil {
 		p.failPage(w, r, err)
 		return
 	}
 	p.render(w, r, "book", &view{Title: "Book a service", Nav: "book", Data: d})
+}
+
+// findService matches a service by id or slug.
+func findService(services []gen.Service, key string) *gen.Service {
+	if key == "" {
+		return nil
+	}
+	for i := range services {
+		if services[i].Id.String() == key || services[i].Slug == key {
+			return &services[i]
+		}
+	}
+	return nil
 }
 
 // bookServices swaps in the services of the chosen category.

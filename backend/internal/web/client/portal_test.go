@@ -488,8 +488,9 @@ func TestIDVerificationGate(t *testing.T) {
 	b.post("/account/addresses", url.Values{"label": {"Home"}, "service_area_id": {area}}, false)
 	addr := e.scan(`SELECT id FROM addresses`)
 
-	page, _ := b.get("/account/book?category=childcare")
-	must(t, page, "Nanny (day)", "Every weekday")
+	// The public site's "Book" link may name only the service slug and area.
+	page, _ := b.get("/account/book?service=nanny-day&area=lavington")
+	must(t, page, "Nanny (day)", "Every weekday", `value="`+svc+`" required checked`)
 	start := time.Now().Add(26 * time.Hour).In(time.FixedZone("EAT", 3*3600)).Format("2006-01-02T15:04")
 	_, page, at := b.post("/account/book", url.Values{"category": {"childcare"}, "service_id": {svc}, "address_id": {addr}, "quantity": {"1"},
 		"start": {start}, "recurrence": {"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"}, "key": {uuid.NewString()}}, false)
