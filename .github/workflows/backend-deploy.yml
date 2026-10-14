@@ -1,12 +1,15 @@
 name: Backend deploy
 
-# Builds the backend image once, pushes it to ECR, deploys it to staging, then to
-# production after a reviewer approves the "production" environment.
-# Runs after "Backend CI" passes on a push to main. Run it by hand on main to redeploy,
-# or give an existing image tag (a commit SHA) to roll back without rebuilding.
+# Builds the backend image once, pushes it to ECR, builds the console (when console/
+# exists), and deploys both to staging, then to production after a reviewer approves
+# the "production" environment.
+# Runs after "Backend CI" or "Console CI" passes on a push to main. A commit that
+# changes both deploys twice with the same image and files, which is harmless.
+# Run it by hand on main to redeploy, or give an existing image tag (a commit SHA) to
+# roll back without rebuilding the image.
 on:
   workflow_run:
-    workflows: ["Backend CI"]
+    workflows: ["Backend CI", "Console CI"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -31,6 +34,7 @@ jobs:
       id-token: write
     outputs:
       image: ${{ steps.image.outputs.image }}
+      console_artifact: ${{ steps.console.outputs.artifact }}
     env:
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
       IMAGE_TAG: ${{ inputs.image_tag || github.event.workflow_run.head_sha || github.sha }}
@@ -61,8 +65,7 @@ jobs:
             echo "::error::Image tag $IMAGE_TAG is not in $ECR_REPOSITORY."
             exit 1
           fi
-      - if: steps.existing.outputs.digest == ''
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ env.IMAGE_TAG }}
       - if: steps.existing.outputs.digest == ''
@@ -87,6 +90,30 @@ jobs:
           echo "image=$REGISTRY/$ECR_REPOSITORY@$DIGEST" >> "$GITHUB_OUTPUT"
           echo "Image: $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
 
+      # The console is served from the same origin as the API, so it is built without
+      # VITE_API_BASE_URL. Skipped when the commit has no console/.
+      - if: hashFiles('console/package-lock.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - name: Build console
+        if: hashFiles('console/package-lock.json') != ''
+        working-directory: console
+        run: npm ci && npm run build
+      - if: hashFiles('console/package-lock.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-dist
+          path: console/dist
+          if-no-files-found: error
+          retention-days: 30
+      - name: Console artifact
+        id: console
+        if: hashFiles('console/package-lock.json') != ''
+        run: echo "artifact=console-dist" >> "$GITHUB_OUTPUT"
+
   staging:
     name: Staging
     needs: build
@@ -97,6 +124,7 @@ jobs:
     with:
       environment: staging
       image: ${{ needs.build.outputs.image }}
+      console_artifact: ${{ needs.build.outputs.console_artifact }}
 
   production:
     name: Production
@@ -108,3 +136,4 @@ jobs:
     with:
       environment: production
       image: ${{ needs.build.outputs.image }}
+      console_artifact: ${{ needs.build.outputs.console_artifact }}
