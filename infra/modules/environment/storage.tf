@@ -1,5 +1,7 @@
-# The document vault (ADR-0001): private, SSE-KMS, TLS only. The browser uploads and
-# downloads through 5-minute presigned URLs, so CORS allows the app's origins.
+# The document vault (ADR-0001): private, SSE-KMS, TLS only. The client and provider
+# portals upload ID documents and photos straight from the browser with presigned PUT
+# URLs, and download with presigned GETs, so CORS allows the site origin
+# (public_base_url, where the binary serves the portals) and any allowed_origins.
 
 resource "aws_s3_bucket" "vault" {
   bucket = "${local.name}-vault-${local.account_id}"

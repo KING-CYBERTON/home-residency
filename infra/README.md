@@ -20,8 +20,8 @@ infra/
 | Load balancer | ALB, HTTP until a certificate is given; WAF rate limit per IP | ALB, HTTPS (TLS 1.2+), HTTP redirects; WAF rate limit per IP |
 | API | ECS Fargate service `homend-api`, 1 task (scales to 2 on CPU) | 2 tasks (scales to 6 on CPU) |
 | Database | RDS PostgreSQL 16, `db.t4g.micro`, single AZ, 7-day backups | `db.t4g.small`, Multi-AZ, 30-day backups, deletion protection, final snapshot |
-| Document vault | S3, SSE-KMS, versioned, TLS only, CORS for the app's origins | same |
-| Secrets | `homend/staging/app` (generated), `homend/staging/mpesa` (you fill in) | `homend/production/app`, `homend/production/mpesa` |
+| Document vault | S3, SSE-KMS, versioned, TLS only, CORS so the portals can upload ID documents and photos from the browser (`public_base_url` plus `allowed_origins`) | same |
+| Secrets | `homend/staging/app` (generated), `homend/staging/mpesa` and `homend/staging/push` (you fill in) | `homend/production/app`, `homend/production/mpesa`, `homend/production/push` |
 | Logs | CloudWatch, 30 days | CloudWatch, 365 days |
 
 The tasks, the migration task and the database run in private subnets. Only the load balancer is public.
@@ -55,6 +55,8 @@ You need AWS credentials for an admin in the target account, Terraform 1.10 or n
 4. **Production:** copy `envs/production/terraform.tfvars.example` to `terraform.tfvars`, fill it in, then init and apply as above. Create the `production` GitHub environment with the output variables, add **required reviewers** and limit deployment branches to `main`. Point your DNS name at `load_balancer_dns_name`.
 
 5. **M-Pesa keys:** put the Daraja values into the `homend/<env>/mpesa` secret in Secrets Manager (keys `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`, `MPESA_INITIATOR`, `MPESA_SECURITY_CREDENTIAL`). Terraform creates them empty and never overwrites them. Production will not start without them; staging uses the fake client until you set `mpesa_mode = "sandbox"`.
+
+   **Web push keys:** run `npx web-push generate-vapid-keys` and put the two values into `homend/<env>/push` as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (Terraform cannot generate the raw P-256 keys web push uses). Set `vapid_subject` to a `mailto:` contact. Use a separate pair per environment and never change a pair once clients have subscribed, or their subscriptions stop working.
 
 6. **First deploy:** run **Backend deploy** from the Actions tab on `main` (or merge to `main`). Until then the service points at a placeholder image tag and its tasks fail to start, which is expected.
 

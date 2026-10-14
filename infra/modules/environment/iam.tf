@@ -26,7 +26,7 @@ resource "aws_iam_role_policy" "execution_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow", Action = "secretsmanager:GetSecretValue", Resource = [aws_secretsmanager_secret.app.arn, aws_secretsmanager_secret.mpesa.arn] },
+      { Effect = "Allow", Action = "secretsmanager:GetSecretValue", Resource = [aws_secretsmanager_secret.app.arn, aws_secretsmanager_secret.mpesa.arn, aws_secretsmanager_secret.push.arn] },
       { Effect = "Allow", Action = "kms:Decrypt", Resource = aws_kms_key.main.arn },
     ]
   })

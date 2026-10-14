@@ -12,6 +12,11 @@ output "mpesa_secret_name" {
   value       = aws_secretsmanager_secret.mpesa.name
 }
 
+output "push_secret_name" {
+  description = "Put the VAPID key pair here (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)."
+  value       = aws_secretsmanager_secret.push.name
+}
+
 output "github_environment_variables" {
   description = "Set these on the matching GitHub environment (Settings > Environments)."
   value = {

@@ -26,11 +26,13 @@ locals {
     MPESA_SHORTCODE       = var.mpesa_shortcode
     MPESA_B2C_SHORTCODE   = var.mpesa_b2c_shortcode
     WEBHOOK_ALLOWED_CIDRS = join(",", var.webhook_allowed_cidrs)
+    VAPID_SUBJECT         = var.vapid_subject
   }, var.extra_environment)
 
   container_secrets = concat(
     [for k in local.app_secret_keys : { name = k, valueFrom = "${aws_secretsmanager_secret.app.arn}:${k}::" }],
     [for k in local.mpesa_secret_keys : { name = k, valueFrom = "${aws_secretsmanager_secret.mpesa.arn}:${k}::" }],
+    [for k in local.push_secret_keys : { name = k, valueFrom = "${aws_secretsmanager_secret.push.arn}:${k}::" }],
   )
 }
 

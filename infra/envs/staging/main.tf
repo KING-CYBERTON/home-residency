@@ -15,8 +15,15 @@ variable "certificate_arn" {
 }
 
 variable "allowed_origins" {
-  type    = list(string)
-  default = []
+  description = "Other browser origins, e.g. the public site if it is not on public_base_url's host, and the console."
+  type        = list(string)
+  default     = []
+}
+
+variable "vapid_subject" {
+  description = "Web push contact, e.g. mailto:ops@example.co.ke"
+  type        = string
+  default     = ""
 }
 
 module "env" {
@@ -28,6 +35,7 @@ module "env" {
   public_base_url = var.public_base_url
   certificate_arn = var.certificate_arn
   allowed_origins = var.allowed_origins
+  vapid_subject   = var.vapid_subject
 
   # Staging keeps the fake M-Pesa client and log SMS until sandbox keys are in the
   # homend/staging/mpesa secret; then set mpesa_mode = "sandbox".
@@ -52,4 +60,8 @@ output "load_balancer_dns_name" {
 
 output "mpesa_secret_name" {
   value = module.env.mpesa_secret_name
+}
+
+output "push_secret_name" {
+  value = module.env.push_secret_name
 }

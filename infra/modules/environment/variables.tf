@@ -34,7 +34,7 @@ variable "public_base_url" {
 }
 
 variable "allowed_origins" {
-  description = "Browser origins allowed to call the API and upload to the vault (the console, the portals)."
+  description = "Browser origins, besides public_base_url, allowed to call the API and to upload to and download from the document vault with presigned URLs (the public site if it is on another host, the console)."
   type        = list(string)
   default     = []
 }
@@ -64,6 +64,12 @@ variable "webhook_allowed_cidrs" {
   description = "Source ranges allowed to call the webhooks (Safaricom egress ranges). Empty allows any source with the token."
   type        = list(string)
   default     = []
+}
+
+variable "vapid_subject" {
+  description = "Contact for web push services (VAPID \"sub\"), e.g. mailto:ops@example.co.ke."
+  type        = string
+  default     = ""
 }
 
 variable "extra_environment" {
