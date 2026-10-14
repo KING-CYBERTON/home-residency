@@ -103,6 +103,9 @@ func serve(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	defer closeDB()
+	if err := mountWeb(srv, cfg); err != nil {
+		return err
+	}
 	h, err := srv.Handler()
 	if err != nil {
 		return err

@@ -209,7 +209,7 @@ func (s *Server) PostConsoleStaffResetMfa(w http.ResponseWriter, r *http.Request
 		return
 	}
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE users SET totp_secret_enc = $2 WHERE id = $1`, uid, enc); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE users SET totp_secret_enc = $2, mfa_failed_attempts = 0, mfa_last_step = NULL WHERE id = $1`, uid, enc); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, uid); err != nil {

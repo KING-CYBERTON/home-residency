@@ -1,0 +1,45 @@
+name: Console CI
+
+on:
+  pull_request:
+    paths: ["console/**", "backend/api/openapi.yaml", ".github/workflows/console-ci.yml"]
+  push:
+    branches: [main]
+    paths: ["console/**", "backend/api/openapi.yaml", ".github/workflows/console-ci.yml"]
+
+concurrency:
+  group: console-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: console
+
+jobs:
+  build:
+    name: Typecheck, lint and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+      - run: npm ci
+      # The API types, role map and enums are generated from backend/api/openapi.yaml.
+      # A contract change without regenerating fails here, not in production.
+      - name: Generated API code is current
+        run: |
+          npm run generate
+          git diff --exit-code -- src/api || (echo "Run 'npm run generate' in console/ and commit the result" && exit 1)
+      - run: npm run lint
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: console-dist
+          path: console/dist
+          retention-days: 7
