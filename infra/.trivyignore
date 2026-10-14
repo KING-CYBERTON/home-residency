@@ -1,0 +1,15 @@
+# Trivy misconfiguration findings accepted on purpose. Each needs a reason; anything
+# new that Trivy reports at HIGH or CRITICAL fails Infra CI.
+
+# The load balancer is the public entry point for the API and portals.
+AVD-AWS-0053
+# Port 80: redirects to HTTPS once certificate_arn is set (production requires it).
+# Staging may run plain HTTP on the ALB DNS name until a certificate exists.
+AVD-AWS-0054
+# Tasks need outbound HTTPS to Safaricom Daraja, the SMS gateway and AWS APIs; the
+# rule is port 443 only, through the NAT gateway.
+AVD-AWS-0104
+# SSE-S3 (AES256) on the Terraform state bucket and the console bucket. The console
+# holds only public static files. The state bucket is private and versioned; moving
+# it to a customer-managed KMS key is a recommended follow-up, not a blocker.
+AVD-AWS-0132

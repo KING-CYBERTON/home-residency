@@ -75,7 +75,8 @@ Terraform generates the database password, `FIELD_ENCRYPTION_KEY` and `WEBHOOK_T
 
 ## Still to decide or add
 
-- **SMS sender:** `sms.New` only has the log sender today, so production must be given a `sms_provider` value other than `log` to start, and it will still only log messages until the Africa's Talking sender is wired (ADR-0002 known gaps).
+- **SMS sender:** `sms.New` only has the log sender today. Production refuses `sms_provider = "log"`, and any other value starts the service but every send fails (it no longer falls back to logging codes), so clients and providers cannot sign in until the Africa's Talking sender is wired (ADR-0002 known gaps).
+- **First staff user:** `create-staff` prints the password and TOTP secret to the task log, so they sit in CloudWatch. After that admin signs in, have a second admin reset their MFA and change the password, or delete those log events.
 - **SQS and EventBridge** (ADR-0001) are not created yet because nothing in the code uses them; add them with the outbox relay.
 - **CloudFront** in front of the public site and portals (the console already has one), and S3 access logging on the vault and CloudFront.
 - **Alarms** (5xx rate, unhealthy tasks, RDS CPU and storage) and where they notify.
