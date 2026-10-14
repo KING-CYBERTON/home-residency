@@ -322,6 +322,10 @@ func (s *Server) PostProviderVisitsCheckIn(w http.ResponseWriter, r *http.Reques
 	var badCode bool
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
 		// A retried event (offline sync, double tap) is a no-op that returns the current visit.
+		// Serialise concurrent copies of one event so the loser sees it and returns the original result.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`, in.ClientEventId); err != nil {
+			return err
+		}
 		var seen int
 		if err := tx.QueryRow(ctx, `SELECT count(*) FROM visit_events WHERE client_event_id = $1`, in.ClientEventId).Scan(&seen); err != nil {
 			return err
@@ -417,6 +421,10 @@ func (s *Server) PostProviderVisitsCheckOut(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
+		// Serialise concurrent copies of one event so the loser sees it and returns the original result.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`, in.ClientEventId); err != nil {
+			return err
+		}
 		var seen int
 		if err := tx.QueryRow(ctx, `SELECT count(*) FROM visit_events WHERE client_event_id = $1`, in.ClientEventId).Scan(&seen); err != nil {
 			return err
