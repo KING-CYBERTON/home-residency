@@ -1,0 +1,42 @@
+/* Tailwind input for every server-rendered surface. Build with `make css` in backend/.
+   The output (static/css/app.css) is committed so the Go binary embeds it; CI checks it is current. */
+@import "tailwindcss" source(none);
+@source "../";
+@source not "../static";
+
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+  --color-accent-500: #f59e0b;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:opacity-60;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700;
+  }
+  .nav-link { @apply rounded px-2 py-2 text-slate-700 hover:text-brand-700 md:px-0 md:py-0; }
+  .nav-link-active { @apply font-semibold text-brand-700; }
+  .card { @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm; }
+  .field-label { @apply block text-sm font-medium text-slate-800; }
+  .field-input {
+    @apply mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .field-error { @apply mt-1 text-sm text-red-700; }
+  .prose-body p { @apply mt-4 leading-7; }
+  .prose-body h2 { @apply mt-10 text-xl font-bold text-slate-900; }
+  .prose-body ul { @apply mt-4 list-disc space-y-2 pl-6; }
+}
+
+/* HTMX request indicators (htmx is configured not to inject its own <style>, for the CSP). */
+.htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
