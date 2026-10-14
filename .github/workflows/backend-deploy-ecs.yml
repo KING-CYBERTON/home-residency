@@ -1,0 +1,56 @@
+name: Backend deploy to ECS
+
+# Reusable: deploys one image to one GitHub environment (staging or production).
+# Environment variables (set on the GitHub environment) say where the service lives;
+# see "Deploying to AWS" in backend/README.md. No AWS keys are stored: the job
+# assumes the environment's IAM role through GitHub OIDC.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image:
+        description: Image to deploy, pinned by digest (registry/repo@sha256:…)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Migrate and roll out
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.PUBLIC_BASE_URL }}
+    concurrency:
+      group: backend-deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: backend/scripts
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: homend-deploy-${{ inputs.environment }}-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Register task definition, run migrations, update service
+        env:
+          IMAGE: ${{ inputs.image }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          ECS_CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME || 'api' }}
+          ECS_SUBNETS: ${{ vars.ECS_SUBNETS }}
+          ECS_SECURITY_GROUPS: ${{ vars.ECS_SECURITY_GROUPS }}
+        run: backend/scripts/deploy-ecs.sh
+      - name: Health check
+        if: vars.PUBLIC_BASE_URL != ''
+        env:
+          BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "$BASE_URL/api/v1/healthz"

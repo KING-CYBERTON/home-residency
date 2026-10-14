@@ -13,7 +13,7 @@ backend/
     domain/               business rules with no HTTP or SQL (pricing, assignability, matching)
     config/ db/ httpx/ sms/
   Makefile  Dockerfile  docker-compose.yml  .env.example
-../.github/workflows/backend-ci.yml
+../.github/workflows/backend-ci.yml, backend-deploy.yml, backend-deploy-ecs.yml
 ```
 
 ## Run it
@@ -46,6 +46,70 @@ After editing `api/openapi.yaml`, run `make generate` and commit `internal/api/g
 **How it is checked:** `internal/api/e2e_test.go` runs the whole booking journey (register, book, triage, assign, accept, check in with a door code, check out, rate, complaint opened) over HTTP against Postgres and validates every response against `openapi.yaml`, so code and contract cannot drift. `policy_test.go` fails the build if a console route has no `x-roles`.
 
 **Known gaps to close before launch:** rate limiting for staff login and per-IP OTP requests (the per-phone limit exists; put AWS WAF/ALB limits in front); KMS-backed `crypt.Cipher` (an AES-GCM key from `FIELD_ENCRYPTION_KEY` is used today); SQS outbox relay (events are written to `outbox_events` in the same transaction, nothing publishes them yet; SMS to providers and clients is sent directly, best effort); Africa's Talking/WhatsApp senders (`sms.Sender` is the seam); recurring visit expansion; CSRF tokens for the cookie-based HTML portals.
+
+## Deploying to AWS
+
+Two workflows deploy the service to ECS Fargate (ADR-0001). Nothing in them creates AWS resources; the resources below must exist first (Terraform or CDK is still a known gap).
+
+- `.github/workflows/backend-deploy.yml` runs after **Backend CI** passes on a push to `main`. It builds the image once, tagged with the commit SHA, pushes it to ECR and deploys that same image (pinned by digest) to **staging**, then to **production** once a reviewer approves the `production` environment. Run it by hand on `main` to redeploy, or pass `image_tag` (an earlier commit SHA already in ECR) to roll back without rebuilding.
+- `.github/workflows/backend-deploy-ecs.yml` is the reusable deploy job. It calls `scripts/deploy-ecs.sh`, which registers a new task definition revision with the new image, runs it once as `api migrate up` (a one-off Fargate task) and stops if the migration fails, then updates the service and waits until the new revision is the stable primary deployment. If the circuit breaker rolls the service back, the job fails. A health check of `$PUBLIC_BASE_URL/api/v1/healthz` runs last.
+
+Migrations run **before** the new code takes traffic, so the old tasks briefly run against the new schema. Keep migrations backward compatible (add columns and tables first, remove them in a later release).
+
+No AWS keys are stored in GitHub. Each job assumes an IAM role through GitHub OIDC. Application secrets stay in AWS and reach the container through the task definition.
+
+### AWS resources
+
+Names are suggestions; the workflows read them from GitHub variables.
+
+| Resource | Suggested name | Notes |
+|---|---|---|
+| IAM OIDC provider | `token.actions.githubusercontent.com` | Audience `sts.amazonaws.com`. |
+| ECR repository | `homend-api` | Tag immutability on, scan on push. If production is a separate account, allow it to pull in the repository policy. |
+| Push role | `homend-github-ecr-push` | Trust: `repo:KING-CYBERTON/home-residency:ref:refs/heads/main`. Allow `ecr:GetAuthorizationToken` and, on the repository, `ecr:BatchCheckLayerAvailability`, `InitiateLayerUpload`, `UploadLayerPart`, `CompleteLayerUpload`, `PutImage`, `BatchGetImage`, `DescribeImages`. |
+| Deploy role, per environment | `homend-github-deploy-staging`, `homend-github-deploy-production` | Trust: `repo:KING-CYBERTON/home-residency:environment:staging` (or `:production`). Allow `ecs:DescribeTaskDefinition`, `RegisterTaskDefinition`, `RunTask`, `DescribeTasks`, `StopTask`, `UpdateService`, `DescribeServices`, and `iam:PassRole` on the task and execution roles below. |
+| ECS cluster, per environment | `homend-staging`, `homend-production` | Fargate. |
+| ECS service | `homend-api` | Behind an ALB (target group health check `/api/v1/healthz`, port 8080). Turn on the deployment circuit breaker with rollback. |
+| Task definition family | `homend-api-staging`, `homend-api-production` | Create the first revision yourself; each deploy copies the latest revision and swaps only the image. Container name `api`, port 8080, logs to CloudWatch. |
+| Task execution role | `homend-api-execution` | Pulls from ECR, writes logs, reads the secrets below. |
+| Task role | `homend-api-task` | S3 document bucket, KMS key (`STORAGE_KMS_KEY_ID`), later SQS. |
+| RDS PostgreSQL 16 | `homend-staging`, `homend-production` | Private subnets; security group open to the service and migration tasks. |
+| S3 bucket + KMS key | `homend-vault-<env>` | SSE-KMS document vault. |
+| Secrets Manager | `homend/<env>/…` | Values for the container (next section). |
+
+### Container configuration (in the task definition)
+
+Plain environment: `APP_ENV=prod` in production, `HTTP_ADDR=:8080`, `STORAGE_DRIVER=s3`, `STORAGE_BUCKET`, `STORAGE_KMS_KEY_ID`, `PUBLIC_BASE_URL`, `ALLOWED_ORIGINS`, `SMS_PROVIDER`, `MPESA_MODE` (`sandbox` in staging, `production` in production), `MPESA_SHORTCODE`, `MPESA_B2C_SHORTCODE`, `WEBHOOK_ALLOWED_CIDRS`.
+
+From Secrets Manager (task definition `secrets`): `DATABASE_URL`, `FIELD_ENCRYPTION_KEY`, `WEBHOOK_TOKEN`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`, `MPESA_INITIATOR`, `MPESA_SECURITY_CREDENTIAL`.
+
+`api migrate up` loads the same configuration as `serve`, so the migration task needs these too; it gets them because it runs the same task definition.
+
+### GitHub settings
+
+**Repository variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Example |
+|---|---|
+| `AWS_REGION` | `af-south-1` |
+| `AWS_ECR_PUSH_ROLE_ARN` | `arn:aws:iam::111111111111:role/homend-github-ecr-push` |
+| `ECR_REPOSITORY` | `homend-api` |
+
+**Environments** `staging` and `production` (Settings → Environments), each with these variables:
+
+| Variable | Example (staging) |
+|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::111111111111:role/homend-github-deploy-staging` |
+| `ECS_CLUSTER` | `homend-staging` |
+| `ECS_SERVICE` | `homend-api` |
+| `ECS_TASK_FAMILY` | `homend-api-staging` |
+| `ECS_CONTAINER_NAME` | `api` (the default if unset) |
+| `ECS_SUBNETS` | `subnet-aaa,subnet-bbb` (private subnets for the migration task) |
+| `ECS_SECURITY_GROUPS` | `sg-ccc` (must reach RDS) |
+| `PUBLIC_BASE_URL` | `https://api.staging.example.co.ke` (optional; enables the health check) |
+| `AWS_REGION` | only if this environment is in a different region |
+
+On `production`, add **required reviewers** (this is the manual approval) and limit **deployment branches** to `main`. No GitHub secrets are needed.
 
 ## Defaults chosen where the report leaves decisions open
 
