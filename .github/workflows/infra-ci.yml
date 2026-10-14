@@ -1,0 +1,31 @@
+name: Infra CI
+
+on:
+  pull_request:
+    paths: ["infra/**", ".github/workflows/infra-ci.yml"]
+  push:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/infra-ci.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.3
+      - name: terraform fmt
+        run: terraform fmt -recursive -check -diff infra
+      - name: terraform validate
+        run: |
+          for dir in infra/bootstrap infra/global infra/envs/staging infra/envs/production; do
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done

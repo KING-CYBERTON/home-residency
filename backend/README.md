@@ -49,7 +49,7 @@ After editing `api/openapi.yaml`, run `make generate` and commit `internal/api/g
 
 ## Deploying to AWS
 
-Two workflows deploy the service to ECS Fargate (ADR-0001). Nothing in them creates AWS resources; the resources below must exist first (Terraform or CDK is still a known gap).
+Two workflows deploy the service to ECS Fargate (ADR-0001). They do not create AWS resources: `infra/` does that with Terraform (see `infra/README.md`), and its outputs give the GitHub variables listed below.
 
 - `.github/workflows/backend-deploy.yml` runs after **Backend CI** passes on a push to `main`. It builds the image once, tagged with the commit SHA, pushes it to ECR and deploys that same image (pinned by digest) to **staging**, then to **production** once a reviewer approves the `production` environment. Run it by hand on `main` to redeploy, or pass `image_tag` (an earlier commit SHA already in ECR) to roll back without rebuilding.
 - `.github/workflows/backend-deploy-ecs.yml` is the reusable deploy job. It calls `scripts/deploy-ecs.sh`, which registers a new task definition revision with the new image, runs it once as `api migrate up` (a one-off Fargate task) and stops if the migration fails, then updates the service and waits until the new revision is the stable primary deployment. If the circuit breaker rolls the service back, the job fails. A health check of `$PUBLIC_BASE_URL/api/v1/healthz` runs last.
@@ -60,7 +60,7 @@ No AWS keys are stored in GitHub. Each job assumes an IAM role through GitHub OI
 
 ### AWS resources
 
-Names are suggestions; the workflows read them from GitHub variables.
+`infra/` creates all of these. The workflows read the names from GitHub variables.
 
 | Resource | Suggested name | Notes |
 |---|---|---|
@@ -71,11 +71,11 @@ Names are suggestions; the workflows read them from GitHub variables.
 | ECS cluster, per environment | `homend-staging`, `homend-production` | Fargate. |
 | ECS service | `homend-api` | Behind an ALB (target group health check `/api/v1/healthz`, port 8080). Turn on the deployment circuit breaker with rollback. |
 | Task definition family | `homend-api-staging`, `homend-api-production` | Create the first revision yourself; each deploy copies the latest revision and swaps only the image. Container name `api`, port 8080, logs to CloudWatch. |
-| Task execution role | `homend-api-execution` | Pulls from ECR, writes logs, reads the secrets below. |
-| Task role | `homend-api-task` | S3 document bucket, KMS key (`STORAGE_KMS_KEY_ID`), later SQS. |
+| Task execution role | `homend-<env>-api-execution` | Pulls from ECR, writes logs, reads the secrets below. |
+| Task role | `homend-<env>-api-task` | S3 document bucket, KMS key (`STORAGE_KMS_KEY_ID`), later SQS. |
 | RDS PostgreSQL 16 | `homend-staging`, `homend-production` | Private subnets; security group open to the service and migration tasks. |
-| S3 bucket + KMS key | `homend-vault-<env>` | SSE-KMS document vault. |
-| Secrets Manager | `homend/<env>/…` | Values for the container (next section). |
+| S3 bucket + KMS key | `homend-<env>-vault-<account id>`, `alias/homend-<env>` | SSE-KMS document vault. |
+| Secrets Manager | `homend/<env>/app`, `homend/<env>/mpesa` | Values for the container (next section). |
 
 ### Container configuration (in the task definition)
 
