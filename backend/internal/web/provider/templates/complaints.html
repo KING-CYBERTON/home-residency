@@ -1,0 +1,26 @@
+{{define "complaints"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  <h1 class="text-xl font-bold text-slate-900">Complaints</h1>
+  <p class="mt-1 text-sm text-slate-600">You are always heard before any decision is made.</p>
+  <ul class="mt-4 space-y-3">
+    {{range .V}}
+    <li class="card">
+      <div class="flex items-start justify-between gap-3">
+        <div><p class="font-medium text-slate-900">{{.Reference}}</p><p class="text-xs text-slate-600">{{day .CreatedAt}} · {{label .Severity}}</p></div>
+        {{template "badge" .Status}}
+      </div>
+      <p class="mt-2 text-sm text-slate-700">{{.Summary}}</p>
+      {{with .OutcomeSummary}}<p class="mt-2 rounded-md bg-slate-50 px-3 py-2 text-sm">Outcome: {{.}}</p>{{end}}
+      {{if eq (print .Status) "awaiting_provider_account"}}
+      <form method="post" action="/provider/complaints/{{.Id}}/account" class="mt-3 space-y-2">
+        <label class="field-label" for="acc-{{.Id}}">Your side of what happened</label>
+        <textarea id="acc-{{.Id}}" name="account" rows="4" required minlength="10" class="field-input"></textarea>
+        <button type="submit" class="btn-primary w-full">Send my account</button>
+      </form>
+      {{end}}
+    </li>
+    {{else}}<li class="text-sm text-slate-600">No complaints. Keep up the good work.</li>{{end}}
+  </ul>
+</section>
+{{end}}{{end}}

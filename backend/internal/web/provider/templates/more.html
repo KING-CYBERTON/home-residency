@@ -1,0 +1,21 @@
+{{define "more"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  <h1 class="text-xl font-bold text-slate-900">More</h1>
+  <ul class="mt-4 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+    <li><a href="/provider/profile" class="block px-4 py-3">My profile and M-Pesa number</a></li>
+    <li><a href="/provider/availability" class="block px-4 py-3">When I can work, and time off</a></li>
+    <li><a href="/provider/applications" class="block px-4 py-3">My applications</a></li>
+    <li><a href="/provider/documents" class="block px-4 py-3">My documents</a></li>
+    <li><a href="/provider/training" class="block px-4 py-3">Training</a></li>
+    <li><a href="/provider/contract" class="block px-4 py-3">Contract</a></li>
+    <li><a href="/provider/appraisal" class="block px-4 py-3">My score</a></li>
+    <li><a href="/provider/complaints" class="block px-4 py-3">Complaints</a></li>
+    <li><a href="/provider/inbox" class="block px-4 py-3">Messages</a></li>
+  </ul>
+  <p class="mt-6 text-sm text-slate-600">No smartphone data? Dial our USSD code or reply to our SMS to accept jobs and check in.</p>
+  <form method="post" action="/provider/logout" class="mt-6">
+    <button type="submit" class="btn-secondary w-full" data-confirm="Sign out? Jobs saved for offline use will be removed from this phone.">Sign out</button>
+  </form>
+</section>
+{{end}}{{end}}

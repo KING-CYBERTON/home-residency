@@ -1,0 +1,36 @@
+{{define "contract"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-xl font-bold text-slate-900">Contract and code of conduct</h1>
+  <dl class="card mt-4 grid grid-cols-2 gap-2 text-sm">
+    <dt class="text-slate-600">Contract version</dt><dd>{{.Contract.ContractVersion}}</dd>
+    <dt class="text-slate-600">Code of conduct</dt><dd>{{.Contract.CodeOfConductVersion}}</dd>
+    {{with .Contract.EngagementBasis}}<dt class="text-slate-600">Basis</dt><dd>{{label .}}</dd>{{end}}
+    {{with .Contract.SignedAt}}<dt class="text-slate-600">Signed</dt><dd>{{when .}}</dd>{{end}}
+  </dl>
+  {{with .Contract.DocumentUrl}}<a href="{{.}}" class="mt-3 inline-block font-medium text-brand-700">Read the full contract</a>{{end}}
+  {{if .Contract.SignedAt}}
+    <p class="mt-4 text-sm text-slate-600">You have signed the current version. Thank you.</p>
+  {{else if not (eq (print .Status) "approved" "active")}}
+    <p class="mt-4 text-sm text-slate-600">You can sign once your application is approved.</p>
+  {{else if not .OtpID}}
+    <p class="mt-4 text-sm text-slate-700">By signing you agree to the contract and to our code of conduct: arrive on time, respect the household and its property, keep the client's details private, and let management handle any change to the job or the price.</p>
+    <form method="post" action="/provider/contract/code" class="mt-4">
+      <button type="submit" class="btn-primary w-full">Send me a code to sign</button>
+    </form>
+    {{template "field-error" .Error}}
+  {{else}}
+    <form method="post" action="/provider/contract/sign" class="mt-4 space-y-3">
+      <input type="hidden" name="otp_id" value="{{.OtpID}}">
+      <input type="hidden" name="contract_version" value="{{.Contract.ContractVersion}}">
+      <input type="hidden" name="code_of_conduct_version" value="{{.Contract.CodeOfConductVersion}}">
+      <label class="field-label" for="code">Enter the code we sent to your phone</label>
+      <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required class="field-input text-center text-2xl tracking-widest">
+      {{template "field-error" .Error}}
+      <button type="submit" class="btn-primary w-full">I agree and sign</button>
+    </form>
+  {{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

@@ -1,0 +1,20 @@
+{{define "application_new"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-xl font-bold text-slate-900">What work do you do?</h1>
+  <p class="mt-1 text-sm text-slate-600">You can apply for more than one kind of work, one at a time.</p>
+  <form method="post" action="/provider/applications" class="mt-4 space-y-2">
+    {{range .Categories}}
+    <label class="card flex cursor-pointer items-start gap-3">
+      <input type="radio" name="category_id" value="{{.Id}}" required class="mt-1"{{if or (eq $.Data.V.Selected (print .Id)) (eq $.Data.V.Selected .Slug)}} checked{{end}}>
+      <span><span class="font-semibold text-slate-900">{{.Name}}</span>{{with .Description}}<span class="mt-1 block text-sm text-slate-600">{{.}}</span>{{end}}</span>
+    </label>
+    {{else}}
+    <p class="text-sm text-slate-600">We are not taking applications right now. Please check again soon.</p>
+    {{end}}
+    {{if .Categories}}<button type="submit" class="btn-primary mt-2 w-full">Start application</button>{{end}}
+  </form>
+  {{end}}
+</section>
+{{end}}{{end}}

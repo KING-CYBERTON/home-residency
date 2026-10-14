@@ -1,0 +1,37 @@
+{{define "availability"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-xl font-bold text-slate-900">When I can work</h1>
+  <p class="mt-1 text-sm text-slate-600">We only offer you jobs inside these hours.</p>
+  <form method="post" action="/provider/availability" class="card mt-4 space-y-3">
+    {{range .Days}}
+    <div class="grid grid-cols-[6rem_1fr_1fr] items-center gap-2">
+      <label class="flex items-center gap-2 text-sm font-medium"><input type="checkbox" name="on_{{.Day}}"{{if .Start}} checked{{end}}> {{slice (weekday .Day) 0 3}}</label>
+      <input type="time" name="start_{{.Day}}" value="{{or .Start "08:00"}}" aria-label="{{weekday .Day}} start" class="rounded-md border border-slate-300 px-2 py-2">
+      <input type="time" name="end_{{.Day}}" value="{{or .End "17:00"}}" aria-label="{{weekday .Day}} end" class="rounded-md border border-slate-300 px-2 py-2">
+    </div>
+    {{end}}
+    <button type="submit" class="btn-primary w-full">Save hours</button>
+  </form>
+
+  <h2 class="mt-8 font-semibold text-slate-900">Time off</h2>
+  <ul class="mt-2 space-y-2">
+    {{range .TimeOff}}
+    <li class="card flex items-center justify-between gap-3">
+      <div><p class="font-medium">{{when .StartsAt}} to {{when .EndsAt}}</p>{{with .Reason}}<p class="text-sm text-slate-600">{{.}}</p>{{end}}</div>
+      <form method="post" action="/provider/time-off/{{val .Id}}/delete"><button type="submit" class="text-sm font-medium text-red-700">Remove</button></form>
+    </li>
+    {{else}}<li class="text-sm text-slate-600">No time off booked.</li>{{end}}
+  </ul>
+  <form method="post" action="/provider/time-off" class="card mt-3 space-y-3">
+    <div class="grid grid-cols-2 gap-2">
+      <label class="text-sm">From<input type="datetime-local" name="starts_at" required class="field-input"></label>
+      <label class="text-sm">Until<input type="datetime-local" name="ends_at" required class="field-input"></label>
+    </div>
+    <div><label class="field-label" for="reason">Reason (optional)</label><input id="reason" name="reason" class="field-input"></div>
+    <button type="submit" class="btn-secondary w-full">Add time off</button>
+  </form>
+  {{end}}
+</section>
+{{end}}{{end}}

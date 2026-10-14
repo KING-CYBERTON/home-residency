@@ -1,0 +1,23 @@
+{{define "applications"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-bold text-slate-900">My applications</h1>
+    <a href="/provider/applications/new" class="btn-secondary">New</a>
+  </div>
+  <ul class="mt-4 space-y-2">
+    {{range .Apps}}
+    <li><a href="/provider/applications/{{.Id}}" class="card block">
+      <div class="flex items-center justify-between gap-3">
+        <p class="font-semibold text-slate-900">{{index $.Data.V.Names .CategoryId}}</p>{{template "badge" .Status}}
+      </div>
+      <p class="mt-1 text-sm text-slate-600">{{.Reference}}{{with .ChecklistProgress}} · {{val .Satisfied}} of {{val .Total}} checks done{{end}}{{with .SubmittedAt}} · sent {{day .}}{{end}}</p>
+    </a></li>
+    {{else}}
+    <li class="text-sm text-slate-600">You have not applied yet.</li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+{{end}}{{end}}

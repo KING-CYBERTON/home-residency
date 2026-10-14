@@ -1,0 +1,27 @@
+{{define "appraisal"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-xl font-bold text-slate-900">My score</h1>
+  <div class="card mt-4 text-center">
+    <p class="text-sm text-slate-600">{{with .PeriodStart}}{{day .}}{{end}}{{with .PeriodEnd}} to {{day .}}{{end}}</p>
+    <p class="text-4xl font-bold text-slate-900">{{pct .TotalScore}}</p>
+  </div>
+  {{with .Components}}
+  <h2 class="mt-6 font-semibold text-slate-900">How it is worked out</h2>
+  <dl class="card mt-2 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 text-sm">
+    <dt class="text-slate-600">Client ratings</dt><dd>{{pct .Rating}}</dd><dd class="text-slate-500">weight {{pct (index $.Data.V.Weights "rating")}}</dd>
+    <dt class="text-slate-600">Reliability (on time, no missed visits)</dt><dd>{{pct .Reliability}}</dd><dd class="text-slate-500">weight {{pct (index $.Data.V.Weights "reliability")}}</dd>
+    <dt class="text-slate-600">Spot checks</dt><dd>{{pct .SpotChecks}}</dd><dd class="text-slate-500">weight {{pct (index $.Data.V.Weights "spot_checks")}}</dd>
+    <dt class="text-slate-600">No upheld complaints</dt><dd>{{pct .Complaints}}</dd><dd class="text-slate-500">weight {{pct (index $.Data.V.Weights "complaints")}}</dd>
+  </dl>
+  {{end}}
+  {{with .History}}
+  <h2 class="mt-6 font-semibold text-slate-900">Past periods</h2>
+  <ul class="mt-2 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white text-sm">
+    {{range .}}<li class="flex justify-between px-4 py-2"><span>{{with .PeriodEnd}}{{day .}}{{end}}</span><span class="font-medium">{{pct .TotalScore}}</span></li>{{end}}
+  </ul>
+  {{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

@@ -1,0 +1,113 @@
+{{define "application"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "back" "/provider/applications"}}
+  {{template "top" .}}
+  {{with .V}}{{$app := .App}}{{$v := .}}
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-bold text-slate-900">{{or .Category "Application"}}</h1>
+      <p class="text-sm text-slate-600">{{$app.Reference}}</p>
+    </div>
+    {{template "badge" $app.Status}}
+  </div>
+  {{with $app.DecisionReason}}<p class="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">{{.}}</p>{{end}}
+  {{if eq (print $app.Status) "submitted" "in_vetting" "awaiting_approval"}}
+  <p class="mt-3 rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-900">We are checking your application. We will SMS you when we need you, for example to book your interview.</p>
+  {{end}}
+
+  {{with $app.Missing}}{{if $v.Editable}}
+  <div class="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+    <p class="font-medium">Still needed before you can submit:</p>
+    <ul class="mt-1 list-disc pl-5">{{range .}}<li>{{.}}</li>{{end}}</ul>
+  </div>
+  {{end}}{{end}}
+
+  <h2 class="mt-6 font-semibold text-slate-900">Checklist</h2>
+  <ul class="mt-2 space-y-3">
+    {{range $app.Items}}{{$item := .}}
+    <li class="card">
+      <div class="flex items-start justify-between gap-3">
+        <p class="font-medium text-slate-900">{{.TemplateItem.Label}}{{if not .TemplateItem.IsMandatory}} <span class="text-sm font-normal text-slate-500">(optional)</span>{{end}}</p>
+        {{template "badge" .Status}}
+      </div>
+      {{with .Notes}}<p class="mt-1 text-sm text-red-700">{{.}}</p>{{end}}
+      {{$kind := print .TemplateItem.Kind}}
+      {{if eq $kind "document" "trade_licence" "medical"}}
+        {{if $v.Editable}}
+        <form method="post" action="/provider/documents/ticket" data-upload data-needs-js hidden class="mt-3 space-y-2">
+          <input type="hidden" name="application_id" value="{{$app.Id}}">
+          <input type="hidden" name="item_id" value="{{.Id}}">
+          <input type="hidden" name="document_type" value="{{or (val .TemplateItem.DocumentType) "other"}}">
+          <label class="field-label" for="f-{{.Id}}">{{if .DocumentId}}Replace with a new photo or PDF{{else}}Photo or PDF{{end}}</label>
+          <input id="f-{{.Id}}" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" class="block w-full text-sm">
+          {{if .TemplateItem.ValidityMonths}}
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-sm">Issued<input type="date" name="issued_on" class="field-input"></label>
+            <label class="text-sm">Expires<input type="date" name="expires_on" class="field-input"></label>
+          </div>
+          {{end}}
+          <button type="submit" class="btn-secondary w-full">Upload</button>
+          <p data-upload-status class="text-sm text-slate-600" aria-live="polite"></p>
+        </form>
+        <noscript><p class="mt-2 text-sm text-slate-600">Uploading needs a browser with JavaScript turned on.</p></noscript>
+        {{if $v.Docs}}
+        <form method="post" action="/provider/applications/{{$app.Id}}/attach" class="mt-2 flex gap-2">
+          <input type="hidden" name="item_id" value="{{.Id}}">
+          <select name="document_id" class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base" aria-label="Use a document I already uploaded">
+            <option value="">Use one I already uploaded…</option>
+            {{range $v.Docs}}<option value="{{.Id}}">{{label .DocumentType}}{{with .OriginalFilename}} ({{.}}){{end}}</option>{{end}}
+          </select>
+          <button type="submit" class="btn-secondary shrink-0">Use</button>
+        </form>
+        {{end}}
+        {{end}}
+      {{else if eq $kind "referee"}}
+        <p class="mt-1 text-sm text-slate-600">At least {{or (val .TemplateItem.MinCount) 1}} people who have employed you or know your work. We will call them.</p>
+      {{else}}
+        <p class="mt-1 text-sm text-slate-600">We will arrange this with you after you submit.</p>
+      {{end}}
+    </li>
+    {{end}}
+  </ul>
+
+  <h2 class="mt-6 font-semibold text-slate-900">Referees</h2>
+  <ul class="mt-2 space-y-2">
+    {{range $app.Referees}}
+    <li class="card flex items-center justify-between gap-3">
+      <div><p class="font-medium">{{.FullName}}</p><p class="text-sm text-slate-600">{{val .Relationship}}{{with .EmployerName}} · {{.}}{{end}}</p></div>
+      {{if $v.Editable}}
+      <form method="post" action="/provider/applications/{{$app.Id}}/referees/{{.Id}}/delete">
+        <button type="submit" class="text-sm font-medium text-red-700" data-confirm="Remove this referee?">Remove</button>
+      </form>
+      {{else}}{{template "badge" .Outcome}}{{end}}
+    </li>
+    {{else}}<li class="text-sm text-slate-600">No referees yet.</li>{{end}}
+  </ul>
+  {{if $v.Editable}}
+  <details class="card mt-3">
+    <summary class="cursor-pointer font-medium text-brand-700">Add a referee</summary>
+    <form method="post" action="/provider/applications/{{$app.Id}}/referees" class="mt-3 space-y-3">
+      <div><label class="field-label" for="r-name">Full name</label><input id="r-name" name="full_name" required class="field-input"></div>
+      <div><label class="field-label" for="r-phone">Phone</label><input id="r-phone" name="phone" type="tel" inputmode="tel" required class="field-input"></div>
+      <div><label class="field-label" for="r-rel">How they know you</label><input id="r-rel" name="relationship" required placeholder="Former employer" class="field-input"></div>
+      <div><label class="field-label" for="r-emp">Employer or household (optional)</label><input id="r-emp" name="employer_name" class="field-input"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="text-sm">Worked from<input type="date" name="employment_from" class="field-input"></label>
+        <label class="text-sm">Until<input type="date" name="employment_to" class="field-input"></label>
+      </div>
+      <button type="submit" class="btn-secondary w-full">Add referee</button>
+    </form>
+  </details>
+
+  <form method="post" action="/provider/applications/{{$app.Id}}/submit" class="mt-6">
+    <button type="submit" class="btn-primary w-full">Submit application</button>
+  </form>
+  {{end}}
+  {{if eq (print $app.Status) "draft" "incomplete" "deferred" "submitted" "in_vetting"}}
+  <form method="post" action="/provider/applications/{{$app.Id}}/withdraw" class="mt-3">
+    <button type="submit" class="w-full py-2 text-sm font-medium text-red-700" data-confirm="Withdraw this application? You can apply again later.">Withdraw application</button>
+  </form>
+  {{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

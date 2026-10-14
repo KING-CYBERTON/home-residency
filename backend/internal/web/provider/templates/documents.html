@@ -1,0 +1,41 @@
+{{define "documents"}}{{with .Data}}
+<section class="mx-auto max-w-xl px-4 py-5">
+  {{template "top" .}}
+  {{with .V}}
+  <h1 class="text-xl font-bold text-slate-900">My documents</h1>
+  <p class="mt-1 text-sm text-slate-600">Keep these in date. An expired mandatory document pauses your job offers until you upload a new one.</p>
+  <ul class="mt-4 space-y-2">
+    {{range .Docs}}
+    <li class="card">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="font-medium text-slate-900">{{label .DocumentType}}</p>
+          <p class="text-sm text-slate-600">{{with .OriginalFilename}}{{.}} · {{end}}added {{day .CreatedAt}}{{with .ExpiresOn}} · expires {{day .}}{{end}}</p>
+        </div>
+        {{template "badge" .Status}}
+      </div>
+      {{with .RejectionReason}}<p class="mt-1 text-sm text-red-700">{{.}}</p>{{end}}
+    </li>
+    {{else}}<li class="text-sm text-slate-600">No documents yet.</li>{{end}}
+  </ul>
+  <form method="post" action="/provider/documents/ticket" data-upload data-needs-js hidden class="card mt-6 space-y-3">
+    <h2 class="font-semibold text-slate-900">Upload a document</h2>
+    <div>
+      <label class="field-label" for="doc-type">Type</label>
+      <select id="doc-type" name="document_type" class="field-input">{{range .Types}}<option value="{{.}}">{{label .}}</option>{{end}}</select>
+    </div>
+    <div>
+      <label class="field-label" for="doc-file">Photo or PDF (up to 10 MB)</label>
+      <input id="doc-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" class="mt-1 block w-full text-sm">
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="text-sm">Issued<input type="date" name="issued_on" class="field-input"></label>
+      <label class="text-sm">Expires<input type="date" name="expires_on" class="field-input"></label>
+    </div>
+    <button type="submit" class="btn-primary w-full">Upload</button>
+    <p data-upload-status class="text-sm text-slate-600" aria-live="polite"></p>
+  </form>
+  <noscript><p class="mt-6 text-sm text-slate-600">Uploading needs a browser with JavaScript turned on.</p></noscript>
+  {{end}}
+</section>
+{{end}}{{end}}
