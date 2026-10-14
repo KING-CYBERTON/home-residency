@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/argon2"
 
@@ -213,6 +214,19 @@ func DummyVerify() {
 }
 
 func ValidTOTP(secret, code string) bool { return totp.Validate(code, secret) }
+
+// MatchTOTP checks code against the steps either side of now and returns the 30-second time step
+// it matched, so callers can refuse a step that was already used.
+func MatchTOTP(secret, code string, now time.Time) (step int64, ok bool) {
+	for _, skew := range []int64{0, -1, 1} {
+		t := now.Add(time.Duration(skew) * 30 * time.Second)
+		valid, err := totp.ValidateCustom(code, secret, t, totp.ValidateOpts{Period: 30, Digits: otp.DigitsSix, Algorithm: otp.AlgorithmSHA1})
+		if err == nil && valid {
+			return t.Unix() / 30, true
+		}
+	}
+	return 0, false
+}
 
 func NewTOTP(accountEmail string) (secret, uri string, err error) {
 	k, err := totp.Generate(totp.GenerateOpts{Issuer: "Homend Residence", AccountName: accountEmail})
