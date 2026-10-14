@@ -8867,10 +8867,12 @@ components:
             items:
               $ref: '#/components/schemas/StaffRole'
           provider_status:
+            type: string
             allOf:
             - $ref: '#/components/schemas/ProviderStatus'
             nullable: true
           id_verification:
+            type: string
             allOf:
             - $ref: '#/components/schemas/IdVerificationStatus'
             nullable: true
@@ -9031,6 +9033,7 @@ components:
         is_active:
           type: boolean
         current_price:
+          type: object
           allOf:
           - $ref: '#/components/schemas/RateCardEntry'
           nullable: true
@@ -9155,6 +9158,7 @@ components:
         kind:
           $ref: '#/components/schemas/ChecklistItemKind'
         document_type:
+          type: string
           allOf:
           - $ref: '#/components/schemas/DocumentType'
           nullable: true
@@ -9686,6 +9690,7 @@ components:
         offer_client_choice:
           type: boolean
         provider:
+          type: object
           allOf:
           - $ref: '#/components/schemas/ProviderPublic'
           nullable: true
@@ -9719,6 +9724,7 @@ components:
           format: date-time
           nullable: true
         cancelled_by:
+          type: string
           allOf:
           - $ref: '#/components/schemas/Party'
           nullable: true
@@ -9960,6 +9966,7 @@ components:
           format: date-time
           nullable: true
         checkin_method:
+          type: string
           allOf:
           - $ref: '#/components/schemas/CheckinMethod'
           nullable: true
@@ -10117,6 +10124,7 @@ components:
                 - duplicate
                 - rejected
               error:
+                type: object
                 allOf:
                 - $ref: '#/components/schemas/Error'
                 nullable: true
@@ -10154,6 +10162,7 @@ components:
           format: date-time
           nullable: true
         response_channel:
+          type: string
           allOf:
           - $ref: '#/components/schemas/Channel'
           nullable: true
@@ -10204,6 +10213,7 @@ components:
           type: string
           nullable: true
         service_area:
+          type: object
           allOf:
           - $ref: '#/components/schemas/ServiceArea'
           nullable: true
@@ -10564,6 +10574,7 @@ components:
             items:
               $ref: '#/components/schemas/TrainingEnrolment'
           contract:
+            type: object
             allOf:
             - $ref: '#/components/schemas/Contract'
             nullable: true
@@ -11833,10 +11844,12 @@ components:
       - type: object
         properties:
           client:
+            type: object
             allOf:
             - $ref: '#/components/schemas/ClientSummary'
             nullable: true
           provider:
+            type: object
             allOf:
             - $ref: '#/components/schemas/ProviderSummary'
             nullable: true
@@ -12162,6 +12175,7 @@ components:
             items:
               $ref: '#/components/schemas/Address'
           subscription:
+            type: object
             allOf:
             - $ref: '#/components/schemas/Subscription'
             nullable: true
@@ -12346,6 +12360,7 @@ components:
           format: uuid
           nullable: true
         actor_kind:
+          type: string
           allOf:
           - $ref: '#/components/schemas/UserKind'
           nullable: true
