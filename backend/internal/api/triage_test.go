@@ -184,3 +184,23 @@ func TestTriageExtrasAndHouseholds(t *testing.T) {
 		t.Fatalf("reinstate: %v", s)
 	}
 }
+
+// Providers who sign up in the portal pick a home area but have no coordinates; the shortlist
+// measures distance from that area's centre instead of a flat neutral value.
+func TestShortlistDistanceFromHomeArea(t *testing.T) {
+	h := newHarness(t)
+	w := h.newWorld()
+	h.staff("triage", "triage@homend.test", "triage_officer")
+	h.sql(`UPDATE providers SET home_lat = NULL, home_lng = NULL, home_service_area_id = $2 WHERE user_id = $1`, w.providerID, w.areaID)
+	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
+		"requested_start": time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339)})
+	reqID := r["id"].(string)
+	h.expect(200, "triage", "POST", "/console/requests/"+reqID+"/claim", nil)
+	sl := h.expectList(200, "triage", "POST", "/console/requests/"+reqID+"/shortlist")
+	if len(sl) != 1 {
+		t.Fatalf("shortlist: %v", sl)
+	}
+	if d := sl[0].(map[string]any)["score_breakdown"].(map[string]any)["distance_km"].(float64); d > 1 {
+		t.Fatalf("distance from the home area centre: got %.1f km", d)
+	}
+}

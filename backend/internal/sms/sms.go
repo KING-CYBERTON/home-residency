@@ -4,6 +4,7 @@ package sms
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 )
@@ -14,9 +15,19 @@ type Sender interface {
 
 func New(provider string) Sender {
 	switch provider {
-	default:
+	case "log", "":
 		return LogSender{}
+	default:
+		// No real gateway is wired yet. Failing is safer than falling back to the log sender, which
+		// would write every login code to the logs in production.
+		return unavailable{provider: provider}
 	}
+}
+
+type unavailable struct{ provider string }
+
+func (u unavailable) Send(context.Context, string, string) error {
+	return fmt.Errorf("sms provider %q is not implemented", u.provider)
 }
 
 // LogSender prints messages to the log. Dev only: config refuses it when APP_ENV=prod.
