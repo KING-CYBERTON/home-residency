@@ -1,0 +1,10 @@
+{{define "page"}}
+<div class="mb-4 flex items-center justify-between">
+  <h1 class="text-xl font-semibold tracking-tight">My bookings</h1>
+  <a href="{{.Base}}/book" class="rounded-lg bg-brand-700 px-3 py-2 text-sm font-medium text-white">Book</a>
+</div>
+{{if .Data.Data}}
+<div class="space-y-3">{{range .Data.Data}}{{template "request-card" dict "Base" $.Base "R" .}}{{end}}</div>
+{{template "more" .Data}}
+{{else}}{{template "empty" "You have no bookings yet."}}{{end}}
+{{end}}

@@ -1,0 +1,61 @@
+{{define "page"}}
+{{template "h1" "Account"}}
+{{with .Data}}
+<nav class="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white text-sm" aria-label="Account">
+  <a href="{{$.Base}}/addresses" class="flex justify-between p-4"><span>Addresses</span><span class="text-slate-400">›</span></a>
+  <a href="{{$.Base}}/plans" class="flex justify-between p-4"><span>Household plan</span><span class="text-slate-500">{{if .Sub}}{{.Sub.Plan.Name}}{{else}}None{{end}} ›</span></a>
+  <a href="{{$.Base}}/messages" class="flex justify-between p-4"><span>Messages with Homend</span><span class="text-slate-400">›</span></a>
+  <a href="{{$.Base}}/complaints" class="flex justify-between p-4"><span>Complaints</span><span class="text-slate-400">›</span></a>
+  <a href="{{$.Base}}/notifications" class="flex justify-between p-4"><span>Notifications</span><span class="text-slate-400">›</span></a>
+</nav>
+
+<section class="mt-6">
+  <h2 class="mb-2 text-base font-semibold">Your details</h2>
+  <form method="post" action="{{$.Base}}/profile" class="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+    
+    <label class="block text-sm"><span class="font-medium">Name</span>
+      <input name="full_name" value="{{.Me.FullName}}" required minlength="2" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+    <label class="block text-sm"><span class="font-medium">Phone</span>
+      <input value="{{if .Me.Phone}}{{phone (str .Me.Phone)}}{{end}}" disabled class="mt-1 block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500"></label>
+    <label class="block text-sm"><span class="font-medium">Email <span class="font-normal text-slate-500">(for receipts, optional)</span></span>
+      <input name="email" type="email" value="{{str .Me.Email}}" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+    <label class="block text-sm"><span class="font-medium">Language</span>
+      <select name="language" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2">
+        <option value="en" {{if eq (print (val .Me.PreferredLanguage)) "en"}}selected{{end}}>English</option>
+        <option value="sw" {{if eq (print (val .Me.PreferredLanguage)) "sw"}}selected{{end}}>Kiswahili</option>
+      </select></label>
+    <button class="w-full rounded-lg bg-brand-700 px-4 py-2 font-medium text-white">Save</button>
+  </form>
+</section>
+
+<section class="mt-6" id="id">
+  <div class="mb-2 flex items-center justify-between"><h2 class="text-base font-semibold">ID verification</h2>{{if .Me.IdVerification}}{{template "badge" (val .Me.IdVerification)}}{{end}}</div>
+  {{$st := print (val .Me.IdVerification)}}
+  {{if eq $st "verified"}}
+    <p class="text-sm text-slate-600">Your identity is verified. You can book every service, including childcare and caregiving.</p>
+  {{else if eq $st "pending"}}
+    <p class="text-sm text-slate-600">We are checking your ID. This usually takes one working day.</p>
+  {{else}}
+  <form method="post" action="{{$.Base}}/profile/id-verification" class="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+    
+    <p class="text-sm text-slate-600">Needed before booking childcare or caregiving, so providers know who they are working for.{{if eq $st "rejected"}} Your last ID could not be verified; please try again.{{end}}</p>
+    <label class="block text-sm"><span class="font-medium">National ID or passport number</span>
+      <input name="id_number" required minlength="6" maxlength="20" autocomplete="off" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+    <div class="text-sm"><span class="font-medium">Photo of the ID</span>
+      <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" data-upload="national_id" data-target="#document_id" required
+             class="mt-1 block w-full file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2">
+      <p data-upload-status class="mt-1 text-xs text-slate-500"></p>
+      <input type="hidden" id="document_id" name="document_id">
+    </div>
+    <button class="w-full rounded-lg bg-brand-700 px-4 py-2 font-medium text-white">Submit for checking</button>
+  </form>
+  {{end}}
+</section>
+
+<section class="mt-8 space-y-3">
+  <button type="button" data-install hidden class="w-full rounded-lg border border-brand-700 px-4 py-3 font-medium text-brand-800">Install the Homend app</button>
+  <form method="post" action="{{$.Base}}/logout" data-clear-cache>
+    <button class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 font-medium">Sign out</button></form>
+</section>
+{{end}}
+{{end}}

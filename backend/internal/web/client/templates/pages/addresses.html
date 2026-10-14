@@ -1,0 +1,50 @@
+{{define "page"}}
+{{template "h1" "Addresses"}}
+{{with .Data}}
+{{if .Addresses}}
+<div class="space-y-3">
+{{range .Addresses}}
+  <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+    <div class="flex justify-between gap-2"><p class="font-medium">{{.Label}}</p>{{if .IsDefault}}<span class="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-800">Default</span>{{end}}</div>
+    <p class="text-slate-600">{{str .Estate}}{{if .Street}}, {{str .Street}}{{end}}{{if .HouseNumber}}, {{str .HouseNumber}}{{end}}</p>
+    {{if .Landmark}}<p class="text-slate-500">Near {{str .Landmark}}</p>{{end}}
+    <div class="mt-3 flex gap-4">
+      {{if not .IsDefault}}<form method="post" action="{{$.Base}}/addresses/{{.Id}}/default"><button class="font-medium text-brand-700">Make default</button></form>{{end}}
+      <form method="post" action="{{$.Base}}/addresses/{{.Id}}/archive"><button class="font-medium text-rose-700">Remove</button></form>
+    </div>
+  </div>
+{{end}}
+</div>
+{{end}}
+
+<section class="mt-6">
+  <h2 class="mb-2 text-base font-semibold">{{if .Addresses}}Add another address{{else}}Add your address{{end}}</h2>
+  <form method="post" action="{{$.Base}}/addresses" class="space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+    <input type="hidden" name="next" value="{{.Next}}">
+    <label class="block"><span class="font-medium">Name it</span>
+      <input name="label" placeholder="Home, Mum's house…" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+    <label class="block"><span class="font-medium">Area</span>
+      <select name="service_area_id" required class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2">
+        <option value="">Choose your area</option>
+        {{range .Areas}}<option value="{{.Id}}">{{.Name}}{{if .County}}, {{str .County}}{{end}}</option>{{end}}
+      </select>
+      <span class="mt-1 block text-xs text-slate-500">Not listed? We are not in your area yet.</span></label>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="block"><span class="font-medium">Estate</span><input name="estate" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+      <label class="block"><span class="font-medium">House / flat no.</span><input name="house_number" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+    </div>
+    <label class="block"><span class="font-medium">Street or road</span><input name="street" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+    <label class="block"><span class="font-medium">Landmark</span><input name="landmark" placeholder="Near the Total petrol station" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+    <label class="block"><span class="font-medium">Gate or access details <span class="font-normal text-slate-500">(kept encrypted, shown only to your assigned provider)</span></span>
+      <textarea name="access_details" rows="2" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></label>
+    <div class="flex items-center gap-3">
+      <button type="button" data-geolocate class="rounded-lg border border-slate-300 px-3 py-2">Use my location</button>
+      <span data-geo class="text-xs text-slate-500">Helps the provider find you and check in at your door.</span>
+      <input type="hidden" name="lat"><input type="hidden" name="lng">
+    </div>
+    {{if .Addresses}}<label class="flex items-center gap-2"><input type="checkbox" name="is_default" value="yes" class="h-4 w-4 rounded border-slate-300 text-brand-700"> Make this my default</label>{{end}}
+    <button class="w-full rounded-lg bg-brand-700 px-4 py-3 font-medium text-white">Save address</button>
+  </form>
+</section>
+{{end}}
+{{end}}

@@ -1,0 +1,9 @@
+{{define "page"}}
+<div class="pt-6">
+  {{template "h1" "This is the household app"}}
+  <p class="text-sm text-slate-600">You are signed in with a {{.Data}} account. Sign out to use a household account here{{if eq .Data "provider"}}, or open the <a href="/provider/" class="font-medium text-brand-700 underline">provider app</a>{{end}}.</p>
+  <form method="post" action="{{.Base}}/logout" data-clear-cache class="mt-6">
+    <button class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 font-medium">Sign out</button>
+  </form>
+</div>
+{{end}}

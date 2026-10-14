@@ -1,0 +1,47 @@
+{{define "page"}}
+<section>
+  <h1 class="text-xl font-semibold tracking-tight">Hello{{if .Me}}, {{.Me.FullName}}{{end}}</h1>
+  <a href="{{.Base}}/book" class="mt-4 flex items-center justify-between rounded-xl bg-brand-700 px-4 py-4 text-white shadow-sm hover:bg-brand-800">
+    <span><span class="block font-semibold">Book a service</span><span class="text-sm text-brand-100">Cleaning, laundry, childcare and more</span></span>
+    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+  </a>
+</section>
+
+{{with .Data}}
+{{if .Action}}
+<section class="mt-6">
+  <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-amber-800">Needs you</h2>
+  <div class="space-y-3">{{range .Action}}{{template "request-card" dict "Base" $.Base "R" .}}{{end}}</div>
+</section>
+{{end}}
+
+{{if .Unpaid}}
+<section class="mt-6">
+  <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">To pay</h2>
+  <div class="space-y-3">
+  {{range .Unpaid}}
+    <a href="{{$.Base}}/invoices/{{.Id}}" class="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <span><span class="block font-medium">{{kes (due .TotalMinor .PaidMinor)}}</span><span class="text-sm text-slate-600">Invoice {{.Reference}}</span></span>
+      <span class="rounded-lg bg-brand-700 px-3 py-2 text-sm font-medium text-white">Pay with M-Pesa</span>
+    </a>
+  {{end}}
+  </div>
+</section>
+{{end}}
+
+<section class="mt-6">
+  <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Upcoming and in progress</h2>
+  {{if .Active}}
+  <div class="space-y-3">{{range .Active}}{{template "request-card" dict "Base" $.Base "R" .}}{{end}}</div>
+  {{else}}{{template "empty" "Nothing booked right now."}}{{end}}
+</section>
+
+{{if .Recent}}
+<section class="mt-6">
+  <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Recent</h2>
+  <div class="space-y-3">{{range .Recent}}{{template "request-card" dict "Base" $.Base "R" .}}{{end}}</div>
+  <a href="{{$.Base}}/requests" class="mt-3 block text-center text-sm font-medium text-brand-700">All bookings</a>
+</section>
+{{end}}
+{{end}}
+{{end}}
