@@ -45,14 +45,30 @@
     }).then(function (bad) {
       if (bad && bad.length) {
         say('Not accepted: ' + bad.map(function (x) { return x.error; }).join(' ') + ' Please call the office if you need help.', true);
+        bad.forEach(function (x) { if (x.event) restore(x.event); });
         Q.clearFailed();
       }
+    });
+  }
+
+  // A refused event leaves the visit as the server has it: the pending note goes and the form it
+  // came from shows again, so the provider can retry (for example with the right door code).
+  function restore(ev) {
+    $('[data-visit="' + ev.visit_id + '"]').forEach(function (card) {
+      var tag = card.querySelector('[data-pending]');
+      if (tag) { tag.hidden = true; tag.textContent = ''; }
+      var ci = card.querySelector('[data-offline="check_in"]'), co = card.querySelector('[data-offline="check_out"]');
+      if (ev.event_type === 'check_in') { if (ci) ci.hidden = false; if (co) co.hidden = true; }
+      if (ev.event_type === 'check_out' && co) co.hidden = false;
+      var fresh = card.querySelector('[data-offline="' + ev.event_type + '"] [name=client_event_id]');
+      if (fresh) fresh.value = uuid(); // a retry is a new event, not a replay of the refused one
     });
   }
 
   function synced(res) {
     if (res.rejected.length) {
       say('Not accepted: ' + res.rejected.map(function (x) { return x.error; }).join(' '), true);
+      res.rejected.forEach(function (x) { if (x.event) restore(x.event); });
       Q.clearFailed();
     } else if (res.applied) {
       say('');
@@ -109,7 +125,7 @@
       }
       ready.then(function () { return Q.add(ev); }).then(function () {
         if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-          navigator.serviceWorker.ready.then(function (reg) { if (reg.sync) reg.sync.register('hr-sync'); }).catch(function () {});
+          navigator.serviceWorker.ready.then(function (reg) { if (reg.sync) return reg.sync.register('hr-sync'); }).catch(function () {}); // refused where Background Sync is off; the page sends instead
         }
         return showPending();
       }).then(flush, function (err) {
