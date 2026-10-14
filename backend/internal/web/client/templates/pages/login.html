@@ -34,6 +34,11 @@
     {{if .Consent}}<input type="hidden" name="consent" value="yes">{{end}}
     <button class="text-sm font-medium text-brand-700">Send a new code</button>
   </form>
+  {{if and .Err (ne .Mode "register")}}
+  <p class="mt-6 text-center text-sm text-slate-600">
+    First time booking? <a href="{{$.Base}}/login?mode=register{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Create an account</a>
+  </p>
+  {{end}}
   {{else}}
   <form method="post" action="{{$.Base}}/login" hx-post="{{$.Base}}/login" hx-target="#login-form" hx-swap="outerHTML" class="space-y-4">
     
@@ -61,8 +66,8 @@
     <button class="w-full rounded-lg bg-brand-700 px-4 py-3 font-medium text-white hover:bg-brand-800">Send code</button>
   </form>
   <p class="mt-6 text-center text-sm text-slate-600">
-    {{if eq .Mode "register"}}Already have an account? <a href="{{$.Base}}/login" class="font-medium text-brand-700">Sign in</a>
-    {{else}}New to Homend? <a href="{{$.Base}}/login?mode=register" class="font-medium text-brand-700">Create an account</a>{{end}}
+    {{if eq .Mode "register"}}Already have an account? <a href="{{$.Base}}/login{{with .Next}}?next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Sign in</a>
+    {{else}}New to Homend? <a href="{{$.Base}}/login?mode=register{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Create an account</a>{{end}}
   </p>
   {{end}}
   {{end}}

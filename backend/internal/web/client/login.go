@@ -2,6 +2,7 @@ package client
 
 import (
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -115,7 +116,12 @@ func (p *Portal) loginVerify(w http.ResponseWriter, r *http.Request) {
 	next := p.safeNext(f.Next, p.Base+"/")
 	if f.Mode == "register" {
 		p.flash(w, "Welcome, "+sess.User.FullName+". Add your home address to book your first service.")
-		next = p.Base + "/addresses"
+		// A household that came from a Book link goes back to that booking once the address is saved.
+		addresses := p.Base + "/addresses"
+		if next != p.Base+"/" {
+			addresses += "?next=" + url.QueryEscape(next)
+		}
+		next = addresses
 	}
 	p.redirect(w, r, next)
 }

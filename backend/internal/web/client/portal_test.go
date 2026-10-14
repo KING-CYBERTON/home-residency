@@ -50,8 +50,9 @@ func TestPagesRenderWithoutDatabase(t *testing.T) {
 	defer srv.Close()
 
 	for path, want := range map[string]string{
-		"/account/login":                "Send code",
-		"/account/login?mode=register":  "privacy notice",
+		"/account/login":               "Send code",
+		"/account/login?mode=register": "privacy notice",
+		"/account/login?next=%2Faccount%2Fbook%3Fservice%3Dstandard-clean": `mode=register&amp;next=%2Faccount%2Fbook%3Fservice%3Dstandard-clean`,
 		"/account/offline":              "You are offline",
 		"/account/manifest.webmanifest": `"scope": "/account/"`,
 		"/account/sw.js":                `const BASE = "/account"`,
@@ -309,6 +310,35 @@ func (b *browser) signUp(phone, local, name string) {
 	if code != 200 {
 		t.Fatalf("verify: %d", code)
 	}
+}
+
+// A household that follows a Book link from the public site and has no account yet ends up back
+// on that booking: the sign-in page offers registration with the booking kept, and after the code the
+// address form returns to it.
+func TestSignUpFromBookLink(t *testing.T) {
+	e := newEnv(t)
+	b := e.browser()
+	next := "/account/book?category=cleaning&service=standard-clean"
+	page, _ := b.get("/account/login?next=" + url.QueryEscape(next))
+	must(t, page, "mode=register&amp;next="+url.QueryEscape(next))
+
+	// Signing in with a number that has no account fails like a wrong code, and points to registration.
+	_, page, _ = b.post("/account/login", url.Values{"mode": {"login"}, "phone": {"0700 000 009"}, "next": {next}}, true)
+	otpID := otpIDRE.FindStringSubmatch(page)[1]
+	_, page, _ = b.post("/account/login/verify", url.Values{"mode": {"login"}, "phone": {"+254700000009"}, "next": {next},
+		"otp_id": {otpID}, "code": {e.lastCode("+254700000009")}}, true)
+	must(t, page, "That code is wrong", "Create an account")
+
+	e.sql(`DELETE FROM otp_codes WHERE phone_e164 = '+254700000009'`) // the one-a-minute limit
+	_, page, _ = b.post("/account/login", url.Values{"mode": {"register"}, "full_name": {"Achieng Odhiambo"}, "phone": {"0700 000 009"},
+		"consent": {"yes"}, "next": {next}}, true)
+	otpID = otpIDRE.FindStringSubmatch(page)[1]
+	_, page, at := b.post("/account/login/verify", url.Values{"mode": {"register"}, "full_name": {"Achieng Odhiambo"}, "phone": {"+254700000009"},
+		"consent": {"yes"}, "next": {next}, "otp_id": {otpID}, "code": {e.lastCode("+254700000009")}}, false)
+	if at != "/account/addresses" {
+		t.Fatalf("after sign-up from a Book link landed on %s", at)
+	}
+	must(t, page, `name="next" value="/account/book?category=cleaning&amp;service=standard-clean"`)
 }
 
 func TestHouseholdJourney(t *testing.T) {
