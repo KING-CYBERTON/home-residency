@@ -191,7 +191,9 @@ func (p *Portal) takeFlash(w http.ResponseWriter, r *http.Request) (string, bool
 	if err != nil {
 		return "", false
 	}
-	http.SetCookie(w, &http.Cookie{Name: flashCookie, Value: "", Path: "/", MaxAge: -1})
+	// Cleared with the same attributes it was set with.
+	http.SetCookie(w, &http.Cookie{Name: flashCookie, Value: "", Path: "/", HttpOnly: true, Secure: p.opts.CookieSecure,
+		SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	msg, _ := url.QueryUnescape(c.Value)
 	return strings.TrimPrefix(msg, "! "), strings.HasPrefix(msg, "! ")
 }
