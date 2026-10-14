@@ -1,10 +1,12 @@
 package web
 
 import (
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 func newSite(t *testing.T) *Site {
@@ -93,5 +95,22 @@ func TestPageTemplatesExtendLayout(t *testing.T) {
 		if !strings.Contains(b, want) {
 			t.Errorf("missing %q in\n%s", want, b)
 		}
+	}
+}
+
+func TestTemplatesWithFuncs(t *testing.T) {
+	s := newSite(t)
+	page := fstest.MapFS{"p.html": {Data: []byte(`{{define "content"}}<p>{{shout .Data}}</p>{{end}}`)}}
+	tm, err := s.TemplatesWithFuncs(template.FuncMap{"shout": func(v any) string { return "HI " + v.(string) }}, page, "p.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	s.Render(rec, httptest.NewRequest("GET", "/x", nil), tm, 200, &Page{Title: "T", Data: "there"})
+	if !strings.Contains(rec.Body.String(), "<p>HI there</p>") {
+		t.Fatalf("custom func not applied:\n%s", rec.Body.String())
+	}
+	if _, err := s.Templates(page, "p.html"); err == nil {
+		t.Fatal("the base must not gain the surface's funcs")
 	}
 }
