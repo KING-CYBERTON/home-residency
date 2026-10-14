@@ -1,0 +1,63 @@
+name: Infra CI
+
+on:
+  pull_request:
+    paths: ["infra/**", ".github/workflows/infra-ci.yml"]
+  push:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/infra-ci.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.3
+          terraform_wrapper: false
+      - name: terraform fmt
+        run: terraform fmt -recursive -check -diff infra
+      # Errors are also written as annotations, so they show on the PR without the log.
+      - name: terraform validate
+        run: |
+          failed=0
+          for dir in infra/bootstrap infra/global infra/envs/staging infra/envs/production; do
+            echo "::group::$dir"
+            if ! terraform -chdir="$dir" init -backend=false -input=false -no-color > "$RUNNER_TEMP/init.log" 2>&1; then
+              cat "$RUNNER_TEMP/init.log"
+              echo "::error title=terraform init failed in $dir::$(grep -A3 'Error' "$RUNNER_TEMP/init.log" | tr '\n' ' ' | cut -c1-900)"
+              failed=1
+              echo "::endgroup::"
+              continue
+            fi
+            out="$(terraform -chdir="$dir" validate -json -no-color)" || true
+            echo "$out"
+            if [[ "$(jq -r .valid <<<"$out")" != "true" ]]; then
+              jq -r --arg dir "$dir" '.diagnostics[] | select(.severity == "error")
+                | "::error file=\($dir)/\(.range.filename // ""),line=\(.range.start.line // 1),title=\(.summary)::\(.detail // "" | gsub("\n"; " "))"' <<<"$out"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+
+  misconfig:
+    name: Misconfiguration scan (Trivy)
+    runs-on: ubuntu-latest
+    env:
+      TRIVY_VERSION: 0.76.0
+      TRIVY_SHA256: e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Trivy (checksum-verified)
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/trivy.tgz" "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/trivy.tgz" -C "$RUNNER_TEMP" trivy
+      # Accepted findings, each with a reason, are in infra/.trivyignore.
+      - run: '"$RUNNER_TEMP/trivy" config --severity HIGH,CRITICAL --exit-code 1 --ignorefile infra/.trivyignore infra'

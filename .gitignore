@@ -2,3 +2,9 @@
 # Go / local
 backend/bin/
 .env
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
