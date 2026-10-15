@@ -68,7 +68,7 @@ jobs:
             echo "::error::Image tag $IMAGE_TAG is not in $ECR_REPOSITORY."
             exit 1
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.IMAGE_TAG }}
       - if: steps.existing.outputs.digest == ''
