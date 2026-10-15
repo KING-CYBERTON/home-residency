@@ -19,6 +19,7 @@ infra/
 |---|---|---|
 | Network | VPC `10.20.0.0/16`, 2 AZs, public + private subnets, 1 NAT gateway | VPC `10.30.0.0/16`, same layout |
 | Existing network | Optional: set `existing_vpc_id`, `existing_public_subnet_ids` and `existing_private_subnet_ids` (two AZs each) to use a VPC you already have; no VPC, subnets or NAT gateway are created. The private subnets need outbound HTTPS (NAT or VPC endpoints). | same |
+| Without a NAT gateway | Optional: `tasks_in_public_subnets = true` runs the API and migration tasks in the public subnets with public IPs; their security group still only accepts the load balancer. The database stays private. Set it back to `false` and redeploy once a NAT gateway exists. | same |
 | Load balancer | ALB, HTTP until a certificate is given; WAF rate limit per IP | ALB, HTTPS (TLS 1.2+), HTTP redirects; WAF rate limit per IP |
 | Staff console | Private S3 bucket behind CloudFront on the `cloudfront.net` domain | Same, on `console_domain` with a us-east-1 certificate |
 | API | ECS Fargate service `homend-api`, 1 task (scales to 2 on CPU) | 2 tasks (scales to 6 on CPU) |

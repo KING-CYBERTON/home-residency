@@ -54,6 +54,7 @@ jobs:
           ECS_CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME || 'api' }}
           ECS_SUBNETS: ${{ vars.ECS_SUBNETS }}
           ECS_SECURITY_GROUPS: ${{ vars.ECS_SECURITY_GROUPS }}
+          ECS_ASSIGN_PUBLIC_IP: ${{ vars.ECS_ASSIGN_PUBLIC_IP || 'DISABLED' }}
         run: backend/scripts/deploy-ecs.sh
       - name: Health check
         if: vars.PUBLIC_BASE_URL != ''

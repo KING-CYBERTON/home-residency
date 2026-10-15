@@ -11,7 +11,8 @@
 #   ECS_SERVICE           service name
 #   ECS_TASK_FAMILY       task definition family the service runs
 #   ECS_CONTAINER_NAME    container in that task definition that runs the api binary
-#   ECS_SUBNETS           comma-separated private subnet ids for the migration task
+#   ECS_SUBNETS           comma-separated subnet ids for the migration task
+#   ECS_ASSIGN_PUBLIC_IP  ENABLED when the tasks run in public subnets (optional, default DISABLED)
 #   ECS_SECURITY_GROUPS   comma-separated security group ids for the migration task
 # Optional: MIGRATION_TIMEOUT_SECONDS (default 1800), STABLE_TIMEOUT_SECONDS (default 1200).
 set -euo pipefail
@@ -24,6 +25,11 @@ for v in IMAGE ECS_CLUSTER ECS_SERVICE ECS_TASK_FAMILY ECS_CONTAINER_NAME ECS_SU
 done
 MIGRATION_TIMEOUT_SECONDS="${MIGRATION_TIMEOUT_SECONDS:-1800}"
 STABLE_TIMEOUT_SECONDS="${STABLE_TIMEOUT_SECONDS:-1200}"
+assign_public_ip="${ECS_ASSIGN_PUBLIC_IP:-DISABLED}"
+if [[ "$assign_public_ip" != ENABLED && "$assign_public_ip" != DISABLED ]]; then
+	echo "::error::ECS_ASSIGN_PUBLIC_IP must be ENABLED or DISABLED"
+	exit 1
+fi
 
 csv_json() { jq -cn --arg s "$1" '$s | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))'; }
 
@@ -43,7 +49,8 @@ echo "::endgroup::"
 
 echo "::group::Run migrations"
 network="$(jq -cn --argjson subnets "$(csv_json "$ECS_SUBNETS")" --argjson sgs "$(csv_json "$ECS_SECURITY_GROUPS")" \
-	'{awsvpcConfiguration: {subnets: $subnets, securityGroups: $sgs, assignPublicIp: "DISABLED"}}')"
+	--arg public "$assign_public_ip" \
+	'{awsvpcConfiguration: {subnets: $subnets, securityGroups: $sgs, assignPublicIp: $public}}')"
 overrides="$(jq -cn --arg name "$ECS_CONTAINER_NAME" '{containerOverrides: [{name: $name, command: ["migrate", "up"]}]}')"
 run="$(aws ecs run-task --cluster "$ECS_CLUSTER" --task-definition "$task_def_arn" --launch-type FARGATE \
 	--network-configuration "$network" --overrides "$overrides" --started-by github-actions --output json)"

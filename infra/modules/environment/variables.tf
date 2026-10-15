@@ -47,6 +47,17 @@ variable "existing_private_subnet_ids" {
   }
 }
 
+variable "tasks_in_public_subnets" {
+  description = <<-EOT
+    Run the API and migration tasks in the public subnets with public IPs instead of the
+    private subnets, so they reach ECR, Secrets Manager and M-Pesa without a NAT gateway.
+    The app security group still only accepts traffic from the load balancer. Set this
+    back to false once the private subnets have a NAT gateway.
+  EOT
+  type        = bool
+  default     = false
+}
+
 # ---- Application
 
 variable "app_env" {

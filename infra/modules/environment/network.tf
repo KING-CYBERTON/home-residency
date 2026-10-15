@@ -17,6 +17,9 @@ locals {
   vpc_id             = local.create_network ? aws_vpc.main[0].id : var.existing_vpc_id
   public_subnet_ids  = local.create_network ? aws_subnet.public[*].id : var.existing_public_subnet_ids
   private_subnet_ids = local.create_network ? aws_subnet.private[*].id : var.existing_private_subnet_ids
+
+  # The API and migration tasks; the database always stays in the private subnets.
+  task_subnet_ids = var.tasks_in_public_subnets ? local.public_subnet_ids : local.private_subnet_ids
 }
 
 resource "aws_vpc" "main" {

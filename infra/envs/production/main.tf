@@ -73,6 +73,12 @@ variable "existing_private_subnet_ids" {
   default = []
 }
 
+variable "tasks_in_public_subnets" {
+  description = "Run the tasks in the public subnets instead of behind a NAT gateway (see modules/environment/variables.tf)."
+  type        = bool
+  default     = false
+}
+
 module "env" {
   source = "../../modules/environment"
   providers = {
@@ -85,6 +91,7 @@ module "env" {
   existing_vpc_id             = var.existing_vpc_id
   existing_public_subnet_ids  = var.existing_public_subnet_ids
   existing_private_subnet_ids = var.existing_private_subnet_ids
+  tasks_in_public_subnets     = var.tasks_in_public_subnets
   app_env                     = "prod"
   public_base_url             = var.public_base_url
   certificate_arn             = var.certificate_arn

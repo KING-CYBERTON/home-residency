@@ -34,7 +34,8 @@ output "github_environment_variables" {
     ECS_SERVICE             = aws_ecs_service.api.name
     ECS_TASK_FAMILY         = aws_ecs_task_definition.api.family
     ECS_CONTAINER_NAME      = "api"
-    ECS_SUBNETS             = join(",", local.private_subnet_ids)
+    ECS_SUBNETS             = join(",", local.task_subnet_ids)
+    ECS_ASSIGN_PUBLIC_IP    = var.tasks_in_public_subnets ? "ENABLED" : "DISABLED"
     ECS_SECURITY_GROUPS     = aws_security_group.app.id
     PUBLIC_BASE_URL         = local.public_base_url
     CONSOLE_BUCKET          = aws_s3_bucket.console.bucket

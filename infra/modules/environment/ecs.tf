@@ -88,9 +88,9 @@ resource "aws_ecs_service" "api" {
   }
 
   network_configuration {
-    subnets          = local.private_subnet_ids
+    subnets          = local.task_subnet_ids
     security_groups  = [aws_security_group.app.id]
-    assign_public_ip = false
+    assign_public_ip = var.tasks_in_public_subnets
   }
 
   load_balancer {
