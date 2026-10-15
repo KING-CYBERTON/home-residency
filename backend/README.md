@@ -93,7 +93,7 @@ From Secrets Manager (task definition `secrets`): `DATABASE_URL`, `FIELD_ENCRYPT
 
 | Variable | Example |
 |---|---|
-| `AWS_REGION` | `af-south-1` |
+| `AWS_REGION` | `eu-central-1` |
 | `AWS_ECR_PUSH_ROLE_ARN` | `arn:aws:iam::111111111111:role/homend-github-ecr-push` |
 | `ECR_REPOSITORY` | `homend-api` |
 

@@ -5,7 +5,7 @@ resource "random_password" "db" {
 
 resource "aws_db_subnet_group" "main" {
   name       = local.name
-  subnet_ids = aws_subnet.private[*].id
+  subnet_ids = local.private_subnet_ids
 }
 
 resource "aws_db_parameter_group" "main" {

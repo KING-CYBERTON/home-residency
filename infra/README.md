@@ -1,6 +1,6 @@
 # Homend Residence infrastructure (Terraform)
 
-Everything the backend needs on AWS (ADR-0001), as Terraform, in `af-south-1` by default. The deploy workflows in `.github/workflows/backend-deploy*.yml` ship new images onto this; Terraform does not deploy code.
+Everything the backend needs on AWS (ADR-0001), as Terraform, in `eu-central-1` (Frankfurt) by default. The deploy workflows in `.github/workflows/backend-deploy*.yml` ship new images onto this; Terraform does not deploy code.
 
 ```
 infra/
@@ -18,6 +18,7 @@ infra/
 | Piece | Staging | Production |
 |---|---|---|
 | Network | VPC `10.20.0.0/16`, 2 AZs, public + private subnets, 1 NAT gateway | VPC `10.30.0.0/16`, same layout |
+| Existing network | Optional: set `existing_vpc_id`, `existing_public_subnet_ids` and `existing_private_subnet_ids` (two AZs each) to use a VPC you already have; no VPC, subnets or NAT gateway are created. The private subnets need outbound HTTPS (NAT or VPC endpoints). | same |
 | Load balancer | ALB, HTTP until a certificate is given; WAF rate limit per IP | ALB, HTTPS (TLS 1.2+), HTTP redirects; WAF rate limit per IP |
 | Staff console | Private S3 bucket behind CloudFront on the `cloudfront.net` domain | Same, on `console_domain` with a us-east-1 certificate |
 | API | ECS Fargate service `homend-api`, 1 task (scales to 2 on CPU) | 2 tasks (scales to 6 on CPU) |
@@ -30,7 +31,7 @@ The tasks, the migration task and the database run in private subnets. Only the 
 
 ## First-time setup
 
-You need AWS credentials for an admin in the target account, Terraform 1.10 or newer, and, for production, a domain and an ACM certificate in the same region. `af-south-1` is an opt-in region: enable it in the account first.
+You need AWS credentials for an admin in the target account, Terraform 1.10 or newer, and, for production, a domain and an ACM certificate in the same region. To use another region, pass `-var region=...` and the matching `-backend-config="region=..."`.
 
 1. **State bucket** (once per account):
    ```bash
@@ -41,7 +42,7 @@ You need AWS credentials for an admin in the target account, Terraform 1.10 or n
 2. **Shared resources:**
    ```bash
    cd infra/global
-   terraform init -backend-config="bucket=<state_bucket>" -backend-config="region=af-south-1"
+   terraform init -backend-config="bucket=<state_bucket>" -backend-config="region=eu-central-1"
    terraform apply
    ```
    Copy the `github_repository_variables` output into GitHub as repository variables (Settings → Secrets and variables → Actions → Variables).
@@ -49,7 +50,7 @@ You need AWS credentials for an admin in the target account, Terraform 1.10 or n
 3. **Staging:**
    ```bash
    cd infra/envs/staging
-   terraform init -backend-config="bucket=<state_bucket>" -backend-config="region=af-south-1"
+   terraform init -backend-config="bucket=<state_bucket>" -backend-config="region=eu-central-1"
    terraform apply
    ```
    Create a GitHub environment named `staging` and copy the `github_environment_variables` output into it.

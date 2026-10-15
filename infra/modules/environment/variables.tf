@@ -16,8 +16,35 @@ variable "ecr_repository_name" {
 # ---- Network
 
 variable "vpc_cidr" {
-  type    = string
-  default = "10.20.0.0/16"
+  description = "CIDR for the VPC this module creates. Ignored when existing_vpc_id is set."
+  type        = string
+  default     = "10.20.0.0/16"
+}
+
+variable "existing_vpc_id" {
+  description = "Use this VPC instead of creating one. Empty creates the VPC, subnets and NAT gateway."
+  type        = string
+  default     = ""
+}
+
+variable "existing_public_subnet_ids" {
+  description = "With existing_vpc_id: public subnets for the load balancer, in at least two AZs."
+  type        = list(string)
+  default     = []
+  validation {
+    condition     = var.existing_vpc_id == "" || length(var.existing_public_subnet_ids) >= 2
+    error_message = "existing_vpc_id needs at least two public subnets, in different AZs."
+  }
+}
+
+variable "existing_private_subnet_ids" {
+  description = "With existing_vpc_id: private subnets with outbound HTTPS for the tasks and the database, in at least two AZs."
+  type        = list(string)
+  default     = []
+  validation {
+    condition     = var.existing_vpc_id == "" || length(var.existing_private_subnet_ids) >= 2
+    error_message = "existing_vpc_id needs at least two private subnets, in different AZs."
+  }
 }
 
 # ---- Application

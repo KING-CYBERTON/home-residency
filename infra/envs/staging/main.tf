@@ -1,6 +1,6 @@
 variable "region" {
   type    = string
-  default = "af-south-1"
+  default = "eu-central-1"
 }
 
 variable "public_base_url" {
@@ -38,6 +38,22 @@ variable "vapid_subject" {
   default     = ""
 }
 
+variable "existing_vpc_id" {
+  description = "Use this VPC instead of creating one (see modules/environment/network.tf)."
+  type        = string
+  default     = ""
+}
+
+variable "existing_public_subnet_ids" {
+  type    = list(string)
+  default = []
+}
+
+variable "existing_private_subnet_ids" {
+  type    = list(string)
+  default = []
+}
+
 module "env" {
   source = "../../modules/environment"
   providers = {
@@ -45,13 +61,16 @@ module "env" {
     aws.us_east_1 = aws.us_east_1
   }
 
-  environment     = "staging"
-  vpc_cidr        = "10.20.0.0/16"
-  app_env         = "staging"
-  public_base_url = var.public_base_url
-  certificate_arn = var.certificate_arn
-  allowed_origins = var.allowed_origins
-  vapid_subject   = var.vapid_subject
+  environment                 = "staging"
+  vpc_cidr                    = "10.20.0.0/16"
+  existing_vpc_id             = var.existing_vpc_id
+  existing_public_subnet_ids  = var.existing_public_subnet_ids
+  existing_private_subnet_ids = var.existing_private_subnet_ids
+  app_env                     = "staging"
+  public_base_url             = var.public_base_url
+  certificate_arn             = var.certificate_arn
+  allowed_origins             = var.allowed_origins
+  vapid_subject               = var.vapid_subject
 
   console_domain          = var.console_domain
   console_certificate_arn = var.console_certificate_arn

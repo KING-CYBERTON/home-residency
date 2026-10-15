@@ -1,6 +1,6 @@
 variable "region" {
   type    = string
-  default = "af-south-1"
+  default = "eu-central-1"
 }
 
 variable "github_repository" {
