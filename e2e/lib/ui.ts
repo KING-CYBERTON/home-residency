@@ -61,7 +61,10 @@ export async function fill(page: Page, values: Record<string, Value>) {
   for (const [name, v] of Object.entries(values)) {
     const el = dialog.locator(`#f-${name}`);
     if (Array.isArray(v)) {
-      for (const label of v) await dialog.getByLabel(label, { exact: true }).check();
+      for (const label of v) {
+        const box = dialog.getByRole("checkbox", { name: label, exact: true });
+        if ((await box.getAttribute("data-state")) !== "checked") await box.click();
+      }
     } else if (typeof v === "boolean") {
       const checked = (await el.getAttribute("data-state")) === "checked";
       if (checked !== v) await el.click();
@@ -80,7 +83,9 @@ export async function act(page: Page, button: string | RegExp, values: Record<st
   await fill(page, values);
   const dialog = page.getByRole("dialog").last();
   await dialog.locator('button[type="submit"]').click();
-  await expect(dialog, `dialog "${button}" should close; it says: ${await dialog.innerText().catch(() => "")}`).toBeHidden();
+  await expect(dialog).toBeHidden().catch(async (e) => {
+    throw new Error(`dialog "${button}" did not close; it says: ${await dialog.innerText({ timeout: 300 }).catch(() => "")}\n${e}`);
+  });
   await page.waitForLoadState("networkidle");
 }
 

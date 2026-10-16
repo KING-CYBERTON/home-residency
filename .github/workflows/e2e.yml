@@ -1,0 +1,86 @@
+name: End-to-end
+
+# Drives the whole platform through its screens in a real browser: the public site, recruitment,
+# the client and provider portals and the staff console, on a fresh database with the demo
+# catalogue, SMS codes read from the API log and M-Pesa played by the tests (see e2e/README.md).
+
+on:
+  pull_request:
+    paths: ["backend/**", "console/**", "e2e/**", ".github/workflows/e2e.yml"]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *" # 06:00 in Nairobi, so a night's drift is waiting in the morning
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: "Only run tests whose title matches (for example: payment)"
+        required: false
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Every feature in a browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      E2E_PG_URL: postgres://postgres:postgres@localhost:5432
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            console/package-lock.json
+            e2e/package-lock.json
+      - name: Install console and test dependencies
+        run: |
+          npm ci --prefix console
+          npm ci --prefix e2e
+      - name: Install Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Typecheck the tests
+        working-directory: e2e
+        run: npx tsc -p .
+      - name: Start the platform (API, portals, console) on a fresh database
+        run: bash e2e/scripts/stack.sh
+      - name: Run the tests
+        working-directory: e2e
+        env:
+          GREP: ${{ inputs.grep }}
+        run: npx playwright test ${GREP:+--grep "$GREP"}
+      - name: Server logs
+        if: failure()
+        run: tail -n 200 e2e/.stack/api.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            e2e/.stack/*.log
+          retention-days: 14

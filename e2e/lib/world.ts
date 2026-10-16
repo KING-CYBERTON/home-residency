@@ -54,3 +54,11 @@ export async function acceptedJob(ops: string, c: Person & { addressId: string }
   const visit = await one<{ id: string }>(`SELECT id FROM visits WHERE request_id = $1`, req.id);
   return { requestId: req.id, reference: req.reference, assignmentId: a.id, visitId: visit.id };
 }
+
+/** The provider checks in with the household's door code and checks out, through the API as the apps do. */
+export async function workDone(c: Person, p: Person, visitId: string) {
+  const { code } = await call<{ code: string }>(c.token, "GET", `/client/visits/${visitId}/checkin-code`);
+  const now = () => new Date().toISOString();
+  await call(p.token, "POST", `/provider/visits/${visitId}/check-in`, { client_event_id: crypto.randomUUID(), method: "code", code, device_recorded_at: now() });
+  await call(p.token, "POST", `/provider/visits/${visitId}/check-out`, { client_event_id: crypto.randomUUID(), notes: "Done", device_recorded_at: now() });
+}
