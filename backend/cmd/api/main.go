@@ -3,10 +3,12 @@
 //	api serve                          run the HTTP server (default)
 //	api migrate up|down|status|reset   apply the embedded goose migrations
 //	api create-staff -email … -name … -roles admin,triage_officer
+//	api seed-demo                      load the demo catalogue (refused when APP_ENV=prod)
 package main
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -61,6 +63,8 @@ func run(cmd string, args []string) error {
 		return serve(ctx, cfg)
 	case "create-staff":
 		return createStaff(ctx, cfg, args)
+	case "seed-demo":
+		return seedDemo(ctx, cfg)
 	default:
 		return fmt.Errorf("unknown command %q", cmd)
 	}
@@ -147,5 +151,26 @@ func createStaff(ctx context.Context, cfg config.Config, args []string) error {
 	}
 	// Printed once to the operator's terminal and never logged or stored in plain text.
 	fmt.Printf("Created %s\nPassword:      %s\nTOTP secret:   %s\nAuthenticator: %s\n", *email, pw, secret, uri)
+	return nil
+}
+
+//go:embed demo_seed.sql
+var demoSeedSQL string
+
+// seedDemo loads demo service areas, categories, services, rate card, vetting checklists and
+// subscription plans so staging can be tried end to end. It only adds missing rows.
+func seedDemo(ctx context.Context, cfg config.Config) error {
+	if cfg.Env == "prod" {
+		return errors.New("seed-demo is not allowed when APP_ENV=prod")
+	}
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	if _, err := pool.Exec(ctx, demoSeedSQL); err != nil {
+		return fmt.Errorf("seed demo data: %w", err)
+	}
+	fmt.Println("Demo catalogue loaded (existing rows were left as they were).")
 	return nil
 }
