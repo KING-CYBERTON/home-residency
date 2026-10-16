@@ -203,3 +203,8 @@ variable "deletion_protection" {
   type        = bool
   default     = false
 }
+
+variable "github_oidc_subject_prefix" {
+  type    = string
+  default = "repo:KING-CYBERTON@82710182/home-residency@1418283878"
+}
