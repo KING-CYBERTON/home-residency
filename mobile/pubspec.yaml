@@ -1,0 +1,11 @@
+name: homend_mobile
+description: Homend Residence mobile apps (client and provider) and their shared package.
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+workspace:
+  - packages/homend_core
+  - apps/client
+  - apps/provider
