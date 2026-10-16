@@ -192,6 +192,12 @@ variable "db_backup_retention_days" {
   default = 7
 }
 
+variable "db_storage_autoscaling" {
+  description = "Let RDS grow storage up to five times db_allocated_storage."
+  type        = bool
+  default     = true
+}
+
 variable "deletion_protection" {
   description = "Protects the database, keeps a final snapshot and a 30-day secret recovery window. Turn on for production."
   type        = bool

@@ -87,12 +87,16 @@ module "env" {
   mpesa_mode   = "fake"
   sms_provider = "log"
 
-  desired_count       = 1
-  max_count           = 2
-  db_instance_class   = "db.t4g.micro"
-  db_multi_az         = false
-  deletion_protection = false
-  log_retention_days  = 30
+  desired_count     = 1
+  max_count         = 2
+  db_instance_class = "db.t4g.micro"
+  db_multi_az       = false
+  # Fits an AWS Free plan account: it caps backup retention at 1 day and covers 20 GB
+  # of storage. Raise both once the account is on a paid plan.
+  db_backup_retention_days = 1
+  db_storage_autoscaling   = false
+  deletion_protection      = false
+  log_retention_days       = 30
 }
 
 output "github_environment_variables" {
