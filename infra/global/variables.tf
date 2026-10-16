@@ -25,3 +25,9 @@ variable "images_to_keep" {
   type        = number
   default     = 100
 }
+
+variable "github_oidc_subject_prefix" {
+  description = "Immutable OIDC subject prefix GitHub issues for this repo (repo:owner@id/name@id)."
+  type        = string
+  default     = "repo:KING-CYBERTON@82710182/home-residency@1418283878"
+}
