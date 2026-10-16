@@ -38,6 +38,24 @@ variable "vapid_subject" {
   default     = ""
 }
 
+variable "mpesa_mode" {
+  description = "fake until the homend/staging/mpesa secret holds Daraja sandbox keys, then sandbox."
+  type        = string
+  default     = "fake"
+}
+
+variable "mpesa_shortcode" {
+  description = "Daraja sandbox STK shortcode (174379 for the shared test till)."
+  type        = string
+  default     = ""
+}
+
+variable "mpesa_b2c_shortcode" {
+  description = "Daraja sandbox B2C shortcode from the app's test credentials. Empty uses mpesa_shortcode."
+  type        = string
+  default     = ""
+}
+
 variable "existing_vpc_id" {
   description = "Use this VPC instead of creating one (see modules/environment/network.tf)."
   type        = string
@@ -82,10 +100,12 @@ module "env" {
   console_domain          = var.console_domain
   console_certificate_arn = var.console_certificate_arn
 
-  # Staging keeps the fake M-Pesa client and log SMS until sandbox keys are in the
-  # homend/staging/mpesa secret; then set mpesa_mode = "sandbox".
-  mpesa_mode   = "fake"
-  sms_provider = "log"
+  # Staging keeps the fake M-Pesa client until sandbox keys are in the
+  # homend/staging/mpesa secret; then set mpesa_mode = "sandbox" in terraform.tfvars.
+  mpesa_mode          = var.mpesa_mode
+  mpesa_shortcode     = var.mpesa_shortcode
+  mpesa_b2c_shortcode = var.mpesa_b2c_shortcode
+  sms_provider        = "log"
 
   desired_count     = 1
   max_count         = 2
