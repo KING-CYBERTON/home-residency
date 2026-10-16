@@ -144,12 +144,19 @@
 
   // ---- uploads go straight to the vault with a short-lived link, then the server confirms them
 
+  // Upload with no file chosen opens the file picker, and choosing a file from there sends it, so the
+  // button works whether or not the person noticed the separate "Choose file" control.
   $('form[data-upload]').forEach(function (form) {
+    var input = form.querySelector('input[type=file]');
+    var sendOnPick = false;
+    input.addEventListener('change', function () {
+      if (sendOnPick && input.files[0]) { sendOnPick = false; form.requestSubmit(); }
+    });
     form.addEventListener('submit', function (e) {
-      var file = form.querySelector('input[type=file]').files[0];
+      var file = input.files[0];
       var status = form.querySelector('[data-upload-status]');
       e.preventDefault();
-      if (!file) { status.textContent = 'Choose a photo or PDF first.'; return; }
+      if (!file) { sendOnPick = true; status.textContent = 'Choose a photo or PDF.'; input.click(); return; }
       var f = new FormData(form);
       if (file.size > 10 * 1024 * 1024) { status.textContent = 'This file is bigger than 10 MB. Take a smaller photo.'; return; }
       var ticket = {

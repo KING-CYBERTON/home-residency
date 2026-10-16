@@ -39,7 +39,7 @@
           <input type="hidden" name="item_id" value="{{.Id}}">
           <input type="hidden" name="document_type" value="{{or (val .TemplateItem.DocumentType) "other"}}">
           <label class="field-label" for="f-{{.Id}}">{{if .DocumentId}}Replace with a new photo or PDF{{else}}Photo or PDF{{end}}</label>
-          <input id="f-{{.Id}}" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" class="block w-full text-sm">
+          <input id="f-{{.Id}}" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2">
           {{if .TemplateItem.ValidityMonths}}
           <div class="grid grid-cols-2 gap-2">
             <label class="text-sm">Issued<input type="date" name="issued_on" class="field-input"></label>
