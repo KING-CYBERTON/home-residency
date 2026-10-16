@@ -79,6 +79,12 @@ variable "tasks_in_public_subnets" {
   default     = false
 }
 
+variable "db_backup_retention_days" {
+  description = "Days of database backups. 1 fits an AWS Free plan account; raise it (for example to 30) once on a paid plan."
+  type        = number
+  default     = 1
+}
+
 module "env" {
   source = "../../modules/environment"
   providers = {
@@ -112,7 +118,7 @@ module "env" {
   db_instance_class        = "db.t4g.small"
   db_allocated_storage     = 50
   db_multi_az              = true
-  db_backup_retention_days = 30
+  db_backup_retention_days = var.db_backup_retention_days
   deletion_protection      = true
   log_retention_days       = 365
 }

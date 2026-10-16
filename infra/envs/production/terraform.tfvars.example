@@ -12,3 +12,6 @@ console_certificate_arn = "arn:aws:acm:us-east-1:111111111111:certificate/..."
 # existing_vpc_id             = "vpc-..."
 # existing_public_subnet_ids  = ["subnet-...", "subnet-..."]
 # existing_private_subnet_ids = ["subnet-...", "subnet-..."]
+
+# Database backups in days. 1 fits an AWS Free plan account; use 30 on a paid plan.
+# db_backup_retention_days = 30

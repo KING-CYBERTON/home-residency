@@ -23,7 +23,7 @@ infra/
 | Load balancer | ALB, HTTP until a certificate is given; WAF rate limit per IP | ALB, HTTPS (TLS 1.2+), HTTP redirects; WAF rate limit per IP |
 | Staff console | Private S3 bucket behind CloudFront on the `cloudfront.net` domain | Same, on `console_domain` with a us-east-1 certificate |
 | API | ECS Fargate service `homend-api`, 1 task (scales to 2 on CPU) | 2 tasks (scales to 6 on CPU) |
-| Database | RDS PostgreSQL 16, `db.t4g.micro`, single AZ, 7-day backups | `db.t4g.small`, Multi-AZ, 30-day backups, deletion protection, final snapshot |
+| Database | RDS PostgreSQL 16, `db.t4g.micro`, single AZ, 1-day backups (AWS Free plan limit) | `db.t4g.small`, Multi-AZ, 1-day backups by default (`db_backup_retention_days`, raise to 30 on a paid plan), deletion protection, final snapshot |
 | Document vault | S3, SSE-KMS, versioned, TLS only, CORS so the portals can upload ID documents and photos from the browser (`public_base_url` plus `allowed_origins`) | same |
 | Secrets | `homend/staging/app` (generated), `homend/staging/mpesa` and `homend/staging/push` (you fill in) | `homend/production/app`, `homend/production/mpesa`, `homend/production/push` |
 | Logs | CloudWatch, 30 days | CloudWatch, 365 days |
