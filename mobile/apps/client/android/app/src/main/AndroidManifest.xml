@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter only adds INTERNET to debug builds; release builds need it here. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <application
-        android:label="homend_client"
+        android:label="Homend"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

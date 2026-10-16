@@ -8,4 +8,5 @@ Home management platform for Kenyan households: vetted domestic workers and home
 - `mobile/` Flutter apps for households (client) and service providers, sharing one package for the API client, sign-in and models. See [mobile/README.md](mobile/README.md)
 - `.github/workflows/console-ci.yml` generated API types are current, lint, typecheck, build
 - `.github/workflows/mobile-ci.yml` format, analyze, tests including the OpenAPI contract check, Android debug builds
+- `.github/workflows/mobile-release.yml` on merges to main that change `mobile/`, uploads signed builds of both apps to the Google Play internal track
 - `.github/workflows/backend-ci.yml` build, vet, tests against Postgres, generated-code check, OpenAPI lint, migration round trip, vulnerability scan, image build

@@ -36,7 +36,23 @@ flutter analyze
 
 `packages/homend_core/test/contract_test.dart` reads `backend/api/openapi.yaml` and fails when the app calls a path or method that is not in the contract, when a non-console operation is neither used nor listed as deliberately unused, or when a request body sends a field the schema does not define. A contract change that the apps have not caught up with fails CI (`.github/workflows/mobile-ci.yml`).
 
+## Release to Google Play
+
+Every merge to main that changes `mobile/` runs `.github/workflows/mobile-release.yml`. It builds signed release bundles of both apps and uploads them to the Play **internal testing** track; promote a build to production by hand in the Play Console. Each run gets a new version code (1000 + the run number). The version name comes from `version:` in each app's `pubspec.yaml`.
+
+One-time set-up:
+
+1. In the Play Console, create the two apps with the package names `ke.co.homendresidence.homend_client` (Homend) and `ke.co.homendresidence.homend_provider` (Homend Provider), and turn on Play App Signing.
+2. Create an upload key, used by both apps:
+   `keytool -genkeypair -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000`
+3. Upload the first bundle of each app by hand in the Play Console, because Play does not accept an app's first upload through the API. Build it locally with an `android/key.properties` in the app folder (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; git ignores it) and `flutter build appbundle --release --dart-define=API_BASE_URL=<production API>`.
+4. In Google Cloud, create a service account with a JSON key. In the Play Console under Users and permissions, give it release rights on both apps.
+5. Add these GitHub repository secrets: `ANDROID_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` (the whole JSON key). Also add the repository variable `MOBILE_API_BASE_URL` (the production API, ending in `/api/v1`).
+6. Set the repository variable `PLAY_RELEASE_STATUS` to `draft` until each app has been released once on the internal track, then delete the variable.
+
+Until the secrets are set, the release workflow skips with a warning instead of failing. Mobile CI also builds signed release bundles with a throwaway key, so a broken release set-up shows up on the PR.
+
 ## Not covered yet
 
 - Native push notifications (the in-app notification list is there; FCM/APNs registration through `/push-subscriptions` is not wired).
-- Store signing, app icons and release flavours; the Android and iOS folders are the `flutter create` defaults.
+- App Store (iOS) release, app icons and store listings; the iOS folder is the `flutter create` default apart from the display names and permission texts.

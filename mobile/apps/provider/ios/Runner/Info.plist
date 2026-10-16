@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Homend uses your location to confirm you have arrived at a job when you check in.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Homend uses the camera to photograph your documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Homend lets you choose document photos from your library.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
