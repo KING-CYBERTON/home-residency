@@ -4,7 +4,7 @@
 {{with .Current}}
 <div class="mb-6 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm">
   <div class="flex justify-between gap-2"><p class="font-semibold">Your plan: {{.Plan.Name}}</p>{{template "badge" .Status}}</div>
-  {{if .CurrentPeriodEnd}}<p class="mt-1 text-slate-700">{{if .CancelAtPeriodEnd}}Ends{{else}}Renews{{end}} on {{.CurrentPeriodEnd}}</p>{{end}}
+  {{if .CurrentPeriodEnd}}<p class="mt-1 text-slate-700">{{if val .CancelAtPeriodEnd}}Ends{{else}}Renews{{end}} on {{.CurrentPeriodEnd}}</p>{{end}}
   {{if not (val .CancelAtPeriodEnd)}}
   <form method="post" action="{{$.Base}}/plans/cancel" class="mt-3">
     <button class="text-sm font-medium text-rose-700">Cancel plan</button></form>

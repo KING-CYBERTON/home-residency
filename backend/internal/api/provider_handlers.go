@@ -222,7 +222,15 @@ func (s *Server) loadJob(ctx context.Context, q db, assignmentID, providerID uui
 	if j.Address, err = s.loadAddress(ctx, q, addrID, nil); err != nil {
 		return j, err
 	}
-	// Gate codes and guard names are released on the day, not at acceptance.
+	// Gate codes and guard names are released on the day, not at acceptance. The day is the next
+	// visit's, which triage may have moved away from the time the household first asked for.
+	var next *time.Time
+	if err := q.QueryRow(ctx, `SELECT min(scheduled_start) FROM visits WHERE request_id = $1 AND status IN ('scheduled','checked_in')`, reqID).Scan(&next); err != nil {
+		return j, err
+	}
+	if next != nil {
+		start = *next
+	}
 	if s.Now().Before(start.Add(-12 * time.Hour)) {
 		j.Address.AccessDetails = nil
 	}
