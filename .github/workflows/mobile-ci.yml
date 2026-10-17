@@ -60,3 +60,16 @@ jobs:
         working-directory: mobile/apps/client
       - run: flutter build apk --debug
         working-directory: mobile/apps/provider
+      # Proves the release signing set-up in build.gradle.kts with a throwaway key, so the Play
+      # upload in mobile-release.yml does not find a broken release build first.
+      - name: Build signed release bundles with a throwaway key
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/ci.jks" -storepass ci-pass -keypass ci-pass \
+            -alias ci -keyalg RSA -keysize 2048 -validity 1 -dname "CN=CI"
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/ci.jks" ANDROID_KEYSTORE_PASSWORD=ci-pass \
+            ANDROID_KEY_ALIAS=ci ANDROID_KEY_PASSWORD=ci-pass
+          for app in client provider; do
+            (cd apps/$app && flutter build appbundle --release --dart-define=API_BASE_URL=https://api.invalid/api/v1)
+            jarsigner -verify -verbose -certs apps/$app/build/app/outputs/bundle/release/app-release.aab > "$RUNNER_TEMP/$app-sig.txt"
+            grep -q "CN=CI" "$RUNNER_TEMP/$app-sig.txt"
+          done
