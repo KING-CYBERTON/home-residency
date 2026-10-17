@@ -327,6 +327,8 @@ test("payment: M-Pesa STK; a callback for the wrong amount is refused, the right
   const c = clientPage;
   await c.goto(SITE + "/account/invoices");
   await c.locator('a[href*="/account/invoices/"]').first().click();
+  // The list shows the same amount, so wait for the invoice's own URL before reading its id.
+  await c.waitForURL(/\/account\/invoices\/[^/?#]+$/);
   await expect(c.locator("main")).toContainText("KES 3,480");
   const invoiceId = c.url().split("/").pop()!;
 
