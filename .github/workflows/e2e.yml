@@ -4,11 +4,9 @@ name: End-to-end
 # the client and provider portals and the staff console, on a fresh database with the demo
 # catalogue, SMS codes read from the API log and M-Pesa played by the tests (see e2e/README.md).
 
+# Called by ci.yml when backend/, console/ or e2e/ changes; also runs nightly and by hand.
 on:
-  pull_request:
-    paths: ["backend/**", "console/**", "e2e/**", ".github/workflows/e2e.yml"]
-  push:
-    branches: [main]
+  workflow_call:
   schedule:
     - cron: "0 3 * * *" # 06:00 in Nairobi, so a night's drift is waiting in the morning
   workflow_dispatch:
@@ -16,10 +14,6 @@ on:
       grep:
         description: "Only run tests whose title matches (for example: payment)"
         required: false
-
-concurrency:
-  group: e2e-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read

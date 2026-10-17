@@ -1,17 +1,15 @@
-name: Backend deploy
+name: Deploy
 
-# Builds the backend image once, pushes it to ECR, builds the console (when console/
-# exists), and deploys both to staging, then to production after a reviewer approves
-# the "production" environment.
-# Runs after "Backend CI" or "Console CI" passes on a push to main. A commit that
-# changes both deploys twice with the same image and files, which is harmless.
-# Run it by hand on main to redeploy, or give an existing image tag (a commit SHA) to
-# roll back without rebuilding the image.
+# Builds the backend image once (the API, public website and portals), scans it, records
+# where it came from, pushes it to ECR and builds the console; then deploys both to staging
+# and, after a reviewer approves the "production" environment, to production. Each
+# environment checks the deployed version, smoke-tests the live site in a browser and rolls
+# the API back if that fails (see backend-deploy-ecs.yml).
+# Called by ci.yml after every check passed on a push to main that changes backend/ or
+# console/. Run it by hand on main to redeploy, or give an existing image tag (a commit SHA)
+# to roll back without rebuilding the image.
 on:
-  workflow_run:
-    workflows: ["Backend CI", "Console CI"]
-    types: [completed]
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
     inputs:
       image_tag:
@@ -24,23 +22,24 @@ permissions:
 
 jobs:
   build:
-    name: Build and push image
+    name: Build, scan and push image
     # Skipped, not failed, until the AWS side exists: without this every push to main would
     # go red before anyone has applied infra/ and set the GitHub environment variables.
-    if: >-
-      vars.AWS_ECR_PUSH_ROLE_ARN != '' && (
-        github.event_name == 'workflow_dispatch' ||
-        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    if: vars.AWS_ECR_PUSH_ROLE_ARN != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+      attestations: write
     outputs:
       image: ${{ steps.image.outputs.image }}
+      version: ${{ steps.image.outputs.version }}
       console_artifact: ${{ steps.console.outputs.artifact }}
     env:
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ inputs.image_tag || github.event.workflow_run.head_sha || github.sha }}
+      IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
+      TRIVY_VERSION: 0.76.0
+      TRIVY_SHA256: e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7
     steps:
       - name: Only deploy from main
         if: github.ref != 'refs/heads/main'
@@ -71,19 +70,48 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.IMAGE_TAG }}
+
+      # A new image is built into the local Docker daemon, scanned there, and only pushed if
+      # the scan passes, so ECR never holds an image with a fixable HIGH or CRITICAL finding.
       - if: steps.existing.outputs.digest == ''
         uses: docker/setup-buildx-action@v4
-      - id: push
-        if: steps.existing.outputs.digest == ''
+      - if: steps.existing.outputs.digest == ''
         uses: docker/build-push-action@v7
         with:
           context: backend
-          push: true
+          load: true
+          push: false
           provenance: false
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           build-args: VERSION=${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Install Trivy (checksum-verified)
+        if: steps.existing.outputs.digest == ''
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/trivy.tgz" "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/trivy.tgz" -C "$RUNNER_TEMP" trivy
+      - name: Scan the image and write its SBOM
+        if: steps.existing.outputs.digest == ''
+        env:
+          REF: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+        run: |
+          "$RUNNER_TEMP/trivy" image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$REF"
+          "$RUNNER_TEMP/trivy" image --format cyclonedx --output "$RUNNER_TEMP/sbom.cdx.json" "$REF"
+      - name: Push
+        id: push
+        if: steps.existing.outputs.digest == ''
+        env:
+          REF: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+        run: |
+          docker push "$REF"
+          digest="$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$REF" | grep -m1 "@sha256:" | cut -d@ -f2)"
+          if [[ -z "$digest" ]]; then
+            echo "::error::Could not read the pushed digest of $REF"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
       - name: Image reference (pinned by digest)
         id: image
         env:
@@ -91,7 +119,22 @@ jobs:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
           echo "image=$REGISTRY/$ECR_REPOSITORY@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "version=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
           echo "Image: $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      # Signed build provenance (which commit and workflow made this digest), kept by GitHub:
+      # verify with `gh attestation verify oci://<image> -R KING-CYBERTON/home-residency`.
+      - name: Record build provenance
+        if: steps.push.outputs.digest != ''
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+      - if: steps.push.outputs.digest != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ env.IMAGE_TAG }}
+          path: ${{ runner.temp }}/sbom.cdx.json
+          retention-days: 90
 
       # The console is served from the same origin as the API, so it is built without
       # VITE_API_BASE_URL. Skipped when the commit has no console/.
@@ -105,17 +148,18 @@ jobs:
         if: hashFiles('console/package-lock.json') != ''
         working-directory: console
         run: npm ci && npm run build
+      # Named apart from Console CI's "console-dist", which can be in the same run.
       - if: hashFiles('console/package-lock.json') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: console-dist
+          name: console-release
           path: console/dist
           if-no-files-found: error
           retention-days: 30
       - name: Console artifact
         id: console
         if: hashFiles('console/package-lock.json') != ''
-        run: echo "artifact=console-dist" >> "$GITHUB_OUTPUT"
+        run: echo "artifact=console-release" >> "$GITHUB_OUTPUT"
 
   staging:
     name: Staging
@@ -127,6 +171,7 @@ jobs:
     with:
       environment: staging
       image: ${{ needs.build.outputs.image }}
+      version: ${{ needs.build.outputs.version }}
       console_artifact: ${{ needs.build.outputs.console_artifact }}
 
   production:
@@ -139,4 +184,5 @@ jobs:
     with:
       environment: production
       image: ${{ needs.build.outputs.image }}
+      version: ${{ needs.build.outputs.version }}
       console_artifact: ${{ needs.build.outputs.console_artifact }}

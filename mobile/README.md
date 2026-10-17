@@ -38,7 +38,7 @@ flutter analyze
 
 ## Release to Google Play
 
-Every merge to main that changes `mobile/` runs `.github/workflows/mobile-release.yml`. It builds signed release bundles of both apps and uploads them to the Play **internal testing** track; promote a build to production by hand in the Play Console. Each run gets a new version code (1000 + the run number). The version name comes from `version:` in each app's `pubspec.yaml`.
+Every merge to main that changes `mobile/` runs `.github/workflows/mobile-release.yml` once CI has passed. It builds signed release bundles of both apps and uploads them to the Play **internal testing** track. After testing, promote a build to production with **Actions → Mobile promote** (everyone, or a staged rollout such as `0.2`), which waits for approval on the `production` environment; or promote it by hand in the Play Console. Each build gets a new version code (minutes since 1 January 2026, plus 1000). Set the repository variable `MOBILE_STAGING_API_BASE_URL` to also get release APKs built against the staging API as run artifacts. See `docs/ci-cd.md`. The version name comes from `version:` in each app's `pubspec.yaml`.
 
 One-time set-up:
 

@@ -1,20 +1,14 @@
 name: Security
 
 # Secret scanning, static analysis (CodeQL) and dependency and image vulnerability scans.
-# Runs on every pull request, on main, and weekly so new advisories against unchanged
-# code still surface. Third-party actions are pinned to commit SHAs, and the scanner
+# Called by ci.yml on every pull request and push to main, and runs weekly on its own so
+# new advisories against unchanged code still surface. Third-party actions are pinned to commit SHAs, and the scanner
 # binaries are downloaded with a fixed checksum, so a moved tag cannot change what runs.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_call:
   schedule:
     - cron: "17 4 * * 1"
   workflow_dispatch:
-
-concurrency:
-  group: security-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -42,28 +36,46 @@ jobs:
       - run: '"$RUNNER_TEMP/gitleaks" git --no-banner --redact --log-opts="--all" .'
 
   codeql:
-    name: CodeQL (Go)
+    # Go is built by hand; the console and test TypeScript and the workflows themselves
+    # (script injection, untrusted checkouts) are analysed from source.
+    name: CodeQL (${{ matrix.name }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Go
+            language: go
+            build-mode: manual
+          - name: TypeScript
+            language: javascript-typescript
+            build-mode: none
+          - name: Workflows
+            language: actions
+            build-mode: none
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
       - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
-          languages: go
-          build-mode: manual
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
           queries: security-extended
       - name: Build
+        if: matrix.language == 'go'
         working-directory: backend
         run: go build ./...
       - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
-          category: /language:go
+          category: /language:${{ matrix.language }}
 
   dependencies:
     name: Dependency vulnerabilities (Trivy)

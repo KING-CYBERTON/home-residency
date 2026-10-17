@@ -1,15 +1,8 @@
 name: Mobile CI
 
+# Called by ci.yml when mobile/ or the OpenAPI contract changes.
 on:
-  pull_request:
-    paths: ["mobile/**", "backend/api/openapi.yaml", ".github/workflows/mobile-ci.yml"]
-  push:
-    branches: [main]
-    paths: ["mobile/**", "backend/api/openapi.yaml", ".github/workflows/mobile-ci.yml"]
-
-concurrency:
-  group: mobile-ci-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 permissions:
   contents: read

@@ -40,5 +40,6 @@ output "github_environment_variables" {
     PUBLIC_BASE_URL         = local.public_base_url
     CONSOLE_BUCKET          = aws_s3_bucket.console.bucket
     CONSOLE_DISTRIBUTION_ID = aws_cloudfront_distribution.console.id
+    CONSOLE_URL             = local.console_url
   }
 }

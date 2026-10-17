@@ -1,0 +1,180 @@
+name: CI
+
+# The one pipeline for every pull request and every push to main:
+#   1. works out which parts of the repository changed,
+#   2. runs the checks for those parts (each lives in its own reusable workflow) plus the
+#      security scans and a lint of the workflows themselves,
+#   3. reports one "CI result" check, the only check branch protection needs to require,
+#   4. on main only, once everything passed: deploys the API, website, portals and console
+#      (staging, then production after approval) and uploads the mobile apps to Google Play.
+# See docs/ci-cd.md.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+# Pull requests cancel their older runs. Each push to main gets its own run, so an older
+# deploy that is waiting for production approval is never cancelled by a newer commit.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Changed parts
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+      console: ${{ steps.diff.outputs.console }}
+      mobile: ${{ steps.diff.outputs.mobile }}
+      infra: ${{ steps.diff.outputs.infra }}
+      e2e: ${{ steps.diff.outputs.e2e }}
+      deploy: ${{ steps.diff.outputs.deploy }}
+      mobile_release: ${{ steps.diff.outputs.mobile_release }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          case "$EVENT" in
+            # The merge commit's first parent is the base branch as it is now.
+            pull_request) base="$(git rev-parse HEAD^1)" ;;
+            push) base="$PUSH_BEFORE" ;;
+            merge_group) base="$MERGE_GROUP_BASE" ;;
+            *) base="" ;;
+          esac
+          # A manual run, a new branch or a base we cannot see runs everything.
+          if [[ -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "No usable base commit ($EVENT); running every check."
+            files="*everything*"
+          else
+            files="$(git diff --name-only "$base" HEAD)"
+          fi
+          printf '%s\n' "$files" > "$RUNNER_TEMP/changed.txt"
+          echo "::group::Changed files"; cat "$RUNNER_TEMP/changed.txt"; echo "::endgroup::"
+
+          # A change to CI itself runs every check, so a broken workflow cannot hide.
+          all=false
+          if [[ "$files" == "*everything*" ]] || grep -qE '^\.github/' "$RUNNER_TEMP/changed.txt"; then all=true; fi
+          changed() { [[ "$all" == true ]] || grep -qE "$1" "$RUNNER_TEMP/changed.txt"; }
+          out() { if changed "$2"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"; }
+          out backend '^backend/'
+          out console '^(console/|backend/api/openapi\.yaml$)'
+          out mobile '^(mobile/|backend/api/openapi\.yaml$)'
+          out infra '^infra/'
+          out e2e '^(backend/|console/|e2e/)'
+
+          # Releases are narrower: only a change to what ships (or to how it ships) releases it.
+          if [[ "$files" == "*everything*" ]] || grep -qE '^(backend/|console/|\.github/workflows/backend-deploy)' "$RUNNER_TEMP/changed.txt"; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$files" == "*everything*" ]] || grep -qE '^(mobile/|\.github/workflows/mobile-release\.yml$)' "$RUNNER_TEMP/changed.txt"; then
+            echo "mobile_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "mobile_release=false" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+  workflows:
+    name: Lint workflows (actionlint)
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@v7
+      # Also runs shellcheck (preinstalled on the runner) over every run: block.
+      - name: Install actionlint (checksum-verified)
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
+      - run: '"$RUNNER_TEMP/actionlint" -color'
+
+  backend:
+    name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend-ci.yml
+
+  console:
+    name: Console
+    needs: changes
+    if: needs.changes.outputs.console == 'true'
+    uses: ./.github/workflows/console-ci.yml
+
+  mobile:
+    name: Mobile
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    uses: ./.github/workflows/mobile-ci.yml
+
+  infra:
+    name: Infra
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    uses: ./.github/workflows/infra-ci.yml
+
+  e2e:
+    name: End-to-end
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    uses: ./.github/workflows/e2e.yml
+
+  security:
+    name: Security
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: ./.github/workflows/security.yml
+
+  result:
+    name: CI result
+    if: always()
+    needs: [changes, workflows, backend, console, mobile, infra, e2e, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every check passed or was not needed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          failed="$(jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")' <<<"$NEEDS")"
+          if [[ -n "$failed" ]]; then
+            echo "::error::Failed or cancelled: $failed"
+            exit 1
+          fi
+          if [[ "$(jq -r '.changes.result' <<<"$NEEDS")" != "success" ]]; then
+            echo "::error::Could not work out what changed, so nothing was checked."
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy
+    needs: [changes, result]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.deploy == 'true'
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/backend-deploy.yml
+
+  mobile-release:
+    name: Mobile release
+    needs: [changes, result]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile_release == 'true'
+    uses: ./.github/workflows/mobile-release.yml
+    secrets: inherit
