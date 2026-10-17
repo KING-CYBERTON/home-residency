@@ -320,7 +320,9 @@ test("rating: the household confirms the work and rates it", async () => {
   await c.selectOption("select[name=quality]", "5");
   await c.fill("textarea[name=comment]", "Garden looks great");
   await c.getByRole("button", { name: "Submit rating" }).click();
-  await expect(c.locator("main")).toContainText(/Done|Thank/);
+  // Not just /Thank/: the "Thanks for confirming the visit" flash is already on the page, and moving
+  // on before the rating is saved lets the next test's navigation cancel it (no earning is made).
+  await expect(c.locator("main")).toContainText("Thank you for rating this job");
 });
 
 test("payment: M-Pesa STK; a callback for the wrong amount is refused, the right one pays the invoice", async () => {
