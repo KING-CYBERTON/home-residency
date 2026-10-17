@@ -1,0 +1,87 @@
+name: Mobile promote
+
+# Run by hand once a build on the Google Play internal testing track has been tested: puts that
+# build on the production track, for everyone or as a staged rollout. Runs in the "production"
+# environment, so it waits for the same reviewer approval as a production deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Which app
+        type: choice
+        options: [both, client, provider]
+        default: both
+      version_code:
+        description: Internal-track version code to promote (empty = the newest; only with a single app)
+        required: false
+        default: ""
+      rollout:
+        description: Fraction of users for a staged rollout (1 = everyone, 0.2 = 20%)
+        required: false
+        default: "1"
+      status:
+        description: completed sends it out now; draft leaves it for you to send from the Play Console
+        type: choice
+        options: [completed, draft]
+        default: completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote ${{ matrix.app }} to production
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: client
+            package: ke.co.homendresidence.homend_client
+          - app: provider
+            package: ke.co.homendresidence.homend_provider
+    steps:
+      - name: Only from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Promote from main only (this run is on $GITHUB_REF)."
+          exit 1
+      - name: Selected
+        id: selected
+        env:
+          APP: ${{ inputs.app }}
+          VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          if [[ -n "$VERSION_CODE" && "$APP" == both ]]; then
+            echo "::error::A version code belongs to one app; pick client or provider."
+            exit 1
+          fi
+          if [[ "$APP" == both || "$APP" == "${{ matrix.app }}" ]]; then echo "run=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v7
+        if: steps.selected.outputs.run == 'true'
+        with:
+          sparse-checkout: mobile/scripts
+      - uses: actions/setup-python@v6
+        if: steps.selected.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+      - name: Promote
+        if: steps.selected.outputs.run == 'true'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PACKAGE: ${{ matrix.package }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          ROLLOUT: ${{ inputs.rollout }}
+          STATUS: ${{ inputs.status }}
+        run: |
+          if [[ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]]; then
+            echo "::error::Set the PLAY_SERVICE_ACCOUNT_JSON secret (see mobile/README.md)."
+            exit 1
+          fi
+          python -m pip install --quiet google-auth==2.38.0 requests==2.32.3
+          python mobile/scripts/play_promote.py "$PACKAGE" --rollout "$ROLLOUT" --status "$STATUS" ${VERSION_CODE:+--version-code "$VERSION_CODE"} | tee -a "$GITHUB_STEP_SUMMARY"

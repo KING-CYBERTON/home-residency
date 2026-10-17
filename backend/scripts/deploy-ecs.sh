@@ -3,7 +3,8 @@
 #   1. registers a new revision of the service's task definition with the new image,
 #   2. runs that revision once as `api migrate up` and stops if the migration fails,
 #   3. points the service at the new revision and waits until it is stable.
-# The service keeps running the previous revision if any step fails.
+# The service keeps running the previous revision if any step fails. The revision it ran
+# before is written to $GITHUB_OUTPUT as previous_task_definition, for a rollback.
 #
 # Called by .github/workflows/backend-deploy-ecs.yml. Required environment:
 #   IMAGE                 image to deploy, ideally pinned by digest (repo@sha256:…)
@@ -81,6 +82,12 @@ echo "Migrations applied"
 echo "::endgroup::"
 
 echo "::group::Roll out service"
+# Recorded so the workflow can put the service back if the smoke test fails after the rollout.
+previous_task_def="$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'services[0].taskDefinition' --output text)"
+echo "Previous task definition: $previous_task_def"
+if [[ -n "${GITHUB_OUTPUT:-}" && "$previous_task_def" == arn:* ]]; then
+	echo "previous_task_definition=$previous_task_def" >>"$GITHUB_OUTPUT"
+fi
 aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$task_def_arn" --query 'service.serviceName' --output text
 deadline=$((SECONDS + STABLE_TIMEOUT_SECONDS))
 while :; do

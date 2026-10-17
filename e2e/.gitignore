@@ -2,3 +2,5 @@ node_modules/
 .stack/
 test-results/
 playwright-report/
+test-results-deployed/
+playwright-report-deployed/
