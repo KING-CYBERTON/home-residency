@@ -57,6 +57,9 @@ jobs:
   release:
     name: Upload ${{ matrix.app }} to Google Play
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -69,13 +72,13 @@ jobs:
       run:
         working-directory: mobile/apps/${{ matrix.app }}
     env:
-      HAS_SECRETS: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+      HAS_SECRETS: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.PLAY_SERVICE_ACCOUNT != '' }}
     steps:
-      - name: Signing and Play secrets are set
+      - name: Signing secrets and Play access are set
         if: env.HAS_SECRETS != 'true'
         working-directory: .
         run: |
-          echo "::warning::Skipping the Play upload: set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD and PLAY_SERVICE_ACCOUNT_JSON (see mobile/README.md)."
+          echo "::warning::Skipping the Play upload: set the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD secrets and the GCP_WORKLOAD_IDENTITY_PROVIDER and PLAY_SERVICE_ACCOUNT variables (see mobile/README.md)."
       - uses: actions/checkout@v7
         if: env.HAS_SECRETS == 'true'
       - uses: actions/setup-java@v5
@@ -112,13 +115,26 @@ jobs:
           flutter build appbundle --release \
             --build-number=$(( ($(date +%s) - 1767225600) / 60 + 1000 )) \
             --dart-define=API_BASE_URL=${{ vars.MOBILE_API_BASE_URL }}
+      # No key is stored: GitHub's OIDC token is exchanged through Workload Identity Federation
+      # for short-lived credentials of the Play service account (see mobile/README.md).
+      - name: Sign in to Google Cloud (Workload Identity Federation)
+        if: env.HAS_SECRETS == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+      - uses: actions/setup-python@v6
+        if: env.HAS_SECRETS == 'true'
+        with:
+          python-version: "3.12"
       - name: Upload to the internal testing track
         if: env.HAS_SECRETS == 'true'
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: ${{ matrix.package }}
-          releaseFiles: mobile/apps/${{ matrix.app }}/build/app/outputs/bundle/release/app-release.aab
-          track: internal
+        working-directory: .
+        env:
+          PACKAGE: ${{ matrix.package }}
+          BUNDLE: mobile/apps/${{ matrix.app }}/build/app/outputs/bundle/release/app-release.aab
           # "draft" until the app has been released once in the Play Console, then "completed".
-          status: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+          STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+        run: |
+          python -m pip install --quiet google-auth==2.38.0 requests==2.32.3
+          python mobile/scripts/play.py upload "$PACKAGE" "$BUNDLE" --track internal --status "$STATUS" | tee -a "$GITHUB_STEP_SUMMARY"

@@ -64,8 +64,10 @@ Until `AWS_ECR_PUSH_ROLE_ARN` is set, Deploy is skipped rather than failed. With
 
 - **Mobile release** (`mobile-release.yml`), after CI on a merge that changes `mobile/`:
     - when `MOBILE_STAGING_API_BASE_URL` is set, release APKs of both apps against the staging API, kept 30 days as run artifacts for testers (debug-signed: sideload, after removing any Play build);
-    - when the Play secrets are set, signed bundles against `MOBILE_API_BASE_URL` uploaded to the Play **internal testing** track.
+    - when the signing secrets and Play access are set, signed bundles against `MOBILE_API_BASE_URL` uploaded to the Play **internal testing** track.
 - **Mobile promote** (`mobile-promote.yml`, run by hand): after testing an internal build, promotes it to **production** for everyone or as a staged rollout (for example `0.2` for 20%). It runs in the `production` environment, so it needs the same approval as a production deploy.
+
+Neither workflow holds a Google key: each job exchanges its GitHub OIDC token for short-lived credentials of the Play service account through Workload Identity Federation, the way the deploys use OIDC for AWS.
 
 The internal-track build is the binary that ships, so `MOBILE_API_BASE_URL` must always be the production API.
 
@@ -76,4 +78,4 @@ The internal-track build is the binary that ships, so `MOBILE_API_BASE_URL` must
 3. Copy `CONSOLE_URL` from each environment's Terraform output (`github_environment_variables`) into that GitHub environment, so the console is smoke-tested.
 4. Optional: the repository variable `MOBILE_STAGING_API_BASE_URL` (the staging API, ending in `/api/v1`) for staging APKs.
 
-Everything else (AWS roles, ECR, Play secrets) is in `backend/README.md`, `infra/README.md` and `mobile/README.md`.
+Everything else (AWS roles, ECR, the Play signing key and keyless Play access through Workload Identity Federation) is in `backend/README.md`, `infra/README.md` and `mobile/README.md`.

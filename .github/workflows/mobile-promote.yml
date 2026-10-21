@@ -37,6 +37,9 @@ jobs:
     name: Promote ${{ matrix.app }} to production
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +69,18 @@ jobs:
         if: steps.selected.outputs.run == 'true'
         with:
           sparse-checkout: mobile/scripts
+      - name: Play access is set
+        if: steps.selected.outputs.run == 'true' && (vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || vars.PLAY_SERVICE_ACCOUNT == '')
+        run: |
+          echo "::error::Set the GCP_WORKLOAD_IDENTITY_PROVIDER and PLAY_SERVICE_ACCOUNT repository variables (see mobile/README.md)."
+          exit 1
+      # Keyless: GitHub's OIDC token is exchanged through Workload Identity Federation.
+      - name: Sign in to Google Cloud (Workload Identity Federation)
+        if: steps.selected.outputs.run == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.PLAY_SERVICE_ACCOUNT }}
       - uses: actions/setup-python@v6
         if: steps.selected.outputs.run == 'true'
         with:
@@ -73,15 +88,10 @@ jobs:
       - name: Promote
         if: steps.selected.outputs.run == 'true'
         env:
-          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           PACKAGE: ${{ matrix.package }}
           VERSION_CODE: ${{ inputs.version_code }}
           ROLLOUT: ${{ inputs.rollout }}
           STATUS: ${{ inputs.status }}
         run: |
-          if [[ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]]; then
-            echo "::error::Set the PLAY_SERVICE_ACCOUNT_JSON secret (see mobile/README.md)."
-            exit 1
-          fi
           python -m pip install --quiet google-auth==2.38.0 requests==2.32.3
-          python mobile/scripts/play_promote.py "$PACKAGE" --rollout "$ROLLOUT" --status "$STATUS" ${VERSION_CODE:+--version-code "$VERSION_CODE"} | tee -a "$GITHUB_STEP_SUMMARY"
+          python mobile/scripts/play.py promote "$PACKAGE" --rollout "$ROLLOUT" --status "$STATUS" ${VERSION_CODE:+--version-code "$VERSION_CODE"} | tee -a "$GITHUB_STEP_SUMMARY"

@@ -176,5 +176,8 @@ jobs:
     name: Mobile release
     needs: [changes, result]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile_release == 'true'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/mobile-release.yml
     secrets: inherit
