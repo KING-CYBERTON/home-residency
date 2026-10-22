@@ -38,6 +38,12 @@ variable "vapid_subject" {
   default     = ""
 }
 
+variable "email_from" {
+  description = "Address password reset emails come from. Empty writes them to the task log instead."
+  type        = string
+  default     = ""
+}
+
 variable "mpesa_mode" {
   description = "fake until the homend/staging/mpesa secret holds Daraja sandbox keys, then sandbox."
   type        = string
@@ -106,6 +112,7 @@ module "env" {
   mpesa_shortcode     = var.mpesa_shortcode
   mpesa_b2c_shortcode = var.mpesa_b2c_shortcode
   sms_provider        = "log"
+  email_from          = var.email_from
 
   desired_count     = 1
   max_count         = 2

@@ -134,6 +134,34 @@ func (p *Portal) profileSave(w http.ResponseWriter, r *http.Request) {
 	p.redirect(w, r, p.Base+"/profile")
 }
 
+// passwordSave sets the email and password the household signs in with.
+func (p *Portal) passwordSave(w http.ResponseWriter, r *http.Request) {
+	if e := strings.TrimSpace(r.PostFormValue("email")); e != "" {
+		var me gen.Me
+		if err := p.call(r, nil, &me, p.API.GetMe); err != nil {
+			p.showAccount(w, r, errText(err))
+			return
+		}
+		if me.Email == nil || !strings.EqualFold(*me.Email, e) {
+			em := openapi_types.Email(e)
+			if err := p.call(r, gen.MeUpdate{Email: &em}, nil, p.API.PatchMe); err != nil {
+				p.showAccount(w, r, errText(err))
+				return
+			}
+		}
+	}
+	in := gen.PasswordChange{NewPassword: r.PostFormValue("new_password")}
+	if cur := r.PostFormValue("current_password"); cur != "" {
+		in.CurrentPassword = &cur
+	}
+	if err := p.call(r, in, nil, p.API.PostMePassword); err != nil {
+		p.showAccount(w, r, errText(err))
+		return
+	}
+	p.flash(w, "Password saved. You can now sign in with your email and password.")
+	p.redirect(w, r, p.Base+"/profile")
+}
+
 func (p *Portal) idVerification(w http.ResponseWriter, r *http.Request) {
 	doc, ok := formUUID(r, "document_id")
 	if !ok {

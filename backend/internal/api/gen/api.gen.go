@@ -358,6 +358,12 @@ const (
 	PartySystem     Party = "system"
 )
 
+// Defines values for PasswordRegisterKind.
+const (
+	PasswordRegisterKindClient   PasswordRegisterKind = "client"
+	PasswordRegisterKindProvider PasswordRegisterKind = "provider"
+)
+
 // Defines values for PaymentMethod.
 const (
 	PaymentMethodBankTransfer PaymentMethod = "bank_transfer"
@@ -639,9 +645,9 @@ const (
 
 // Defines values for PostConsoleRequestsCancelJSONBodyCancelledBy.
 const (
-	PostConsoleRequestsCancelJSONBodyCancelledByClient     PostConsoleRequestsCancelJSONBodyCancelledBy = "client"
-	PostConsoleRequestsCancelJSONBodyCancelledByManagement PostConsoleRequestsCancelJSONBodyCancelledBy = "management"
-	PostConsoleRequestsCancelJSONBodyCancelledByProvider   PostConsoleRequestsCancelJSONBodyCancelledBy = "provider"
+	Client     PostConsoleRequestsCancelJSONBodyCancelledBy = "client"
+	Management PostConsoleRequestsCancelJSONBodyCancelledBy = "management"
+	Provider   PostConsoleRequestsCancelJSONBodyCancelledBy = "provider"
 )
 
 // Defines values for PostConsoleVariationsDecisionJSONBodyDecision.
@@ -1253,10 +1259,15 @@ type Contract struct {
 
 // ContractSign defines model for ContractSign.
 type ContractSign struct {
-	Code                 string             `json:"code"`
-	CodeOfConductVersion string             `json:"code_of_conduct_version"`
-	ContractVersion      string             `json:"contract_version"`
-	OtpId                openapi_types.UUID `json:"otp_id"`
+	Code                 *string `json:"code,omitempty"`
+	CodeOfConductVersion string  `json:"code_of_conduct_version"`
+	ContractVersion      string  `json:"contract_version"`
+
+	// OtpId With code, a verify_phone code sent to the provider's own phone. Give this pair or password.
+	OtpId *openapi_types.UUID `json:"otp_id,omitempty"`
+
+	// Password The provider's account password, to sign without an SMS code.
+	Password *string `json:"password,omitempty"`
 }
 
 // Conversation defines model for Conversation.
@@ -1677,9 +1688,12 @@ type ManualPaymentInputMethod string
 
 // Me defines model for Me.
 type Me struct {
-	CreatedAt         *time.Time            `json:"created_at,omitempty"`
-	Email             *string               `json:"email"`
-	FullName          string                `json:"full_name"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	Email     *string    `json:"email"`
+	FullName  string     `json:"full_name"`
+
+	// HasPassword The account can sign in with its email and password.
+	HasPassword       *bool                 `json:"has_password,omitempty"`
 	Id                openapi_types.UUID    `json:"id"`
 	IdVerification    *IdVerificationStatus `json:"id_verification"`
 	Kind              UserKind              `json:"kind"`
@@ -1827,6 +1841,41 @@ type PageMeta struct {
 
 // Party defines model for Party.
 type Party string
+
+// PasswordChange defines model for PasswordChange.
+type PasswordChange struct {
+	CurrentPassword *string `json:"current_password,omitempty"`
+	NewPassword     string  `json:"new_password"`
+}
+
+// PasswordForgot defines model for PasswordForgot.
+type PasswordForgot struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// PasswordLogin defines model for PasswordLogin.
+type PasswordLogin struct {
+	Email    openapi_types.Email `json:"email"`
+	Password string              `json:"password"`
+}
+
+// PasswordRegister defines model for PasswordRegister.
+type PasswordRegister struct {
+	Consents *[]ConsentInput      `json:"consents,omitempty"`
+	Email    openapi_types.Email  `json:"email"`
+	FullName string               `json:"full_name"`
+	Kind     PasswordRegisterKind `json:"kind"`
+	Password string               `json:"password"`
+}
+
+// PasswordRegisterKind defines model for PasswordRegister.Kind.
+type PasswordRegisterKind string
+
+// PasswordReset defines model for PasswordReset.
+type PasswordReset struct {
+	Password string `json:"password"`
+	Token    string `json:"token"`
+}
 
 // Payment defines model for Payment.
 type Payment struct {
@@ -3396,11 +3445,23 @@ type GetWebhooksWhatsappParams struct {
 // PostWebhooksWhatsappJSONBody defines parameters for PostWebhooksWhatsapp.
 type PostWebhooksWhatsappJSONBody map[string]interface{}
 
+// PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
+type PostAuthLoginJSONRequestBody = PasswordLogin
+
 // PostAuthOtpRequestJSONRequestBody defines body for PostAuthOtpRequest for application/json ContentType.
 type PostAuthOtpRequestJSONRequestBody = OtpRequest
 
 // PostAuthOtpVerifyJSONRequestBody defines body for PostAuthOtpVerify for application/json ContentType.
 type PostAuthOtpVerifyJSONRequestBody = OtpVerify
+
+// PostAuthPasswordForgotJSONRequestBody defines body for PostAuthPasswordForgot for application/json ContentType.
+type PostAuthPasswordForgotJSONRequestBody = PasswordForgot
+
+// PostAuthPasswordResetJSONRequestBody defines body for PostAuthPasswordReset for application/json ContentType.
+type PostAuthPasswordResetJSONRequestBody = PasswordReset
+
+// PostAuthRegisterJSONRequestBody defines body for PostAuthRegister for application/json ContentType.
+type PostAuthRegisterJSONRequestBody = PasswordRegister
 
 // PostAuthStaffLoginJSONRequestBody defines body for PostAuthStaffLogin for application/json ContentType.
 type PostAuthStaffLoginJSONRequestBody = StaffLogin
@@ -3663,6 +3724,9 @@ type PatchMeJSONRequestBody = MeUpdate
 // PostMeConsentsJSONRequestBody defines body for PostMeConsents for application/json ContentType.
 type PostMeConsentsJSONRequestBody = PostMeConsentsJSONBody
 
+// PostMePasswordJSONRequestBody defines body for PostMePassword for application/json ContentType.
+type PostMePasswordJSONRequestBody = PasswordChange
+
 // PostProviderApplicationsJSONRequestBody defines body for PostProviderApplications for application/json ContentType.
 type PostProviderApplicationsJSONRequestBody = ApplicationCreate
 
@@ -3740,6 +3804,9 @@ type PostWebhooksWhatsappJSONRequestBody PostWebhooksWhatsappJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Household or provider email and password sign-in
+	// (POST /auth/login)
+	PostAuthLogin(w http.ResponseWriter, r *http.Request)
 	// Revoke the current session
 	// (POST /auth/logout)
 	PostAuthLogout(w http.ResponseWriter, r *http.Request)
@@ -3749,6 +3816,15 @@ type ServerInterface interface {
 	// Verify a code and sign in or register
 	// (POST /auth/otp/verify)
 	PostAuthOtpVerify(w http.ResponseWriter, r *http.Request)
+	// Email a password reset link
+	// (POST /auth/password/forgot)
+	PostAuthPasswordForgot(w http.ResponseWriter, r *http.Request)
+	// Set a new password with the token from a reset link
+	// (POST /auth/password/reset)
+	PostAuthPasswordReset(w http.ResponseWriter, r *http.Request)
+	// Create a household or provider account with email and password
+	// (POST /auth/register)
+	PostAuthRegister(w http.ResponseWriter, r *http.Request)
 	// Staff email and password sign-in
 	// (POST /auth/staff/login)
 	PostAuthStaffLogin(w http.ResponseWriter, r *http.Request)
@@ -4277,6 +4353,9 @@ type ServerInterface interface {
 	// Record consent decisions
 	// (POST /me/consents)
 	PostMeConsents(w http.ResponseWriter, r *http.Request)
+	// Set or change your own password
+	// (POST /me/password)
+	PostMePassword(w http.ResponseWriter, r *http.Request)
 	// In-app notifications
 	// (GET /notifications)
 	GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams)
@@ -4463,6 +4542,12 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
+// Household or provider email and password sign-in
+// (POST /auth/login)
+func (_ Unimplemented) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Revoke the current session
 // (POST /auth/logout)
 func (_ Unimplemented) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
@@ -4478,6 +4563,24 @@ func (_ Unimplemented) PostAuthOtpRequest(w http.ResponseWriter, r *http.Request
 // Verify a code and sign in or register
 // (POST /auth/otp/verify)
 func (_ Unimplemented) PostAuthOtpVerify(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Email a password reset link
+// (POST /auth/password/forgot)
+func (_ Unimplemented) PostAuthPasswordForgot(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Set a new password with the token from a reset link
+// (POST /auth/password/reset)
+func (_ Unimplemented) PostAuthPasswordReset(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create a household or provider account with email and password
+// (POST /auth/register)
+func (_ Unimplemented) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5537,6 +5640,12 @@ func (_ Unimplemented) PostMeConsents(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Set or change your own password
+// (POST /me/password)
+func (_ Unimplemented) PostMePassword(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // In-app notifications
 // (GET /notifications)
 func (_ Unimplemented) GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams) {
@@ -5906,6 +6015,20 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
+// PostAuthLogin operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PostAuthLogout operation middleware
 func (siw *ServerInterfaceWrapper) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 
@@ -5947,6 +6070,48 @@ func (siw *ServerInterfaceWrapper) PostAuthOtpVerify(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAuthOtpVerify(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthPasswordForgot operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthPasswordForgot(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthPasswordForgot(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthPasswordReset operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthPasswordReset(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthPasswordReset(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthRegister operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthRegister(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12358,6 +12523,28 @@ func (siw *ServerInterfaceWrapper) PostMeConsents(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// PostMePassword operation middleware
+func (siw *ServerInterfaceWrapper) PostMePassword(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostMePassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetNotifications operation middleware
 func (siw *ServerInterfaceWrapper) GetNotifications(w http.ResponseWriter, r *http.Request) {
 
@@ -14155,6 +14342,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/logout", wrapper.PostAuthLogout)
 	})
 	r.Group(func(r chi.Router) {
@@ -14162,6 +14352,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/otp/verify", wrapper.PostAuthOtpVerify)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/password/forgot", wrapper.PostAuthPasswordForgot)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/password/reset", wrapper.PostAuthPasswordReset)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/register", wrapper.PostAuthRegister)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/staff/login", wrapper.PostAuthStaffLogin)
@@ -14690,6 +14889,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/me/consents", wrapper.PostMeConsents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/me/password", wrapper.PostMePassword)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/notifications", wrapper.GetNotifications)

@@ -1,7 +1,7 @@
 {{define "page"}}
 <div class="pt-6">
   <h1 class="text-2xl font-semibold tracking-tight">{{if eq .Data.Mode "register"}}Create your household account{{else}}Sign in{{end}}</h1>
-  <p class="mt-1 text-sm text-slate-600">We send a 6-digit code by SMS. No password needed.</p>
+  <p class="mt-1 text-sm text-slate-600">{{if .Data.UsePhone}}We send a 6-digit code by SMS. No password needed.{{else}}Use your email and a password.{{end}}</p>
   <div class="mt-6">{{template "login-form" .}}</div>
 </div>
 {{end}}
@@ -9,7 +9,45 @@
 {{define "login-form"}}
 <div id="login-form">
   {{with .Data}}
-  {{if .CodeSent}}
+  {{if not .UsePhone}}
+  <form method="post" action="{{$.Base}}/login/password" hx-post="{{$.Base}}/login/password" hx-target="#login-form" hx-swap="outerHTML" class="space-y-4">
+    {{if .Err}}<p role="alert" class="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900">{{.Err}}</p>{{end}}
+    <input type="hidden" name="mode" value="{{.Mode}}">
+    <input type="hidden" name="next" value="{{.Next}}">
+    {{if eq .Mode "register"}}
+    <label class="block">
+      <span class="text-sm font-medium">Your name</span>
+      <input name="full_name" value="{{.Name}}" autocomplete="name" required minlength="2"
+        class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-3 focus:border-brand-600 focus:ring-brand-600">
+    </label>
+    {{end}}
+    <label class="block">
+      <span class="text-sm font-medium">Email</span>
+      <input name="email" type="email" value="{{.Email}}" autocomplete="username" required
+        class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-3 focus:border-brand-600 focus:ring-brand-600">
+    </label>
+    <label class="block">
+      <span class="text-sm font-medium">Password{{if eq .Mode "register"}} (at least 8 characters){{end}}</span>
+      <input name="password" type="password" autocomplete="{{if eq .Mode "register"}}new-password{{else}}current-password{{end}}" required{{if eq .Mode "register"}} minlength="8" maxlength="128"{{end}}
+        class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-3 focus:border-brand-600 focus:ring-brand-600">
+    </label>
+    {{if eq .Mode "register"}}
+    <label class="flex items-start gap-3 text-sm text-slate-700">
+      <input type="checkbox" name="consent" value="yes" {{if .Consent}}checked{{end}} required class="mt-1 h-4 w-4 rounded border-slate-300 text-brand-700">
+      <span>I have read the <a href="/privacy" class="font-medium text-brand-700 underline">privacy notice</a> and agree to Homend Residence using my details to arrange services.</span>
+    </label>
+    {{end}}
+    <button class="w-full rounded-lg bg-brand-700 px-4 py-3 font-medium text-white hover:bg-brand-800">{{if eq .Mode "register"}}Create account{{else}}Sign in{{end}}</button>
+  </form>
+  <div class="mt-4 space-y-2 text-center text-sm text-slate-600">
+    {{if ne .Mode "register"}}<p><a href="{{$.Base}}/forgot-password{{with .Email}}?email={{urlquery .}}{{end}}" class="font-medium text-brand-700">Forgotten your password?</a></p>{{end}}
+    {{if .PhoneOK}}<p><a href="{{$.Base}}/login?with=phone{{if eq .Mode "register"}}&amp;mode=register{{end}}{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Use your phone number instead</a></p>{{end}}
+  </div>
+  <p class="mt-6 text-center text-sm text-slate-600">
+    {{if eq .Mode "register"}}Already have an account? <a href="{{$.Base}}/login{{with .Next}}?next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Sign in</a>
+    {{else}}New to Homend? <a href="{{$.Base}}/login?mode=register{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Create an account</a>{{end}}
+  </p>
+  {{else if .CodeSent}}
   <form method="post" action="{{$.Base}}/login/verify" hx-post="{{$.Base}}/login/verify" hx-target="#login-form" hx-swap="outerHTML" class="space-y-4">
     
     {{if .Err}}<p role="alert" class="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900">{{.Err}}</p>{{end}}
@@ -36,7 +74,7 @@
   </form>
   {{if and .Err (ne .Mode "register")}}
   <p class="mt-6 text-center text-sm text-slate-600">
-    First time booking? <a href="{{$.Base}}/login?mode=register{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Create an account</a>
+    First time booking? <a href="{{$.Base}}/login?with=phone&amp;mode=register{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Create an account</a>
   </p>
   {{end}}
   {{else}}
@@ -65,9 +103,10 @@
     {{end}}
     <button class="w-full rounded-lg bg-brand-700 px-4 py-3 font-medium text-white hover:bg-brand-800">Send code</button>
   </form>
+  <p class="mt-4 text-center text-sm"><a href="{{$.Base}}/login{{if eq .Mode "register"}}?mode=register{{end}}" class="font-medium text-brand-700">Use email and password instead</a></p>
   <p class="mt-6 text-center text-sm text-slate-600">
-    {{if eq .Mode "register"}}Already have an account? <a href="{{$.Base}}/login{{with .Next}}?next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Sign in</a>
-    {{else}}New to Homend? <a href="{{$.Base}}/login?mode=register{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Create an account</a>{{end}}
+    {{if eq .Mode "register"}}Already have an account? <a href="{{$.Base}}/login?with=phone{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Sign in</a>
+    {{else}}New to Homend? <a href="{{$.Base}}/login?with=phone&amp;mode=register{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Create an account</a>{{end}}
   </p>
   {{end}}
   {{end}}

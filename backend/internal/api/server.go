@@ -18,6 +18,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/auth"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/email"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
@@ -32,6 +33,7 @@ type Server struct {
 	DB     *pgxpool.Pool
 	Auth   *auth.Service
 	SMS    sms.Sender
+	Email  email.Sender
 	Cipher crypt.Cipher
 	Mpesa  mpesa.Client
 	Store  storage.Store
@@ -45,7 +47,7 @@ type Server struct {
 
 func NewServer(db *pgxpool.Pool, cfg config.Config, sender sms.Sender, cipher crypt.Cipher, pay mpesa.Client, store storage.Store) *Server {
 	return &Server{
-		DB: db, Cfg: cfg, SMS: sender, Cipher: cipher, Mpesa: pay, Store: store, Now: time.Now,
+		DB: db, Cfg: cfg, SMS: sender, Email: email.LogSender{}, Cipher: cipher, Mpesa: pay, Store: store, Now: time.Now,
 		Auth: auth.New(db, crypt.SHA256("pepper:"+cfg.FieldKey)),
 	}
 }

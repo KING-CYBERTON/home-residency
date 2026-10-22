@@ -3,7 +3,30 @@
   {{template "top" .}}
   {{with .V}}
   <h1 class="text-2xl font-bold text-slate-900">Apply to work with us</h1>
-  {{if not .OtpID}}
+  {{if not .UsePhone}}
+  <p class="mt-2 text-slate-600">Start with your name and email, and choose a password. Then you can upload your documents.</p>
+  <form method="post" action="/join/apply/password" class="mt-6 space-y-4">
+    <input type="hidden" name="category" value="{{.Category}}">
+    <div>
+      <label for="full_name" class="field-label">Full name, as on your ID</label>
+      <input id="full_name" name="full_name" autocomplete="name" required minlength="2" value="{{.Name}}" class="field-input">
+    </div>
+    <div>
+      <label for="email" class="field-label">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required value="{{.Email}}" class="field-input">
+    </div>
+    <div>
+      <label for="password" class="field-label">Password (at least 8 characters)</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" class="field-input">
+    </div>
+    <label class="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" name="privacy" required class="mt-1"> <span>I have read the <a href="/privacy" class="font-medium text-brand-700">privacy notice</a> and agree that Homend Residence keeps my details and documents to manage my application and work.</span></label>
+    <label class="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" name="vetting" required class="mt-1"> <span>I agree to background checks: my Certificate of Good Conduct, my documents and calls to my referees.</span></label>
+    {{template "field-error" .Error}}
+    <button type="submit" class="btn-primary w-full">Create my account</button>
+  </form>
+  {{if .PhoneOK}}<p class="mt-4 text-sm text-slate-600">No email? <a href="/join/apply?with=phone{{with .Category}}&amp;category={{urlquery .}}{{end}}" class="font-medium text-brand-700">Apply with your phone number</a></p>{{end}}
+  <p class="mt-6 text-sm text-slate-600">Already applied? <a href="/provider/login" class="font-medium text-brand-700">Sign in</a></p>
+  {{else if not .OtpID}}
   <p class="mt-2 text-slate-600">Start with your name and phone number. We will send you a code by SMS, then you can upload your documents.</p>
   <form method="post" action="/join/apply" class="mt-6 space-y-4">
     <input type="hidden" name="category" value="{{.Category}}">
