@@ -55,11 +55,12 @@ test.describe("website and portals @site", () => {
   });
 
   for (const [name, path] of [["household portal", "/account/login"], ["provider portal", "/provider/login"]]) {
-    test(`${name} sign-in screen asks for a phone number`, async ({ page }) => {
+    // Email and password where that sign-in exists, otherwise phone and SMS code.
+    test(`${name} sign-in screen shows a sign-in form`, async ({ page }) => {
       const problems = watch(page);
       const res = await page.goto(SITE + path);
       expect(res?.status(), path).toBeLessThan(400);
-      await expect(page.locator('input[name="phone"][type="tel"]')).toBeVisible();
+      await expect(page.locator('input[type="password"], input[name="phone"][type="tel"]').first()).toBeVisible();
       await page.waitForLoadState("networkidle");
       expect(problems).toEqual([]);
     });
