@@ -38,7 +38,7 @@ flutter analyze
 
 ## Release to Google Play
 
-Every merge to main that changes `mobile/` runs `.github/workflows/mobile-release.yml`. It builds signed release bundles of both apps and uploads them to the Play **internal testing** track; promote a build to production by hand in the Play Console. Each run gets a new version code (1000 + the run number). The version name comes from `version:` in each app's `pubspec.yaml`.
+Every merge to main that changes `mobile/` runs `.github/workflows/mobile-release.yml` once CI has passed. It builds signed release bundles of both apps and uploads them to the Play **internal testing** track. After testing, promote a build to production with **Actions → Mobile promote** (everyone, or a staged rollout such as `0.2`), which waits for approval on the `production` environment; or promote it by hand in the Play Console. Each build gets a new version code (minutes since 1 January 2026, plus 1000). Set the repository variable `MOBILE_STAGING_API_BASE_URL` to also get release APKs built against the staging API as run artifacts. See `docs/ci-cd.md`. The version name comes from `version:` in each app's `pubspec.yaml`.
 
 One-time set-up:
 
@@ -46,11 +46,30 @@ One-time set-up:
 2. Create an upload key, used by both apps:
    `keytool -genkeypair -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000`
 3. Upload the first bundle of each app by hand in the Play Console, because Play does not accept an app's first upload through the API. Build it locally with an `android/key.properties` in the app folder (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; git ignores it) and `flutter build appbundle --release --dart-define=API_BASE_URL=<production API>`.
-4. In Google Cloud, create a service account with a JSON key. In the Play Console under Users and permissions, give it release rights on both apps.
-5. Add these GitHub repository secrets: `ANDROID_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` (the whole JSON key). Also add the repository variable `MOBILE_API_BASE_URL` (the production API, ending in `/api/v1`).
+4. In Google Cloud, let GitHub Actions act as a Play service account **without a key** (Workload Identity Federation; many organisations block key creation with `iam.disableServiceAccountKeyCreation`). Only workflows of this repository running on `main` can use it. In Cloud Shell, with your project ID:
+
+   ```sh
+   PROJECT_ID=your-project-id
+   PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+   gcloud services enable iamcredentials.googleapis.com sts.googleapis.com androidpublisher.googleapis.com --project "$PROJECT_ID"
+   gcloud iam service-accounts create homend-play --display-name "Homend Play publisher" --project "$PROJECT_ID"
+   gcloud iam workload-identity-pools create github --location global --display-name "GitHub Actions" --project "$PROJECT_ID"
+   gcloud iam workload-identity-pools providers create-oidc home-residency --location global --workload-identity-pool github \
+     --issuer-uri https://token.actions.githubusercontent.com \
+     --attribute-mapping 'google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref' \
+     --attribute-condition "assertion.repository_id == '1418283878' && assertion.ref == 'refs/heads/main'" \
+     --project "$PROJECT_ID"
+   gcloud iam service-accounts add-iam-policy-binding "homend-play@$PROJECT_ID.iam.gserviceaccount.com" --project "$PROJECT_ID" \
+     --role roles/iam.workloadIdentityUser \
+     --member "principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository_id/1418283878"
+   echo "projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/home-residency"
+   ```
+
+   `1418283878` is this repository's GitHub ID, which stays the same if the repository is renamed. Then in the Play Console under **Users and permissions**, invite `homend-play@<project>.iam.gserviceaccount.com` and give it release rights on both apps.
+5. Add these GitHub repository secrets: `ANDROID_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. Add these repository variables: `GCP_WORKLOAD_IDENTITY_PROVIDER` (the `projects/…/providers/home-residency` line the commands print), `PLAY_SERVICE_ACCOUNT` (`homend-play@<project>.iam.gserviceaccount.com`) and `MOBILE_API_BASE_URL` (the production API, ending in `/api/v1`). No Google key is stored anywhere.
 6. Set the repository variable `PLAY_RELEASE_STATUS` to `draft` until each app has been released once on the internal track, then delete the variable.
 
-Until the secrets are set, the release workflow skips with a warning instead of failing. Mobile CI also builds signed release bundles with a throwaway key, so a broken release set-up shows up on the PR.
+Until the secrets and variables are set, the release workflow skips with a warning instead of failing. Mobile CI also builds signed release bundles with a throwaway key, so a broken release set-up shows up on the PR.
 
 ## Not covered yet
 

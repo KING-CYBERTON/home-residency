@@ -1,15 +1,8 @@
 name: Console CI
 
+# Called by ci.yml when console/ or the OpenAPI contract changes.
 on:
-  pull_request:
-    paths: ["console/**", "backend/api/openapi.yaml", ".github/workflows/console-ci.yml"]
-  push:
-    branches: [main]
-    paths: ["console/**", "backend/api/openapi.yaml", ".github/workflows/console-ci.yml"]
-
-concurrency:
-  group: console-ci-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 permissions:
   contents: read
