@@ -24,6 +24,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/email"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
@@ -98,7 +99,14 @@ func newServer(ctx context.Context, cfg config.Config) (*api.Server, func(), err
 		pool.Close()
 		return nil, nil, err
 	}
-	return api.NewServer(pool, cfg, sms.New(cfg.SMSProvider), cipher, pay, store), pool.Close, nil
+	mail, err := email.New(ctx, cfg.EmailProvider, cfg.EmailFrom)
+	if err != nil {
+		pool.Close()
+		return nil, nil, err
+	}
+	srv := api.NewServer(pool, cfg, sms.New(cfg.SMSProvider), cipher, pay, store)
+	srv.Email = mail
+	return srv, pool.Close, nil
 }
 
 func serve(ctx context.Context, cfg config.Config) error {

@@ -38,7 +38,10 @@ class MoreScreen extends StatelessWidget {
         children: [
           if (me != null) ...[
             Text(me.fullName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-            Text(displayPhone(me.phone), style: const TextStyle(color: Brand.slate500)),
+            Text(
+              me.phone != null ? displayPhone(me.phone) : me.email ?? '',
+              style: const TextStyle(color: Brand.slate500),
+            ),
             const SizedBox(height: 16),
           ],
           MenuGroup(
@@ -49,6 +52,10 @@ class MoreScreen extends StatelessWidget {
               MenuItem('My documents', () => context.go('/more/documents')),
               MenuItem('Training', () => context.go('/more/training')),
               MenuItem('Contract', () => context.go('/more/contract')),
+              MenuItem(
+                'Email and password',
+                () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PasswordScreen())),
+              ),
             ],
           ),
           const SizedBox(height: 16),

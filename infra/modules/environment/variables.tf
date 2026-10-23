@@ -78,8 +78,15 @@ variable "allowed_origins" {
 }
 
 variable "sms_provider" {
-  type    = string
-  default = "log"
+  description = "log (codes in the task log; not allowed with app_env prod) or none (no SMS: households and providers sign in with email and password)."
+  type        = string
+  default     = "log"
+}
+
+variable "email_from" {
+  description = "Address password reset emails come from, e.g. no-reply@example.co.ke. Its domain is created as an SES identity; empty logs emails instead of sending them (not allowed with app_env prod)."
+  type        = string
+  default     = ""
 }
 
 variable "mpesa_mode" {

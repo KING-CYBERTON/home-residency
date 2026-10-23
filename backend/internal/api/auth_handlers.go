@@ -11,16 +11,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api/gen"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/auth"
 	dbpkg "github.com/KING-CYBERTON/home-residency/backend/internal/db"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 )
 
 var phoneRE = regexp.MustCompile(`^\+[1-9][0-9]{7,14}$`)
 
 var errInvalidCode = httpx.NewError(http.StatusBadRequest, "invalid_code", "That code is wrong or has expired")
+
+// errSMSOff answers phone-code requests while SMS_PROVIDER=none.
+var errSMSOff = httpx.NewError(http.StatusServiceUnavailable, "sms_unavailable", "Phone codes are not available yet. Sign in with your email and password.")
 
 func (s *Server) PostAuthOtpRequest(w http.ResponseWriter, r *http.Request) {
 	body, err := httpx.Decode[gen.OtpRequest](r)
@@ -30,6 +35,10 @@ func (s *Server) PostAuthOtpRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	if !phoneRE.MatchString(body.Phone) {
 		httpx.Fail(w, r, httpx.Invalid("Phone must be in international format, e.g. +254712345678"))
+		return
+	}
+	if !sms.Enabled(s.SMS) {
+		httpx.Fail(w, r, errSMSOff)
 		return
 	}
 	ctx := r.Context()
@@ -122,47 +131,69 @@ func (s *Server) checkOTP(ctx context.Context, otpID uuid.UUID, code string) (ph
 }
 
 func (s *Server) registerUser(ctx context.Context, r *http.Request, phone string, body gen.OtpVerify) (uuid.UUID, error) {
-	name := ""
+	a := newAccount{phone: phone, consents: body.Consents}
 	if body.FullName != nil {
-		name = strings.TrimSpace(*body.FullName)
+		a.name = *body.FullName
 	}
+	if body.Kind != nil {
+		a.kind = string(*body.Kind)
+	}
+	return s.createAccount(ctx, r, a)
+}
+
+// newAccount is a household or provider signing up, proven either by a phone code (phone) or by
+// choosing a password for an email address (email and passwordHash).
+type newAccount struct {
+	kind, name, phone, email, passwordHash string
+	consents                               *[]gen.ConsentInput
+}
+
+func (s *Server) createAccount(ctx context.Context, r *http.Request, a newAccount) (uuid.UUID, error) {
+	name := strings.TrimSpace(a.name)
 	if len(name) < 2 {
 		return uuid.Nil, httpx.Invalid("full_name is required to register")
 	}
-	if body.Kind == nil || (*body.Kind != "client" && *body.Kind != "provider") {
+	if a.kind != "client" && a.kind != "provider" {
 		return uuid.Nil, httpx.Invalid("kind must be client or provider")
 	}
-	kind := string(*body.Kind)
+	method := "phone"
+	if a.email != "" {
+		method = "password"
+	}
 	var id uuid.UUID
 	err := dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO users (kind, status, full_name, phone_e164, phone_verified_at)
-			VALUES ($1::user_kind, 'active', $2, $3, now()) RETURNING id`, kind, name, phone).Scan(&id); err != nil {
+			INSERT INTO users (kind, status, full_name, phone_e164, phone_verified_at, email, password_hash)
+			VALUES ($1::user_kind, 'active', $2, NULLIF($3,''), CASE WHEN $3 <> '' THEN now() END, NULLIF($4,'')::citext, NULLIF($5,''))
+			RETURNING id`, a.kind, name, a.phone, a.email, a.passwordHash).Scan(&id); err != nil {
 			return err
 		}
-		if kind == "client" {
+		if a.kind == "client" {
 			if _, err := tx.Exec(ctx, `INSERT INTO clients (user_id) VALUES ($1)`, id); err != nil {
 				return err
 			}
 		} else if _, err := tx.Exec(ctx, `INSERT INTO providers (user_id) VALUES ($1)`, id); err != nil {
 			return err
 		}
-		if body.Consents != nil {
-			for _, c := range *body.Consents {
+		if a.consents != nil {
+			for _, c := range *a.consents {
 				if _, err := tx.Exec(ctx, `INSERT INTO consents (user_id, purpose, notice_version, granted, ip_address) VALUES ($1,$2,$3,$4,NULLIF($5,'')::inet)`,
 					id, string(c.Purpose), c.NoticeVersion, c.Granted, clientIP(r)); err != nil {
 					return err
 				}
 			}
 		}
-		return audit(ctx, tx, "user.register", "user", id, nil, map[string]any{"kind": kind}, "")
+		return audit(ctx, tx, "user.register", "user", id, nil, map[string]any{"kind": a.kind, "method": method}, "")
 	})
 	if err != nil {
-		var he *httpx.Error
-		if e := mapErr(err); errors.As(e, &he) && he.Code == "invalid_state_transition" {
+		var pe *pgconn.PgError
+		if errors.As(err, &pe) && pe.Code == "23505" {
+			if method == "password" {
+				return uuid.Nil, httpx.Conflict("An account with this email already exists. Sign in, or reset your password if you have forgotten it.")
+			}
 			return uuid.Nil, httpx.Conflict("An account with this phone number already exists. Sign in instead.")
 		}
-		return uuid.Nil, err
+		return uuid.Nil, mapErr(err)
 	}
 	return id, nil
 }
@@ -330,9 +361,10 @@ func (s *Server) loadMe(ctx context.Context, q db, id uuid.UUID) (meDTO, error) 
 		SELECT u.id, u.kind::text, u.status::text, u.full_name, u.phone_e164, u.email::text, u.preferred_language, u.created_at,
 		       COALESCE((SELECT array_agg(role::text ORDER BY role) FROM staff_roles WHERE user_id = u.id), '{}'),
 		       (SELECT status::text FROM providers WHERE user_id = u.id),
-		       (SELECT id_verification::text FROM clients WHERE user_id = u.id)
+		       (SELECT id_verification::text FROM clients WHERE user_id = u.id),
+		       u.password_hash IS NOT NULL
 		FROM users u WHERE u.id = $1`, id).
-		Scan(&m.ID, &m.Kind, &m.Status, &m.FullName, &m.Phone, &m.Email, &m.PreferredLanguage, &m.CreatedAt, &m.Roles, &m.ProviderStatus, &m.IDVerification)
+		Scan(&m.ID, &m.Kind, &m.Status, &m.FullName, &m.Phone, &m.Email, &m.PreferredLanguage, &m.CreatedAt, &m.Roles, &m.ProviderStatus, &m.IDVerification, &m.HasPassword)
 	return m, mapErr(err)
 }
 

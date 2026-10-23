@@ -654,7 +654,8 @@ func (s *Server) GetProviderContract(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
-// PostProviderContractSign records the provider's agreement, proven by a code sent to their own phone.
+// PostProviderContractSign records the provider's agreement, proven by a code sent to their own phone
+// or by their account password.
 func (s *Server) PostProviderContractSign(w http.ResponseWriter, r *http.Request) {
 	in, err := httpx.Decode[gen.ContractSign](r)
 	if err != nil {
@@ -676,7 +677,8 @@ func (s *Server) PostProviderContractSign(w http.ResponseWriter, r *http.Request
 		httpx.Fail(w, r, httpx.Conflict("You have already signed this version"))
 		return
 	}
-	var phone, status string
+	var phone *string
+	var status string
 	if err := s.DB.QueryRow(ctx, `SELECT u.phone_e164, p.status::text FROM users u JOIN providers p ON p.user_id = u.id WHERE u.id = $1`, me).Scan(&phone, &status); err != nil {
 		httpx.Fail(w, r, err)
 		return
@@ -685,13 +687,27 @@ func (s *Server) PostProviderContractSign(w http.ResponseWriter, r *http.Request
 		httpx.Fail(w, r, httpx.RuleViolation("You can sign once your application is approved"))
 		return
 	}
-	otpPhone, purpose, err := s.checkOTP(ctx, uuid.UUID(in.OtpId), in.Code)
-	if err != nil {
-		httpx.Fail(w, r, err)
-		return
-	}
-	if purpose != "verify_phone" || otpPhone != phone {
-		httpx.Fail(w, r, errInvalidCode)
+	method := "phone_code"
+	switch {
+	case in.Password != nil:
+		// Without SMS the provider signs by entering their account password again.
+		method = "password"
+		if err := s.checkPassword(ctx, me, *in.Password); err != nil {
+			httpx.Fail(w, r, err)
+			return
+		}
+	case in.OtpId != nil && in.Code != nil:
+		otpPhone, purpose, err := s.checkOTP(ctx, uuid.UUID(*in.OtpId), *in.Code)
+		if err != nil {
+			httpx.Fail(w, r, err)
+			return
+		}
+		if purpose != "verify_phone" || phone == nil || otpPhone != *phone {
+			httpx.Fail(w, r, errInvalidCode)
+			return
+		}
+	default:
+		httpx.Fail(w, r, httpx.Invalid("Confirm with the code sent to your phone or with your password"))
 		return
 	}
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
@@ -701,7 +717,7 @@ func (s *Server) PostProviderContractSign(w http.ResponseWriter, r *http.Request
 			SELECT $1, $2, $3, engagement_basis, $4::inet FROM providers WHERE user_id = $1 RETURNING id`, me, in.ContractVersion, in.CodeOfConductVersion, nullIfEmpty(clientIP(r))).Scan(&id); err != nil {
 			return err
 		}
-		return audit(ctx, tx, "contract.sign", "provider_contract", id, nil, map[string]any{"contract_version": in.ContractVersion, "code_of_conduct_version": in.CodeOfConductVersion}, "")
+		return audit(ctx, tx, "contract.sign", "provider_contract", id, nil, map[string]any{"contract_version": in.ContractVersion, "code_of_conduct_version": in.CodeOfConductVersion, "signed_with": method}, "")
 	})
 	if err != nil {
 		httpx.Fail(w, r, mapErr(err))

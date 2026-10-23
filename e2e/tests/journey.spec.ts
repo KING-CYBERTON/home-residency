@@ -72,6 +72,7 @@ test("recruitment: a provider signs up by SMS code and applies", async () => {
   const p = providerPage;
   await p.goto(SITE + "/join");
   await p.getByRole("link", { name: /Apply now/ }).first().click();
+  await p.getByRole("link", { name: "Apply with your phone number" }).click();
   await p.fill("#full_name", provider.name);
   await p.fill("#phone", provider.phone.local);
   await p.check("input[name=privacy]");
@@ -180,7 +181,7 @@ test("provider: profile, working hours, time off and contract signed by SMS code
   await p.selectOption("#home", { label: "Kilimani" });
   await p.getByLabel("Kilimani", { exact: true }).check();
   await p.fill("#bio", "Gardener with six years in Nairobi homes");
-  await p.getByRole("button", { name: "Save" }).click();
+  await p.getByRole("button", { name: "Save", exact: true }).click();
   await expect(p.locator("main")).toContainText(/saved/i);
 
   await p.goto(SITE + "/provider/availability");
@@ -218,6 +219,7 @@ test("booking: a new household follows a Book link, registers, adds an address a
   await c.locator('a[href*="/account/book"]').first().click();
   await expect(c).toHaveURL(/\/account\/login/);
   await c.getByRole("link", { name: "Create an account" }).click();
+  await c.getByRole("link", { name: "Use your phone number instead" }).click();
   await c.fill("input[name=full_name]", household.name);
   await c.fill("input[name=phone]", household.phone.local);
   await c.check("input[name=consent]");

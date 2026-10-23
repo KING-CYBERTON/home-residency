@@ -1,5 +1,5 @@
 /// Shared code for the Homend Residence client and provider apps: the typed API client for
-/// `backend/api/openapi.yaml`, models, the phone + SMS code session, and the UI kit that mirrors
+/// `backend/api/openapi.yaml`, models, the session (email and password, or phone and SMS code), and the UI kit that mirrors
 /// the web portals.
 library;
 
@@ -17,6 +17,7 @@ export 'src/session/session.dart';
 export 'src/ui/document_picker.dart';
 export 'src/ui/format.dart';
 export 'src/ui/inbox_screens.dart';
+export 'src/ui/password_screen.dart';
 export 'src/ui/sign_in_screen.dart';
 export 'src/ui/theme.dart';
 export 'src/ui/widgets.dart';

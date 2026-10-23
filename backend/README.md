@@ -27,7 +27,7 @@ make run                   # http://localhost:8080  (spec at /openapi.yaml, heal
 make test-db               # unit + end-to-end tests against Postgres, race detector on
 ```
 
-`create-staff` prints a password and a TOTP secret once. Staff sign in with `POST /api/v1/auth/staff/login`, then `POST /api/v1/auth/staff/mfa`. Clients and providers sign in by phone and SMS code; with `SMS_PROVIDER=log` (dev only, refused when `APP_ENV=prod`) the code is printed in the server log.
+`create-staff` prints a password and a TOTP secret once. Staff sign in with `POST /api/v1/auth/staff/login`, then `POST /api/v1/auth/staff/mfa`. Clients and providers sign in with email and password (`POST /api/v1/auth/register`, `/auth/login`, `/auth/password/forgot` and `/auth/password/reset`), or by phone and SMS code. With `SMS_PROVIDER=log` (dev only, refused when `APP_ENV=prod`) codes are printed in the server log; `SMS_PROVIDER=none` turns phone codes off, and the portals then offer email only. Password reset links are emailed through Amazon SES with `EMAIL_PROVIDER=ses` and `EMAIL_FROM`; `EMAIL_PROVIDER=log` (the default, refused when `APP_ENV=prod`) prints them in the server log.
 
 Migrations are plain goose files (`-- +goose Up` / `-- +goose Down`), so the goose CLI works too: `goose -dir migrations postgres "$DATABASE_URL" up`.
 
@@ -81,7 +81,7 @@ No AWS keys are stored in GitHub. Each job assumes an IAM role through GitHub OI
 
 ### Container configuration (in the task definition)
 
-Plain environment: `APP_ENV=prod` in production, `HTTP_ADDR=:8080`, `STORAGE_DRIVER=s3`, `STORAGE_BUCKET`, `STORAGE_KMS_KEY_ID`, `PUBLIC_BASE_URL`, `ALLOWED_ORIGINS`, `SMS_PROVIDER`, `MPESA_MODE` (`sandbox` in staging, `production` in production), `MPESA_SHORTCODE`, `MPESA_B2C_SHORTCODE`, `WEBHOOK_ALLOWED_CIDRS`.
+Plain environment: `APP_ENV=prod` in production, `HTTP_ADDR=:8080`, `STORAGE_DRIVER=s3`, `STORAGE_BUCKET`, `STORAGE_KMS_KEY_ID`, `PUBLIC_BASE_URL`, `ALLOWED_ORIGINS`, `SMS_PROVIDER` (`none` until an SMS gateway is wired), `EMAIL_PROVIDER=ses`, `EMAIL_FROM`, `MPESA_MODE` (`sandbox` in staging, `production` in production), `MPESA_SHORTCODE`, `MPESA_B2C_SHORTCODE`, `WEBHOOK_ALLOWED_CIDRS`.
 
 From Secrets Manager (task definition `secrets`): `DATABASE_URL`, `FIELD_ENCRYPTION_KEY`, `WEBHOOK_TOKEN`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`, `MPESA_INITIATOR`, `MPESA_SECURITY_CREDENTIAL`.
 

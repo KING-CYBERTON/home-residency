@@ -77,13 +77,22 @@ Terraform generates the database password, `FIELD_ENCRYPTION_KEY` and `WEBHOOK_T
 
 ## Still to decide or add
 
-- **SMS sender:** `sms.New` only has the log sender today. Production refuses `sms_provider = "log"`, and any other value starts the service but every send fails (it no longer falls back to logging codes), so clients and providers cannot sign in until the Africa's Talking sender is wired (ADR-0002 known gaps).
+- **SMS sender:** `sms.New` only has the log sender today, so production runs with `sms_provider = "none"`: households and providers sign up and sign in with email and password, phone-code forms are hidden, and SMS notifications are skipped. Once the Africa's Talking sender is wired (ADR-0002 known gaps), switching `sms_provider` brings phone sign-in back alongside email.
 - **First staff user:** `create-staff` prints the password and TOTP secret to the task log, so they sit in CloudWatch. After that admin signs in, have a second admin reset their MFA and change the password, or delete those log events.
 - **SQS and EventBridge** (ADR-0001) are not created yet because nothing in the code uses them; add them with the outbox relay.
 - **CloudFront** in front of the public site and portals (the console already has one), and S3 access logging on the vault and CloudFront.
 - **Alarms** (5xx rate, unhealthy tasks, RDS CPU and storage) and where they notify.
 - **Separate production account:** this layout runs both environments in one account. To split, apply `global/` in the shared account with `pull_account_ids = ["<prod account>"]`, create the OIDC provider in the production account too, and point the production GitHub environment's `AWS_REGION`/role at that account.
 - **Provider lock files:** commit each root's `.terraform.lock.hcl` after the first `terraform init` (run `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64` so CI and laptops agree).
+
+## Email
+
+Password reset links are sent with Amazon SES from `email_from`. Terraform creates the sending domain as an SES identity; then:
+
+1. Add the CNAME records from the `ses_dns_records` output to the domain's DNS. SES shows the identity as verified once they resolve.
+2. A new AWS account can only send SES email to verified addresses (the sandbox). In the SES console, request production access for the region (Account dashboard, "Request production access"), describing the mail as password reset links for the service's own users.
+
+Until both are done, "Forgotten password" fails quietly: the request is accepted and the send error is logged.
 
 ## The console distribution
 

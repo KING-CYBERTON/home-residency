@@ -22,6 +22,7 @@ type meDTO struct {
 	Roles             []string  `json:"roles"`
 	ProviderStatus    *string   `json:"provider_status"`
 	IDVerification    *string   `json:"id_verification"`
+	HasPassword       bool      `json:"has_password"`
 }
 
 type sessionDTO struct {
