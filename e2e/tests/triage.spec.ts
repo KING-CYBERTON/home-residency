@@ -113,7 +113,11 @@ test("unfilled: triage closes a request nobody can take, with a reason", async (
 test("variations: the provider asks for extra work; the household approves one and declines another", async ({ browser }) => {
   const job = await acceptedJob(await staffToken("ops"), household, peter, 30);
   const p = await portalPage(browser, "provider", peter.token, problems);
-  for (const what of ["Clean the balcony as well", "Wash the curtains"]) {
+  // Unique per run, so a retry on the same database finds only its own rows.
+  const run = job.requestId.slice(0, 8);
+  const balconyWork = `Clean the balcony as well (${run})`;
+  const curtainWork = `Wash the curtains (${run})`;
+  for (const what of [balconyWork, curtainWork]) {
     await p.goto(`${SITE}/provider/jobs/${job.assignmentId}`);
     await p.getByText("The client wants more work done").click();
     await p.locator("#var-desc").fill(what);
@@ -123,15 +127,20 @@ test("variations: the provider asks for extra work; the household approves one a
   }
   const c = await portalPage(browser, "client", household.token, problems);
   await c.goto(`${SITE}/account/requests/${job.requestId}`);
-  const balcony = c.locator("div.rounded-xl").filter({ hasText: "Clean the balcony as well" });
+  const balcony = c.locator("div.rounded-xl").filter({ hasText: balconyWork });
   await expect(balcony).toContainText(/Adds KES [\d,]+/);
   await balcony.getByRole("button", { name: "Approve" }).click();
-  await c.locator("div.rounded-xl").filter({ hasText: "Wash the curtains" }).getByRole("button", { name: "Decline" }).click();
+  // Each choice is a form post; wait for the reloaded page before the next click, or the second
+  // post cancels the first and the approval is lost.
+  await expect(balcony.getByRole("button", { name: "Approve" })).toHaveCount(0);
+  const curtains = c.locator("div.rounded-xl").filter({ hasText: curtainWork });
+  await curtains.getByRole("button", { name: "Decline" }).click();
+  await expect(curtains.getByRole("button", { name: "Decline" })).toHaveCount(0);
 
   await goConsole(ops, "/variations?status=approved");
-  await expect(ops.getByRole("row").filter({ hasText: "Clean the balcony as well" })).toBeVisible();
+  await expect(ops.getByRole("row").filter({ hasText: balconyWork })).toBeVisible();
   await goConsole(ops, "/variations?status=rejected");
-  await expect(ops.getByRole("row").filter({ hasText: "Wash the curtains" })).toBeVisible();
+  await expect(ops.getByRole("row").filter({ hasText: curtainWork })).toBeVisible();
 });
 
 test("visits: a supervisor records a check-in by hand when the provider's phone is dead", async () => {
