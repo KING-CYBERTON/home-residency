@@ -13,6 +13,7 @@ import (
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api/gen"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 )
 
 // Onboarding (report §5.1): apply for a category, upload documents, add referees, submit, follow
@@ -284,6 +285,9 @@ type contractPage struct {
 	Status   gen.ProviderStatus
 	OtpID    string
 	Error    string
+	// ByCode offers signing with an SMS code (SMS is on and the provider has a phone on file);
+	// ByPassword with the account password.
+	ByCode, ByPassword bool
 }
 
 func (p *Portal) contractData(r *http.Request) (contractPage, error) {
@@ -295,7 +299,7 @@ func (p *Portal) contractData(r *http.Request) (contractPage, error) {
 	if err != nil {
 		return contractPage{}, err
 	}
-	out := contractPage{Contract: c}
+	out := contractPage{Contract: c, ByCode: sms.Enabled(p.api.SMS) && me.Phone != nil, ByPassword: me.HasPassword != nil && *me.HasPassword}
 	if me.ProviderStatus != nil {
 		out.Status = *me.ProviderStatus
 	}
@@ -331,21 +335,28 @@ func (p *Portal) contractCode(w http.ResponseWriter, r *http.Request) {
 	p.render(w, r, http.StatusOK, page{name: "contract", title: "Contract", nav: "more"}, d)
 }
 
+// contractSign signs with the SMS code, or with the account password when the form sends one.
 func (p *Portal) contractSign(w http.ResponseWriter, r *http.Request) {
-	otp, err := uuid.Parse(r.PostFormValue("otp_id"))
-	if err != nil {
-		p.redirect(w, r, portal+"/contract")
-		return
+	in := gen.ContractSign{ContractVersion: r.PostFormValue("contract_version"), CodeOfConductVersion: r.PostFormValue("code_of_conduct_version")}
+	otpID := ""
+	if pw := r.PostFormValue("password"); pw != "" {
+		in.Password = &pw
+	} else {
+		otp, err := uuid.Parse(r.PostFormValue("otp_id"))
+		if err != nil {
+			p.redirect(w, r, portal+"/contract")
+			return
+		}
+		code := strings.TrimSpace(r.PostFormValue("code"))
+		in.OtpId, in.Code, otpID = &otp, &code, otp.String()
 	}
-	in := gen.ContractSign{OtpId: otp, Code: strings.TrimSpace(r.PostFormValue("code")),
-		ContractVersion: r.PostFormValue("contract_version"), CodeOfConductVersion: r.PostFormValue("code_of_conduct_version")}
 	if err := do(r, in, p.api.PostProviderContractSign); err != nil {
 		d, derr := p.contractData(r)
 		if derr != nil {
 			p.problem(w, r, derr)
 			return
 		}
-		d.OtpID, d.Error = otp.String(), message(err)
+		d.OtpID, d.Error = otpID, message(err)
 		p.render(w, r, http.StatusUnprocessableEntity, page{name: "contract", title: "Contract", nav: "more"}, d)
 		return
 	}
@@ -355,6 +366,7 @@ func (p *Portal) contractSign(w http.ResponseWriter, r *http.Request) {
 // ---- profile
 
 type profilePage struct {
+	Me      gen.Me
 	Profile gen.ProviderProfile
 	Areas   []gen.ServiceArea
 	InArea  map[openapi_types.UUID]bool
@@ -373,7 +385,21 @@ func (p *Portal) profile(w http.ResponseWriter, r *http.Request) {
 			in[a] = true
 		}
 	}
-	p.render(w, r, http.StatusOK, page{name: "profile", title: "My profile", nav: "more"}, profilePage{Profile: prof, Areas: areas, InArea: in})
+	me, err := call[gen.Me](r, nil, p.api.GetMe)
+	if err != nil {
+		p.problem(w, r, err)
+		return
+	}
+	p.render(w, r, http.StatusOK, page{name: "profile", title: "My profile", nav: "more"}, profilePage{Me: me, Profile: prof, Areas: areas, InArea: in})
+}
+
+// savePassword sets the email and password the provider signs in with.
+func (p *Portal) savePassword(w http.ResponseWriter, r *http.Request) {
+	if err := setSignIn(r, p.api); err != nil {
+		p.failed(w, r, portal+"/profile#sign-in", err)
+		return
+	}
+	p.done(w, r, portal+"/profile", "Password saved. You can now sign in with your email and password.")
 }
 
 func (p *Portal) saveProfile(w http.ResponseWriter, r *http.Request) {
@@ -436,4 +462,25 @@ func formDate(r *http.Request, key string) *openapi_types.Date {
 		return nil
 	}
 	return &openapi_types.Date{Time: t}
+}
+
+// setSignIn saves a changed email address, then the new password.
+func setSignIn(r *http.Request, srv *api.Server) error {
+	if e := strings.TrimSpace(r.PostFormValue("email")); e != "" {
+		me, err := call[gen.Me](r, nil, srv.GetMe)
+		if err != nil {
+			return err
+		}
+		if me.Email == nil || !strings.EqualFold(*me.Email, e) {
+			em := openapi_types.Email(e)
+			if err := do(r, gen.MeUpdate{Email: &em}, srv.PatchMe); err != nil {
+				return err
+			}
+		}
+	}
+	in := gen.PasswordChange{NewPassword: r.PostFormValue("new_password")}
+	if cur := r.PostFormValue("current_password"); cur != "" {
+		in.CurrentPassword = &cur
+	}
+	return do(r, in, srv.PostMePassword)
 }

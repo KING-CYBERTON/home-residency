@@ -58,6 +58,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a household or provider account with email and password
+         * @description The alternative to phone sign-up for when SMS is not available. Signs the new account in.
+         */
+        post: operations["postAuthRegister"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Household or provider email and password sign-in
+         * @description Staff use /auth/staff/login. Ten wrong passwords lock the account for 15 minutes.
+         */
+        post: operations["postAuthLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email a password reset link
+         * @description Always answers 204, whether or not the email has an account, so it cannot be used to find accounts. Households and providers only.
+         */
+        post: operations["postAuthPasswordForgot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password with the token from a reset link
+         * @description The token works once and for one hour. Signs out every other session and confirms the email address.
+         */
+        post: operations["postAuthPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set or change your own password
+         * @description current_password is required when the account already has a password. Needs an email address on the account. Signs out every other session.
+         */
+        post: operations["postMePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/staff/login": {
         parameters: {
             query?: never;
@@ -4043,6 +4143,37 @@ export interface components {
             notice_version: string;
             granted: boolean;
         };
+        PasswordRegister: {
+            /** @enum {string} */
+            kind: "client" | "provider";
+            full_name: string;
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+            consents?: components["schemas"]["ConsentInput"][];
+        };
+        PasswordLogin: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+        };
+        PasswordForgot: {
+            /** Format: email */
+            email: string;
+        };
+        PasswordReset: {
+            token: string;
+            /** Format: password */
+            password: string;
+        };
+        PasswordChange: {
+            /** Format: password */
+            current_password?: string;
+            /** Format: password */
+            new_password: string;
+        };
         StaffLogin: {
             /** Format: email */
             email: string;
@@ -4077,6 +4208,8 @@ export interface components {
             roles?: components["schemas"]["StaffRole"][];
             provider_status?: (string & components["schemas"]["ProviderStatus"]) | null;
             id_verification?: (string & components["schemas"]["IdVerificationStatus"]) | null;
+            /** @description The account can sign in with its email and password. */
+            has_password?: boolean;
         };
         MeUpdate: {
             full_name?: string;
@@ -5199,9 +5332,17 @@ export interface components {
         ContractSign: {
             contract_version: string;
             code_of_conduct_version: string;
-            /** Format: uuid */
-            otp_id: string;
-            code: string;
+            /**
+             * Format: uuid
+             * @description With code, a verify_phone code sent to the provider's own phone. Give this pair or password.
+             */
+            otp_id?: string;
+            code?: string;
+            /**
+             * Format: password
+             * @description The provider's account password, to sign without an SMS code.
+             */
+            password?: string;
         };
         TrainingEnrolment: {
             /** Format: uuid */
@@ -6309,6 +6450,150 @@ export interface operations {
                 };
             };
             400: components["responses"]["E400"];
+            429: components["responses"]["E429"];
+            default: components["responses"]["Edefault"];
+        };
+    };
+    postAuthRegister: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordRegister"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            400: components["responses"]["E400"];
+            401: components["responses"]["E401"];
+            403: components["responses"]["E403"];
+            409: components["responses"]["E409"];
+            429: components["responses"]["E429"];
+            default: components["responses"]["Edefault"];
+        };
+    };
+    postAuthLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordLogin"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            400: components["responses"]["E400"];
+            401: components["responses"]["E401"];
+            403: components["responses"]["E403"];
+            409: components["responses"]["E409"];
+            429: components["responses"]["E429"];
+            default: components["responses"]["Edefault"];
+        };
+    };
+    postAuthPasswordForgot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordForgot"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["E400"];
+            401: components["responses"]["E401"];
+            403: components["responses"]["E403"];
+            409: components["responses"]["E409"];
+            429: components["responses"]["E429"];
+            default: components["responses"]["Edefault"];
+        };
+    };
+    postAuthPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordReset"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["E400"];
+            401: components["responses"]["E401"];
+            403: components["responses"]["E403"];
+            409: components["responses"]["E409"];
+            429: components["responses"]["E429"];
+            default: components["responses"]["Edefault"];
+        };
+    };
+    postMePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Done */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["E400"];
+            401: components["responses"]["E401"];
+            403: components["responses"]["E403"];
+            409: components["responses"]["E409"];
             429: components["responses"]["E429"];
             default: components["responses"]["Edefault"];
         };

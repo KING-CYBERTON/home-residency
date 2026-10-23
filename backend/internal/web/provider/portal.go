@@ -78,6 +78,11 @@ func (p *Portal) Routes() http.Handler {
 	r.Get("/offline", p.offline)
 	r.Get("/login", p.loginForm)
 	r.Post("/login", p.loginRequest)
+	r.Post("/login/password", p.loginPassword)
+	r.Get("/forgot-password", p.forgotForm)
+	r.Post("/forgot-password", p.forgot)
+	r.Get("/reset-password", p.resetForm)
+	r.Post("/reset-password", p.reset)
 	r.Post("/login/verify", p.loginVerify)
 	r.Post("/logout", p.logout)
 
@@ -104,6 +109,7 @@ func (p *Portal) Routes() http.Handler {
 		r.Post("/contract/sign", p.contractSign)
 		r.Get("/profile", p.profile)
 		r.Post("/profile", p.saveProfile)
+		r.Post("/password", p.savePassword)
 
 		r.Get("/availability", p.availability)
 		r.Post("/availability", p.saveAvailability)
@@ -135,6 +141,7 @@ func (p *Portal) JoinRoutes() http.Handler {
 	r.Get("/", p.join)
 	r.Get("/apply", p.applyForm)
 	r.Post("/apply", p.applyRequest)
+	r.Post("/apply/password", p.applyPassword)
 	r.Post("/apply/verify", p.applyVerify)
 	return r
 }
