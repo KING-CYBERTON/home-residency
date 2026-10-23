@@ -131,7 +131,7 @@ jobs:
       # working; then index.html and the other root files, which are never cached.
       - name: Download console build
         if: inputs.console_artifact != '' && vars.CONSOLE_BUCKET != ''
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.console_artifact }}
           path: console-dist
