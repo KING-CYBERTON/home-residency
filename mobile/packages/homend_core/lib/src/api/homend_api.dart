@@ -50,6 +50,38 @@ class HomendApi {
     ),
   );
 
+  /// Creates an account with email and password: the way in when SMS codes are not available.
+  Future<Session> register({
+    required String kind,
+    required String fullName,
+    required String email,
+    required String password,
+    List<Consent> consents = const [],
+  }) async => Session.fromJson(
+    _j(
+      await _c.post(
+        '/auth/register',
+        body: compact({
+          'kind': kind,
+          'full_name': fullName,
+          'email': email,
+          'password': password,
+          'consents': consents.isEmpty ? null : consents.map((c) => c.toJson()).toList(),
+        }),
+      ),
+    ),
+  );
+
+  Future<Session> login(String email, String password) async =>
+      Session.fromJson(_j(await _c.post('/auth/login', body: {'email': email, 'password': password})));
+
+  /// Emails a link to choose a new password. Answers the same whether or not the email has an account.
+  Future<void> forgotPassword(String email) => _c.post('/auth/password/forgot', body: {'email': email});
+
+  /// Sets or changes the signed-in person's password; [currentPassword] is needed when one is set.
+  Future<void> setPassword(String newPassword, {String? currentPassword}) =>
+      _c.post('/me/password', body: compact({'new_password': newPassword, 'current_password': currentPassword}));
+
   Future<void> logout() => _c.post('/auth/logout');
 
   Future<Me> me() async => Me.fromJson(_j(await _c.get('/me')));
@@ -332,17 +364,18 @@ class HomendApi {
 
   Future<Contract> contract() async => Contract.fromJson(_j(await _c.get('/provider/contract')));
 
-  /// Signed with a `verify_phone` code sent to the provider's own number.
-  Future<Contract> signContract(Contract c, {required String otpId, required String code}) async => Contract.fromJson(
+  /// Signed with a `verify_phone` code sent to the provider's own number, or with their password.
+  Future<Contract> signContract(Contract c, {String? otpId, String? code, String? password}) async => Contract.fromJson(
     _j(
       await _c.post(
         '/provider/contract/sign',
-        body: {
+        body: compact({
           'contract_version': c.contractVersion,
           'code_of_conduct_version': c.codeOfConductVersion,
           'otp_id': otpId,
           'code': code,
-        },
+          'password': password,
+        }),
       ),
     ),
   );

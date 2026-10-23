@@ -15,7 +15,9 @@ type Config struct {
 	DatabaseURL     string
 	CookieSecure    bool
 	AllowedOrigins  []string
-	SMSProvider     string // "log" prints codes to the log (dev); anything else is wired in sms.New
+	SMSProvider     string // "log" prints codes to the log (dev), "none" turns SMS off (email sign-in only); others are wired in sms.New
+	EmailProvider   string // "log" prints email to the log (dev), "ses" sends through Amazon SES
+	EmailFrom       string // verified SES sender, e.g. "Homend Residence <no-reply@homend.co.ke>"
 	ShutdownTimeout time.Duration
 	FieldKey        string // base64 32-byte key for *_enc columns (KMS data key in prod)
 
@@ -49,6 +51,8 @@ func Load() (Config, error) {
 		HTTPAddr:        get("HTTP_ADDR", ":8080"),
 		DatabaseURL:     os.Getenv("DATABASE_URL"),
 		SMSProvider:     get("SMS_PROVIDER", "log"),
+		EmailProvider:   get("EMAIL_PROVIDER", "log"),
+		EmailFrom:       os.Getenv("EMAIL_FROM"),
 		ShutdownTimeout: 15 * time.Second,
 		FieldKey:        os.Getenv("FIELD_ENCRYPTION_KEY"),
 	}
@@ -76,6 +80,9 @@ func Load() (Config, error) {
 	}
 	if c.Env == "prod" && c.SMSProvider == "log" {
 		return c, fmt.Errorf("SMS_PROVIDER=log is not allowed when APP_ENV=prod")
+	}
+	if c.Env == "prod" && c.EmailProvider == "log" {
+		return c, fmt.Errorf("EMAIL_PROVIDER=log is not allowed when APP_ENV=prod")
 	}
 	if c.Env == "prod" {
 		if c.MpesaMode == "fake" {

@@ -4,6 +4,7 @@ package sms
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -13,10 +14,16 @@ type Sender interface {
 	Send(ctx context.Context, toE164, body string) error
 }
 
+// ErrDisabled is returned by the sender for SMS_PROVIDER=none: the service runs without SMS, so
+// households and providers sign in with email and password instead of a phone code.
+var ErrDisabled = errors.New("sms is turned off (SMS_PROVIDER=none)")
+
 func New(provider string) Sender {
 	switch provider {
 	case "log", "":
 		return LogSender{}
+	case "none":
+		return Disabled{}
 	default:
 		// No real gateway is wired yet. Failing is safer than falling back to the log sender, which
 		// would write every login code to the logs in production.
@@ -28,6 +35,17 @@ type unavailable struct{ provider string }
 
 func (u unavailable) Send(context.Context, string, string) error {
 	return fmt.Errorf("sms provider %q is not implemented", u.provider)
+}
+
+// Disabled refuses every message with ErrDisabled.
+type Disabled struct{}
+
+func (Disabled) Send(context.Context, string, string) error { return ErrDisabled }
+
+// Enabled reports whether s can deliver messages at all.
+func Enabled(s Sender) bool {
+	_, off := s.(Disabled)
+	return s != nil && !off
 }
 
 // LogSender prints messages to the log. Dev only: config refuses it when APP_ENV=prod.

@@ -26,6 +26,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/email"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
@@ -496,4 +497,55 @@ func (e *env) checkBudget(t *testing.T) {
 		must(t, n+shared+js <= maxFirstLoad, "first load of %s is %d bytes gzipped, budget %d", p, n+shared+js, maxFirstLoad)
 	}
 	t.Logf("page-weight: shared CSS+HTMX %d B, portal JS %d B (gzip)", shared, js)
+}
+
+// TestEmailSignInWithoutSMS runs the provider journey the way production does without an SMS
+// gateway: apply with email and password, forget it, reset it from the emailed link, sign the
+// contract with the password.
+func TestEmailSignInWithoutSMS(t *testing.T) {
+	e := newEnv(t)
+	_, catID, _ := e.seedCatalogue()
+	e.app.SMS = sms.New("none")
+	mail := &email.Capture{}
+	e.app.Email = mail
+	b := e.browser()
+
+	login := b.get("/provider/login")
+	must(t, strings.Contains(login, `action="/provider/login/password"`) && !strings.Contains(login, "with=phone"), "email form only: %s", login)
+	apply := b.get("/join/apply?with=phone&category=" + catID)
+	must(t, strings.Contains(apply, `action="/join/apply/password"`) && !strings.Contains(apply, `name="phone"`), "no phone form with SMS off")
+
+	_, body, _ := b.post("/join/apply/password", url.Values{"full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"}, "password": {"a good password"}, "category": {catID}})
+	must(t, strings.Contains(body, "accept the privacy notice"), "consent is required")
+	_, _, at := b.post("/join/apply/password", url.Values{"full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"}, "password": {"a good password"},
+		"category": {catID}, "privacy": {"on"}, "vetting": {"on"}})
+	must(t, strings.HasPrefix(at, "/provider/applications/new"), "after sign-up landed on %s", at)
+	b.post("/provider/logout", url.Values{})
+
+	_, body, _ = b.post("/provider/login/password", url.Values{"email": {"achieng@example.com"}, "password": {"wrong password"}})
+	must(t, strings.Contains(body, "Email or password is wrong"), "wrong password refused: %s", body)
+	_, _, at = b.post("/provider/login/password", url.Values{"email": {"achieng@example.com"}, "password": {"a good password"}, "next": {"/provider/profile"}})
+	must(t, at == "/provider/profile", "after sign-in landed on %s", at)
+	b.post("/provider/logout", url.Values{})
+
+	_, body, _ = b.post("/provider/forgot-password", url.Values{"email": {"achieng@example.com"}})
+	must(t, strings.Contains(body, "Check your email") && len(mail.Msgs) == 1, "reset email sent: %s", body)
+	link := regexp.MustCompile(`/provider/reset-password\?token=\S+`).FindString(mail.Msgs[0].Text)
+	must(t, link != "", "reset link: %s", mail.Msgs[0].Text)
+	page := b.get(link)
+	token := regexp.MustCompile(`name="token" value="([^"]+)"`).FindStringSubmatch(page)
+	must(t, token != nil, "reset form: %s", page)
+	_, _, at = b.post("/provider/reset-password", url.Values{"token": {token[1]}, "password": {"a better password"}})
+	must(t, at == "/provider/login", "after reset landed on %s", at)
+	_, _, at = b.post("/provider/login/password", url.Values{"email": {"achieng@example.com"}, "password": {"a better password"}})
+	must(t, at == "/provider/", "signed in with the new password: %s", at)
+
+	e.sql(`UPDATE providers SET status = 'approved'`)
+	page = b.get("/provider/contract")
+	must(t, strings.Contains(page, "Enter your password to sign") && !strings.Contains(page, "contract/code"), "contract signs by password: %s", page)
+	versions := regexp.MustCompile(`name="contract_version" value="([^"]*)"`).FindStringSubmatch(page)
+	conduct := regexp.MustCompile(`name="code_of_conduct_version" value="([^"]*)"`).FindStringSubmatch(page)
+	_, _, at = b.post("/provider/contract/sign", url.Values{"contract_version": {versions[1]}, "code_of_conduct_version": {conduct[1]}, "password": {"a better password"}})
+	must(t, at == "/provider/", "after signing landed on %s", at)
+	must(t, e.one(`SELECT count(*)::text FROM provider_contracts`) == "1", "contract recorded")
 }

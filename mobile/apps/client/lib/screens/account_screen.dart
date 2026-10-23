@@ -31,6 +31,11 @@ class AccountScreen extends StatelessWidget {
               MenuItem('Messages with Homend', () => context.go('/account/messages')),
               MenuItem('Complaints', () => context.go('/account/complaints')),
               MenuItem('Notifications', () => context.go('/account/notifications')),
+              MenuItem(
+                'Email and password',
+                () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PasswordScreen())),
+                value: d.$1.hasPassword ? 'Set' : 'Not set',
+              ),
             ],
           ),
           const SectionTitle('Your details'),

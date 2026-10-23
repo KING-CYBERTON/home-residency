@@ -162,6 +162,158 @@ paths:
           $ref: '#/components/responses/E429'
         default:
           $ref: '#/components/responses/Edefault'
+  /auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Create a household or provider account with email and password
+      operationId: postAuthRegister
+      description: The alternative to phone sign-up for when SMS is not available. Signs the new account in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordRegister'
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '409':
+          $ref: '#/components/responses/E409'
+        '429':
+          $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Household or provider email and password sign-in
+      operationId: postAuthLogin
+      description: Staff use /auth/staff/login. Ten wrong passwords lock the account for 15 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLogin'
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '409':
+          $ref: '#/components/responses/E409'
+        '429':
+          $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /auth/password/forgot:
+    post:
+      tags:
+      - Auth
+      summary: Email a password reset link
+      operationId: postAuthPasswordForgot
+      description: Always answers 204, whether or not the email has an account, so it cannot be used to find accounts. Households and providers only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordForgot'
+      security: []
+      responses:
+        '204':
+          description: Done
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '409':
+          $ref: '#/components/responses/E409'
+        '429':
+          $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /auth/password/reset:
+    post:
+      tags:
+      - Auth
+      summary: Set a new password with the token from a reset link
+      operationId: postAuthPasswordReset
+      description: The token works once and for one hour. Signs out every other session and confirms the email address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordReset'
+      security: []
+      responses:
+        '204':
+          description: Done
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '409':
+          $ref: '#/components/responses/E409'
+        '429':
+          $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /me/password:
+    post:
+      tags:
+      - Auth
+      summary: Set or change your own password
+      operationId: postMePassword
+      description: current_password is required when the account already has a password. Needs an email address on the account. Signs out every other session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChange'
+      responses:
+        '204':
+          description: Done
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '409':
+          $ref: '#/components/responses/E409'
+        '429':
+          $ref: '#/components/responses/E429'
+        default:
+          $ref: '#/components/responses/Edefault'
   /auth/staff/login:
     post:
       tags:
@@ -8794,6 +8946,80 @@ components:
       - purpose
       - notice_version
       - granted
+    PasswordRegister:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - client
+          - provider
+        full_name:
+          type: string
+          minLength: 2
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+        consents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsentInput'
+      required:
+      - kind
+      - full_name
+      - email
+      - password
+    PasswordLogin:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+      - email
+      - password
+    PasswordForgot:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    PasswordReset:
+      type: object
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+      required:
+      - token
+      - password
+    PasswordChange:
+      type: object
+      properties:
+        current_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+      required:
+      - new_password
     StaffLogin:
       type: object
       properties:
@@ -8880,6 +9106,9 @@ components:
             allOf:
             - $ref: '#/components/schemas/IdVerificationStatus'
             nullable: true
+          has_password:
+            type: boolean
+            description: The account can sign in with its email and password.
     MeUpdate:
       type: object
       properties:
@@ -11187,14 +11416,17 @@ components:
         otp_id:
           type: string
           format: uuid
+          description: With code, a verify_phone code sent to the provider's own phone. Give this pair or password.
         code:
           type: string
           pattern: ^[0-9]{6}$
+        password:
+          type: string
+          format: password
+          description: The provider's account password, to sign without an SMS code.
       required:
       - contract_version
       - code_of_conduct_version
-      - otp_id
-      - code
     TrainingEnrolment:
       type: object
       properties:
