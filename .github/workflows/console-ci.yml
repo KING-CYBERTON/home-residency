@@ -31,7 +31,7 @@ jobs:
           git diff --exit-code -- src/api || (echo "Run 'npm run generate' in console/ and commit the result" && exit 1)
       - run: npm run lint
       - run: npm run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: console-dist
           path: console/dist

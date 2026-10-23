@@ -130,7 +130,7 @@ jobs:
           subject-name: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
           subject-digest: ${{ steps.push.outputs.digest }}
       - if: steps.push.outputs.digest != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ env.IMAGE_TAG }}
           path: ${{ runner.temp }}/sbom.cdx.json
@@ -150,7 +150,7 @@ jobs:
         run: npm ci && npm run build
       # Named apart from Console CI's "console-dist", which can be in the same run.
       - if: hashFiles('console/package-lock.json') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: console-release
           path: console/dist
