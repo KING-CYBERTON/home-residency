@@ -1,11 +1,8 @@
 name: Infra CI
 
+# Called by ci.yml when infra/ changes.
 on:
-  pull_request:
-    paths: ["infra/**", ".github/workflows/infra-ci.yml"]
-  push:
-    branches: [main]
-    paths: ["infra/**", ".github/workflows/infra-ci.yml"]
+  workflow_call:
 
 permissions:
   contents: read
@@ -16,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: 1.13.3
           terraform_wrapper: false

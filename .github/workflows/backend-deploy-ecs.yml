@@ -1,7 +1,13 @@
 name: Backend deploy to ECS
 
 # Reusable: deploys one image, and the console build if there is one, to one GitHub
-# environment (staging or production).
+# environment (staging or production), then proves it in a browser:
+#   1. migrate and roll out the image (backend/scripts/deploy-ecs.sh),
+#   2. check /api/v1/healthz reports the version just deployed,
+#   3. smoke-test the public website and both portals (e2e/deployed, tagged @site),
+#   4. if 2 or 3 fails, put the service back on the task definition it ran before,
+#   5. publish the console, wait until CloudFront serves it, and smoke-test it (@console).
+# Migrations are not rolled back, which is why they must stay backward compatible.
 # Environment variables (set on the GitHub environment) say where the service lives;
 # see "Deploying to AWS" in backend/README.md. No AWS keys are stored: the job
 # assumes the environment's IAM role through GitHub OIDC.
@@ -15,6 +21,11 @@ on:
         description: Image to deploy, pinned by digest (registry/repo@sha256:…)
         required: true
         type: string
+      version:
+        description: Version the image reports on /api/v1/healthz (the image tag), or empty to skip that check
+        required: false
+        type: string
+        default: ""
       console_artifact:
         description: Name of the console build artifact from the calling run, or empty to skip the console
         required: false
@@ -27,7 +38,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Migrate, roll out and publish console
+    name: Migrate, roll out, smoke test and publish console
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment:
@@ -36,16 +47,35 @@ jobs:
     concurrency:
       group: backend-deploy-${{ inputs.environment }}
       cancel-in-progress: false
+    env:
+      BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+      CONSOLE_URL: ${{ vars.CONSOLE_URL }}
     steps:
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: backend/scripts
-      - uses: aws-actions/configure-aws-credentials@v4
+          sparse-checkout: |
+            backend/scripts
+            e2e
+      # Installed before the rollout so the smoke test starts as soon as the service is stable.
+      - if: env.BASE_URL != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Install the smoke test
+        if: env.BASE_URL != ''
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           role-session-name: homend-deploy-${{ inputs.environment }}-${{ github.run_id }}
           aws-region: ${{ vars.AWS_REGION }}
       - name: Register task definition, run migrations, update service
+        id: deploy
         env:
           IMAGE: ${{ inputs.image }}
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
@@ -56,11 +86,47 @@ jobs:
           ECS_SECURITY_GROUPS: ${{ vars.ECS_SECURITY_GROUPS }}
           ECS_ASSIGN_PUBLIC_IP: ${{ vars.ECS_ASSIGN_PUBLIC_IP || 'DISABLED' }}
         run: backend/scripts/deploy-ecs.sh
-      - name: Health check
-        if: vars.PUBLIC_BASE_URL != ''
+      - name: Health check reports the deployed version
+        id: health
+        if: env.BASE_URL != ''
         env:
-          BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
-        run: curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "$BASE_URL/api/v1/healthz"
+          EXPECTED: ${{ inputs.version }}
+        run: |
+          for attempt in $(seq 1 20); do
+            body="$(curl --fail --silent --show-error --max-time 10 "$BASE_URL/api/v1/healthz" || true)"
+            status="$(jq -r '.status // empty' <<<"$body" 2>/dev/null || true)"
+            version="$(jq -r '.version // empty' <<<"$body" 2>/dev/null || true)"
+            if [[ "$status" == ok && ( -z "$EXPECTED" || "$version" == "$EXPECTED" ) ]]; then
+              echo "Healthy, version $version"
+              exit 0
+            fi
+            echo "Attempt $attempt: status=${status:-none} version=${version:-none} (want ${EXPECTED:-any})"
+            sleep 6
+          done
+          echo "::error::$BASE_URL/api/v1/healthz did not report status ok${EXPECTED:+ with version $EXPECTED}."
+          exit 1
+      - name: Smoke test the website and portals
+        id: site_smoke
+        if: env.BASE_URL != ''
+        working-directory: e2e
+        env:
+          E2E_SITE_URL: ${{ vars.PUBLIC_BASE_URL }}
+          E2E_EXPECT_VERSION: ${{ inputs.version }}
+        run: npx playwright test -c playwright.deployed.config.ts --grep @site
+      - name: Roll the API back to the previous task definition
+        if: >-
+          failure() && steps.deploy.outcome == 'success' && steps.deploy.outputs.previous_task_definition != '' &&
+          (steps.health.outcome == 'failure' || steps.site_smoke.outcome == 'failure')
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          PREVIOUS: ${{ steps.deploy.outputs.previous_task_definition }}
+        run: |
+          echo "::warning::Rolling $ECS_SERVICE back to $PREVIOUS. Migrations from this deploy stay applied."
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$PREVIOUS" --query 'service.serviceName' --output text
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+          echo "### Rolled back to \`$PREVIOUS\`" >> "$GITHUB_STEP_SUMMARY"
+
       # Hashed assets first and never deleted, so open tabs on the old index.html keep
       # working; then index.html and the other root files, which are never cached.
       - name: Download console build
@@ -70,6 +136,7 @@ jobs:
           name: ${{ inputs.console_artifact }}
           path: console-dist
       - name: Upload console to S3 and invalidate CloudFront
+        id: console
         if: inputs.console_artifact != '' && vars.CONSOLE_BUCKET != ''
         env:
           BUCKET: ${{ vars.CONSOLE_BUCKET }}
@@ -80,3 +147,30 @@ jobs:
           if [[ -n "$DISTRIBUTION_ID" ]]; then
             aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*" --query 'Invalidation.Id' --output text
           fi
+      - name: Wait until CloudFront serves the new console
+        if: steps.console.outcome == 'success' && env.CONSOLE_URL != ''
+        run: |
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent --max-time 10 "$CONSOLE_URL/" | cmp -s - console-dist/index.html; then
+              echo "New console is live."
+              exit 0
+            fi
+            echo "Attempt $attempt: still serving the old index.html"
+            sleep 15
+          done
+          echo "::error::$CONSOLE_URL/ still serves an old index.html after 10 minutes."
+          exit 1
+      - name: Smoke test the console
+        if: steps.console.outcome == 'success' && env.CONSOLE_URL != ''
+        working-directory: e2e
+        env:
+          E2E_CONSOLE_URL: ${{ vars.CONSOLE_URL }}
+        run: npx playwright test -c playwright.deployed.config.ts --grep @console
+      - uses: actions/upload-artifact@v4
+        if: failure() && env.BASE_URL != ''
+        with:
+          name: smoke-${{ inputs.environment }}
+          path: |
+            e2e/playwright-report-deployed
+            e2e/test-results-deployed
+          retention-days: 14

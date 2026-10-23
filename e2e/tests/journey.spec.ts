@@ -72,6 +72,7 @@ test("recruitment: a provider signs up by SMS code and applies", async () => {
   const p = providerPage;
   await p.goto(SITE + "/join");
   await p.getByRole("link", { name: /Apply now/ }).first().click();
+  await p.getByRole("link", { name: "Apply with your phone number" }).click();
   await p.fill("#full_name", provider.name);
   await p.fill("#phone", provider.phone.local);
   await p.check("input[name=privacy]");
@@ -180,7 +181,7 @@ test("provider: profile, working hours, time off and contract signed by SMS code
   await p.selectOption("#home", { label: "Kilimani" });
   await p.getByLabel("Kilimani", { exact: true }).check();
   await p.fill("#bio", "Gardener with six years in Nairobi homes");
-  await p.getByRole("button", { name: "Save" }).click();
+  await p.getByRole("button", { name: "Save", exact: true }).click();
   await expect(p.locator("main")).toContainText(/saved/i);
 
   await p.goto(SITE + "/provider/availability");
@@ -218,6 +219,7 @@ test("booking: a new household follows a Book link, registers, adds an address a
   await c.locator('a[href*="/account/book"]').first().click();
   await expect(c).toHaveURL(/\/account\/login/);
   await c.getByRole("link", { name: "Create an account" }).click();
+  await c.getByRole("link", { name: "Use your phone number instead" }).click();
   await c.fill("input[name=full_name]", household.name);
   await c.fill("input[name=phone]", household.phone.local);
   await c.check("input[name=consent]");
@@ -320,13 +322,17 @@ test("rating: the household confirms the work and rates it", async () => {
   await c.selectOption("select[name=quality]", "5");
   await c.fill("textarea[name=comment]", "Garden looks great");
   await c.getByRole("button", { name: "Submit rating" }).click();
-  await expect(c.locator("main")).toContainText(/Done|Thank/);
+  // Not just /Thank/: the "Thanks for confirming the visit" flash is already on the page, and moving
+  // on before the rating is saved lets the next test's navigation cancel it (no earning is made).
+  await expect(c.locator("main")).toContainText("Thank you for rating this job");
 });
 
 test("payment: M-Pesa STK; a callback for the wrong amount is refused, the right one pays the invoice", async () => {
   const c = clientPage;
   await c.goto(SITE + "/account/invoices");
   await c.locator('a[href*="/account/invoices/"]').first().click();
+  // The list shows the same amount, so wait for the invoice's own URL before reading its id.
+  await c.waitForURL(/\/account\/invoices\/[^/?#]+$/);
   await expect(c.locator("main")).toContainText("KES 3,480");
   const invoiceId = c.url().split("/").pop()!;
 

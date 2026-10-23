@@ -27,7 +27,7 @@ make run                   # http://localhost:8080  (spec at /openapi.yaml, heal
 make test-db               # unit + end-to-end tests against Postgres, race detector on
 ```
 
-`create-staff` prints a password and a TOTP secret once. Staff sign in with `POST /api/v1/auth/staff/login`, then `POST /api/v1/auth/staff/mfa`. Clients and providers sign in by phone and SMS code; with `SMS_PROVIDER=log` (dev only, refused when `APP_ENV=prod`) the code is printed in the server log.
+`create-staff` prints a password and a TOTP secret once. Staff sign in with `POST /api/v1/auth/staff/login`, then `POST /api/v1/auth/staff/mfa`. Clients and providers sign in with email and password (`POST /api/v1/auth/register`, `/auth/login`, `/auth/password/forgot` and `/auth/password/reset`), or by phone and SMS code. With `SMS_PROVIDER=log` (dev only, refused when `APP_ENV=prod`) codes are printed in the server log; `SMS_PROVIDER=none` turns phone codes off, and the portals then offer email only. Password reset links are emailed through Amazon SES with `EMAIL_PROVIDER=ses` and `EMAIL_FROM`; `EMAIL_PROVIDER=log` (the default, refused when `APP_ENV=prod`) prints them in the server log.
 
 Migrations are plain goose files (`-- +goose Up` / `-- +goose Down`), so the goose CLI works too: `goose -dir migrations postgres "$DATABASE_URL" up`.
 
@@ -51,9 +51,9 @@ After editing `api/openapi.yaml`, run `make generate` and commit `internal/api/g
 
 Two workflows deploy the service to ECS Fargate (ADR-0001). They do not create AWS resources: `infra/` does that with Terraform (see `infra/README.md`), and its outputs give the GitHub variables listed below.
 
-- `.github/workflows/backend-deploy.yml` runs after **Backend CI** passes on a push to `main`. It builds the image once, tagged with the commit SHA, pushes it to ECR and deploys that same image (pinned by digest) to **staging**, then to **production** once a reviewer approves the `production` environment. Run it by hand on `main` to redeploy, or pass `image_tag` (an earlier commit SHA already in ECR) to roll back without rebuilding.
-- `.github/workflows/backend-deploy-ecs.yml` is the reusable deploy job. It calls `scripts/deploy-ecs.sh`, which registers a new task definition revision with the new image, runs it once as `api migrate up` (a one-off Fargate task) and stops if the migration fails, then updates the service and waits until the new revision is the stable primary deployment. If the circuit breaker rolls the service back, the job fails. A health check of `$PUBLIC_BASE_URL/api/v1/healthz` follows.
-- **Console.** When the commit has `console/`, the build job also runs `npm ci && npm run build` once, and each environment's deploy uploads `dist/` to the console bucket after the API is live: hashed `assets/*` with a one-year immutable cache (never deleted, so open tabs keep working), then `index.html` and the other root files with `no-cache`, then a CloudFront invalidation. The workflow also runs after **Console CI** passes on `main`, so console-only changes deploy too. CloudFront serves the console and sends `/api/*` to the load balancer on the same domain (see `console/README.md`, "Deploying").
+- `.github/workflows/backend-deploy.yml` is called by **CI** (`ci.yml`) once every check has passed on a push to `main` that changes `backend/` or `console/`. It builds the image once, tagged with the commit SHA, scans it with Trivy before pushing it to ECR, records its build provenance and SBOM, and deploys that same image (pinned by digest) to **staging**, then to **production** once a reviewer approves the `production` environment. The whole pipeline is in `docs/ci-cd.md`. Run it by hand on `main` to redeploy, or pass `image_tag` (an earlier commit SHA already in ECR) to roll back without rebuilding.
+- `.github/workflows/backend-deploy-ecs.yml` is the reusable deploy job. It calls `scripts/deploy-ecs.sh`, which registers a new task definition revision with the new image, runs it once as `api migrate up` (a one-off Fargate task) and stops if the migration fails, then updates the service and waits until the new revision is the stable primary deployment. If the circuit breaker rolls the service back, the job fails. Then `$PUBLIC_BASE_URL/api/v1/healthz` must report the deployed version and the read-only browser smoke test in `e2e/deployed` must pass; if either fails, the service is put back on the task definition it ran before.
+- **Console.** When the commit has `console/`, the build job also runs `npm ci && npm run build` once, and each environment's deploy uploads `dist/` to the console bucket after the API is live: hashed `assets/*` with a one-year immutable cache (never deleted, so open tabs keep working), then `index.html` and the other root files with `no-cache`, then a CloudFront invalidation. Console-only changes deploy too, and `$CONSOLE_URL` is smoke-tested once CloudFront serves the new `index.html`. CloudFront serves the console and sends `/api/*` to the load balancer on the same domain (see `console/README.md`, "Deploying").
 
 Migrations run **before** the new code takes traffic, so the old tasks briefly run against the new schema. Keep migrations backward compatible (add columns and tables first, remove them in a later release).
 
@@ -81,7 +81,7 @@ No AWS keys are stored in GitHub. Each job assumes an IAM role through GitHub OI
 
 ### Container configuration (in the task definition)
 
-Plain environment: `APP_ENV=prod` in production, `HTTP_ADDR=:8080`, `STORAGE_DRIVER=s3`, `STORAGE_BUCKET`, `STORAGE_KMS_KEY_ID`, `PUBLIC_BASE_URL`, `ALLOWED_ORIGINS`, `SMS_PROVIDER`, `MPESA_MODE` (`sandbox` in staging, `production` in production), `MPESA_SHORTCODE`, `MPESA_B2C_SHORTCODE`, `WEBHOOK_ALLOWED_CIDRS`.
+Plain environment: `APP_ENV=prod` in production, `HTTP_ADDR=:8080`, `STORAGE_DRIVER=s3`, `STORAGE_BUCKET`, `STORAGE_KMS_KEY_ID`, `PUBLIC_BASE_URL`, `ALLOWED_ORIGINS`, `SMS_PROVIDER` (`none` until an SMS gateway is wired), `EMAIL_PROVIDER=ses`, `EMAIL_FROM`, `MPESA_MODE` (`sandbox` in staging, `production` in production), `MPESA_SHORTCODE`, `MPESA_B2C_SHORTCODE`, `WEBHOOK_ALLOWED_CIDRS`.
 
 From Secrets Manager (task definition `secrets`): `DATABASE_URL`, `FIELD_ENCRYPTION_KEY`, `WEBHOOK_TOKEN`, `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`, `MPESA_INITIATOR`, `MPESA_SECURITY_CREDENTIAL`.
 
@@ -111,6 +111,7 @@ From Secrets Manager (task definition `secrets`): `DATABASE_URL`, `FIELD_ENCRYPT
 | `PUBLIC_BASE_URL` | `https://api.staging.example.co.ke` (optional; enables the health check) |
 | `CONSOLE_BUCKET` | `homend-staging-console-111111111111` (optional; without it the console step is skipped) |
 | `CONSOLE_DISTRIBUTION_ID` | `E2ABCDEF123456` (CloudFront distribution to invalidate) |
+| `CONSOLE_URL` | `https://console.staging.example.co.ke` (optional; enables the console smoke test) |
 | `AWS_REGION` | only if this environment is in a different region |
 
 On `production`, add **required reviewers** (this is the manual approval) and limit **deployment branches** to `main`. No GitHub secrets are needed.

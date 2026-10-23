@@ -16,6 +16,14 @@ output "console_cloudfront_domain" {
   value = aws_cloudfront_distribution.console.domain_name
 }
 
+output "ses_dns_records" {
+  description = "Add these CNAME records to the sending domain's DNS so SES can send from email_from."
+  value = local.email_domain == "" ? [] : [
+    for t in aws_sesv2_email_identity.mail[0].dkim_signing_attributes[0].tokens :
+    { type = "CNAME", name = "${t}._domainkey.${local.email_domain}", value = "${t}.dkim.amazonses.com" }
+  ]
+}
+
 output "mpesa_secret_name" {
   description = "Fill these values in Secrets Manager before using MPESA_MODE sandbox or production."
   value       = aws_secretsmanager_secret.mpesa.name
@@ -40,5 +48,6 @@ output "github_environment_variables" {
     PUBLIC_BASE_URL         = local.public_base_url
     CONSOLE_BUCKET          = aws_s3_bucket.console.bucket
     CONSOLE_DISTRIBUTION_ID = aws_cloudfront_distribution.console.id
+    CONSOLE_URL             = local.console_url
   }
 }

@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api/gen"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/auth"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web"
 )
 
@@ -39,10 +41,22 @@ func normalisePhone(in string) string {
 type otpForm struct {
 	Phone    string
 	Name     string
+	Email    string
 	OtpID    string
 	Next     string
 	Category string
 	Error    string
+	// UsePhone shows the SMS code form instead of email and password; PhoneOK says SMS codes can
+	// be sent at all (false while the service runs with SMS_PROVIDER=none).
+	UsePhone bool
+	PhoneOK  bool
+}
+
+// form starts the sign-in or application form, on the phone tab when ?with=phone asks for it and
+// SMS is available.
+func (p *Portal) form(r *http.Request) otpForm {
+	ok := sms.Enabled(p.api.SMS)
+	return otpForm{PhoneOK: ok, UsePhone: ok && r.FormValue("with") == "phone"}
 }
 
 type otpSent struct {
@@ -63,11 +77,26 @@ func (p *Portal) loginForm(w http.ResponseWriter, r *http.Request) {
 		p.redirect(w, r, portal+"/")
 		return
 	}
-	p.render(w, r, http.StatusOK, page{name: "login", title: "Sign in"}, otpForm{Next: r.URL.Query().Get("next")})
+	f := p.form(r)
+	f.Next = r.URL.Query().Get("next")
+	p.render(w, r, http.StatusOK, page{name: "login", title: "Sign in"}, f)
+}
+
+func (p *Portal) loginPassword(w http.ResponseWriter, r *http.Request) {
+	f := p.form(r)
+	f.Email, f.Next = strings.TrimSpace(r.PostFormValue("email")), r.PostFormValue("next")
+	kind, err := p.signIn(w, r, gen.PasswordLogin{Email: openapi_types.Email(f.Email), Password: r.PostFormValue("password")}, p.api.PostAuthLogin)
+	if err != nil {
+		f.Error = message(err)
+		p.render(w, r, http.StatusUnprocessableEntity, page{name: "login", title: "Sign in"}, f)
+		return
+	}
+	p.afterSignIn(w, r, kind, f.Next)
 }
 
 func (p *Portal) loginRequest(w http.ResponseWriter, r *http.Request) {
-	f := otpForm{Phone: normalisePhone(r.PostFormValue("phone")), Next: r.PostFormValue("next")}
+	f := p.form(r)
+	f.UsePhone, f.Phone, f.Next = true, normalisePhone(r.PostFormValue("phone")), r.PostFormValue("next")
 	sent, err := call[otpSent](r, gen.OtpRequest{Phone: f.Phone, Purpose: gen.Login}, p.api.PostAuthOtpRequest)
 	if err != nil {
 		f.Error = message(err)
@@ -79,28 +108,33 @@ func (p *Portal) loginRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Portal) loginVerify(w http.ResponseWriter, r *http.Request) {
-	f := otpForm{Phone: r.PostFormValue("phone"), OtpID: r.PostFormValue("otp_id"), Next: r.PostFormValue("next")}
+	f := p.form(r)
+	f.UsePhone, f.Phone, f.OtpID, f.Next = true, r.PostFormValue("phone"), r.PostFormValue("otp_id"), r.PostFormValue("next")
 	id, err := uuid.Parse(f.OtpID)
 	if err != nil {
 		p.redirect(w, r, portal+"/login")
 		return
 	}
-	kind, err := p.signIn(w, r, gen.OtpVerify{OtpId: id, Code: strings.TrimSpace(r.PostFormValue("code"))})
+	kind, err := p.signIn(w, r, gen.OtpVerify{OtpId: id, Code: strings.TrimSpace(r.PostFormValue("code"))}, p.api.PostAuthOtpVerify)
 	if err != nil {
 		f.Error = message(err)
 		p.render(w, r, http.StatusUnprocessableEntity, page{name: "login", title: "Enter your code"}, f)
 		return
 	}
+	p.afterSignIn(w, r, kind, f.Next)
+}
+
+func (p *Portal) afterSignIn(w http.ResponseWriter, r *http.Request, kind, next string) {
 	if kind != string(gen.UserKindProvider) {
 		p.redirect(w, r, web.ClientPortalPath)
 		return
 	}
-	p.redirect(w, r, safeNext(f.Next))
+	p.redirect(w, r, safeNext(next))
 }
 
-// signIn spends the code and passes the session cookie set by the auth handler on to the browser.
-func (p *Portal) signIn(w http.ResponseWriter, r *http.Request, in gen.OtpVerify) (string, error) {
-	hdr, raw, err := invoke(r, in, p.api.PostAuthOtpVerify)
+// signIn calls an auth handler and passes the session cookie it sets on to the browser.
+func (p *Portal) signIn(w http.ResponseWriter, r *http.Request, in any, h http.HandlerFunc) (string, error) {
+	hdr, raw, err := invoke(r, in, h)
 	if err != nil {
 		return "", err
 	}
@@ -150,17 +184,51 @@ func (p *Portal) applyForm(w http.ResponseWriter, r *http.Request) {
 		p.redirect(w, r, portal+"/applications/new?category="+url.QueryEscape(cat))
 		return
 	}
-	p.render(w, r, http.StatusOK, page{name: "apply", title: "Apply to work with us", public: true}, otpForm{Category: cat})
+	f := p.form(r)
+	f.Category = cat
+	p.render(w, r, http.StatusOK, page{name: "apply", title: "Apply to work with us", public: true}, f)
+}
+
+// applyConsents are the notices an applicant accepts on either form.
+func applyConsents() *[]gen.ConsentInput {
+	return &[]gen.ConsentInput{
+		{Purpose: gen.PrivacyNotice, NoticeVersion: noticeVersion, Granted: true},
+		{Purpose: gen.VettingChecks, NoticeVersion: noticeVersion, Granted: true},
+	}
+}
+
+func checkApplicant(f otpForm, r *http.Request) string {
+	switch {
+	case len(f.Name) < 2:
+		return "Please enter your full name as it appears on your ID."
+	case r.PostFormValue("privacy") != "on" || r.PostFormValue("vetting") != "on":
+		return "To apply you need to accept the privacy notice and agree to background checks."
+	}
+	return ""
+}
+
+// applyPassword creates the provider account with email and password, signed in straight away.
+func (p *Portal) applyPassword(w http.ResponseWriter, r *http.Request) {
+	f := p.form(r)
+	f.Email, f.Name, f.Category = strings.TrimSpace(r.PostFormValue("email")), strings.TrimSpace(r.PostFormValue("full_name")), r.PostFormValue("category")
+	if f.Error = checkApplicant(f, r); f.Error == "" {
+		in := gen.PasswordRegister{Kind: gen.PasswordRegisterKindProvider, FullName: f.Name, Email: openapi_types.Email(f.Email),
+			Password: r.PostFormValue("password"), Consents: applyConsents()}
+		if _, err := p.signIn(w, r, in, p.api.PostAuthRegister); err != nil {
+			f.Error = message(err)
+		}
+	}
+	if f.Error != "" {
+		p.render(w, r, http.StatusUnprocessableEntity, page{name: "apply", title: "Apply to work with us", public: true}, f)
+		return
+	}
+	p.done(w, r, portal+"/applications/new?category="+url.QueryEscape(f.Category), "Welcome! Choose the work you want to apply for.")
 }
 
 func (p *Portal) applyRequest(w http.ResponseWriter, r *http.Request) {
-	f := otpForm{Phone: normalisePhone(r.PostFormValue("phone")), Name: strings.TrimSpace(r.PostFormValue("full_name")), Category: r.PostFormValue("category")}
-	switch {
-	case len(f.Name) < 2:
-		f.Error = "Please enter your full name as it appears on your ID."
-	case r.PostFormValue("privacy") != "on" || r.PostFormValue("vetting") != "on":
-		f.Error = "To apply you need to accept the privacy notice and agree to background checks."
-	}
+	f := p.form(r)
+	f.UsePhone, f.Phone, f.Name, f.Category = true, normalisePhone(r.PostFormValue("phone")), strings.TrimSpace(r.PostFormValue("full_name")), r.PostFormValue("category")
+	f.Error = checkApplicant(f, r)
 	if f.Error == "" {
 		sent, err := call[otpSent](r, gen.OtpRequest{Phone: f.Phone, Purpose: gen.Register}, p.api.PostAuthOtpRequest)
 		if err != nil {
@@ -176,21 +244,55 @@ func (p *Portal) applyRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Portal) applyVerify(w http.ResponseWriter, r *http.Request) {
-	f := otpForm{Phone: r.PostFormValue("phone"), Name: r.PostFormValue("full_name"), OtpID: r.PostFormValue("otp_id"), Category: r.PostFormValue("category")}
+	f := p.form(r)
+	f.UsePhone, f.Phone, f.Name, f.OtpID, f.Category = true, r.PostFormValue("phone"), r.PostFormValue("full_name"), r.PostFormValue("otp_id"), r.PostFormValue("category")
 	id, err := uuid.Parse(f.OtpID)
 	if err != nil {
 		p.redirect(w, r, "/join/apply")
 		return
 	}
 	kind := gen.OtpVerifyKindProvider
-	consents := []gen.ConsentInput{
-		{Purpose: gen.PrivacyNotice, NoticeVersion: noticeVersion, Granted: true},
-		{Purpose: gen.VettingChecks, NoticeVersion: noticeVersion, Granted: true},
-	}
-	if _, err := p.signIn(w, r, gen.OtpVerify{OtpId: id, Code: strings.TrimSpace(r.PostFormValue("code")), FullName: &f.Name, Kind: &kind, Consents: &consents}); err != nil {
+	in := gen.OtpVerify{OtpId: id, Code: strings.TrimSpace(r.PostFormValue("code")), FullName: &f.Name, Kind: &kind, Consents: applyConsents()}
+	if _, err := p.signIn(w, r, in, p.api.PostAuthOtpVerify); err != nil {
 		f.Error = message(err)
 		p.render(w, r, http.StatusUnprocessableEntity, page{name: "apply", title: "Apply to work with us", public: true}, f)
 		return
 	}
 	p.done(w, r, portal+"/applications/new?category="+url.QueryEscape(f.Category), "Welcome! Choose the work you want to apply for.")
+}
+
+// ---- forgotten password
+
+type resetForm struct {
+	Email, Token, Error string
+	Sent                bool
+}
+
+func (p *Portal) forgotForm(w http.ResponseWriter, r *http.Request) {
+	p.render(w, r, http.StatusOK, page{name: "password", title: "Forgotten password"}, resetForm{Email: r.URL.Query().Get("email")})
+}
+
+func (p *Portal) forgot(w http.ResponseWriter, r *http.Request) {
+	f := resetForm{Email: strings.TrimSpace(r.PostFormValue("email"))}
+	if err := do(r, gen.PasswordForgot{Email: openapi_types.Email(f.Email)}, p.api.PostAuthPasswordForgot); err != nil {
+		f.Error = message(err)
+		p.render(w, r, http.StatusUnprocessableEntity, page{name: "password", title: "Forgotten password"}, f)
+		return
+	}
+	f.Sent = true
+	p.render(w, r, http.StatusOK, page{name: "password", title: "Check your email"}, f)
+}
+
+func (p *Portal) resetForm(w http.ResponseWriter, r *http.Request) {
+	p.render(w, r, http.StatusOK, page{name: "password", title: "Choose a new password"}, resetForm{Token: r.URL.Query().Get("token")})
+}
+
+func (p *Portal) reset(w http.ResponseWriter, r *http.Request) {
+	f := resetForm{Token: r.PostFormValue("token")}
+	if err := do(r, gen.PasswordReset{Token: f.Token, Password: r.PostFormValue("password")}, p.api.PostAuthPasswordReset); err != nil {
+		f.Error = message(err)
+		p.render(w, r, http.StatusUnprocessableEntity, page{name: "password", title: "Choose a new password"}, f)
+		return
+	}
+	p.done(w, r, portal+"/login", "Your password is changed. Sign in with it now.")
 }

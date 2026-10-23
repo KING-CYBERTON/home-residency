@@ -14,13 +14,7 @@
     <p class="mt-4 text-sm text-slate-600">You have signed the current version. Thank you.</p>
   {{else if not (eq (print .Status) "approved" "active")}}
     <p class="mt-4 text-sm text-slate-600">You can sign once your application is approved.</p>
-  {{else if not .OtpID}}
-    <p class="mt-4 text-sm text-slate-700">By signing you agree to the contract and to our code of conduct: arrive on time, respect the household and its property, keep the client's details private, and let management handle any change to the job or the price.</p>
-    <form method="post" action="/provider/contract/code" class="mt-4">
-      <button type="submit" class="btn-primary w-full">Send me a code to sign</button>
-    </form>
-    {{template "field-error" .Error}}
-  {{else}}
+  {{else if .OtpID}}
     <form method="post" action="/provider/contract/sign" class="mt-4 space-y-3">
       <input type="hidden" name="otp_id" value="{{.OtpID}}">
       <input type="hidden" name="contract_version" value="{{.Contract.ContractVersion}}">
@@ -30,6 +24,27 @@
       {{template "field-error" .Error}}
       <button type="submit" class="btn-primary w-full">I agree and sign</button>
     </form>
+  {{else}}
+    <p class="mt-4 text-sm text-slate-700">By signing you agree to the contract and to our code of conduct: arrive on time, respect the household and its property, keep the client's details private, and let management handle any change to the job or the price.</p>
+    {{if .ByPassword}}
+    <form method="post" action="/provider/contract/sign" class="mt-4 space-y-3">
+      <input type="hidden" name="contract_version" value="{{.Contract.ContractVersion}}">
+      <input type="hidden" name="code_of_conduct_version" value="{{.Contract.CodeOfConductVersion}}">
+      <label class="field-label" for="password">Enter your password to sign</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required class="field-input">
+      {{template "field-error" .Error}}
+      <button type="submit" class="btn-primary w-full">I agree and sign</button>
+    </form>
+    {{end}}
+    {{if .ByCode}}
+    <form method="post" action="/provider/contract/code" class="mt-4">
+      <button type="submit" class="{{if .ByPassword}}text-sm font-medium text-brand-700{{else}}btn-primary w-full{{end}}">{{if .ByPassword}}Or sign with a code sent to your phone{{else}}Send me a code to sign{{end}}</button>
+    </form>
+    {{if not .ByPassword}}{{template "field-error" .Error}}{{end}}
+    {{end}}
+    {{if not (or .ByPassword .ByCode)}}
+    <p class="mt-4 text-sm text-slate-600">To sign, set a password on your <a href="/provider/profile" class="font-medium text-brand-700">profile</a>.</p>
+    {{end}}
   {{end}}
   {{end}}
 </section>

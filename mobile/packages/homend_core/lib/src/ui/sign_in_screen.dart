@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/identity.dart';
 import 'format.dart';
+import 'password_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -15,7 +16,8 @@ class ConsentTerm {
   final String text;
 }
 
-/// Phone + SMS code sign-in and registration, shared by both apps. No passwords.
+/// Sign-in and registration shared by both apps: email and password, or phone and an SMS code.
+/// Email comes first because it works whether or not SMS codes can be sent.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({
     super.key,
@@ -47,6 +49,9 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   late bool _register = widget.startInRegister;
+  bool _usePhone = false;
+  final _email = TextEditingController();
+  final _password = TextEditingController();
   final _phone = TextEditingController();
   final _name = TextEditingController();
   final _code = TextEditingController();
@@ -61,20 +66,43 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _email.dispose();
+    _password.dispose();
     _phone.dispose();
     _name.dispose();
     _code.dispose();
     super.dispose();
   }
 
+  bool _consentsTicked() {
+    if (_register && _ticked.values.any((v) => !v)) {
+      showMessage(context, 'Please tick the boxes to continue.', error: true);
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _withPassword() async {
+    if (!_form.currentState!.validate() || !_consentsTicked()) return;
+    final session = context.session;
+    final api = context.api;
+    final email = _email.text.trim();
+    final s = _register
+        ? await api.register(
+            kind: widget.kind,
+            fullName: _name.text.trim(),
+            email: email,
+            password: _password.text,
+            consents: [for (final c in widget.registerConsents) Consent(c.purpose, widget.noticeVersion)],
+          )
+        : await api.login(email, _password.text);
+    await session.signedIn(s);
+  }
+
   Future<void> _sendCode() async {
     final resend = _sent != null;
     if (!resend) {
-      if (!_form.currentState!.validate()) return;
-      if (_register && _ticked.values.any((v) => !v)) {
-        showMessage(context, 'Please tick the boxes to continue.', error: true);
-        return;
-      }
+      if (!_form.currentState!.validate() || !_consentsTicked()) return;
     }
     final phone = resend ? _e164! : normalizeKenyanPhone(_phone.text)!;
     final sent = await context.api.requestOtp(phone, purpose: _register ? 'register' : 'login');
@@ -131,28 +159,87 @@ class _SignInScreenState extends State<SignInScreen> {
           children: [
             PageTitle(title, subtitle: subtitle),
             const SizedBox(height: 24),
-            if (_sent == null) _phoneStep() else _codeStep(),
+            if (!_usePhone) _emailStep() else if (_sent == null) _phoneStep() else _codeStep(),
           ],
         ),
       ),
     );
   }
 
+  Widget _nameField() => TextFormField(
+    controller: _name,
+    textCapitalization: TextCapitalization.words,
+    autofillHints: const [AutofillHints.name],
+    decoration: const InputDecoration(labelText: 'Your full name'),
+    validator: (v) => (v ?? '').trim().length < 2 ? 'Enter your name' : null,
+  );
+
+  List<Widget> _consents() => [
+    if (_register)
+      for (final c in widget.registerConsents)
+        CheckboxListTile(
+          value: _ticked[c.purpose],
+          onChanged: (v) => setState(() => _ticked[c.purpose] = v ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          title: Text(c.text, style: const TextStyle(fontSize: 14)),
+        ),
+  ];
+
+  Widget _switchMethod() => TextButton(
+    onPressed: () => setState(() {
+      _usePhone = !_usePhone;
+      _sent = null;
+    }),
+    child: Text(_usePhone ? 'Use email and password instead' : 'Use my phone number instead'),
+  );
+
+  Widget _emailStep() => Form(
+    key: _form,
+    child: AutofillGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_register) ...[_nameField(), const SizedBox(height: 16)],
+          TextFormField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+            decoration: const InputDecoration(labelText: 'Email'),
+            validator: validEmail,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _password,
+            obscureText: true,
+            autofillHints: [_register ? AutofillHints.newPassword : AutofillHints.password],
+            decoration: InputDecoration(labelText: 'Password', helperText: _register ? 'At least 8 characters' : null),
+            validator: _register ? validNewPassword : (v) => (v ?? '').isEmpty ? 'Enter your password' : null,
+          ),
+          ..._consents(),
+          const SizedBox(height: 20),
+          BusyButton(label: _register ? 'Create account' : 'Sign in', onPressed: _withPassword),
+          if (!_register)
+            TextButton(
+              onPressed: () => showForgotPassword(context, email: _email.text.trim()),
+              child: const Text('Forgotten your password?'),
+            ),
+          _switchMethod(),
+          TextButton(
+            onPressed: () => setState(() => _register = !_register),
+            child: Text(_register ? 'I already have an account' : widget.registerLabel),
+          ),
+        ],
+      ),
+    ),
+  );
+
   Widget _phoneStep() => Form(
     key: _form,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_register) ...[
-          TextFormField(
-            controller: _name,
-            textCapitalization: TextCapitalization.words,
-            autofillHints: const [AutofillHints.name],
-            decoration: const InputDecoration(labelText: 'Your full name'),
-            validator: (v) => (v ?? '').trim().length < 2 ? 'Enter your name' : null,
-          ),
-          const SizedBox(height: 16),
-        ],
+        if (_register) ...[_nameField(), const SizedBox(height: 16)],
         TextFormField(
           controller: _phone,
           keyboardType: TextInputType.phone,
@@ -163,18 +250,11 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
         const SizedBox(height: 8),
         const Text('We will send you a code by SMS.', style: TextStyle(color: Brand.slate500)),
-        if (_register)
-          for (final c in widget.registerConsents)
-            CheckboxListTile(
-              value: _ticked[c.purpose],
-              onChanged: (v) => setState(() => _ticked[c.purpose] = v ?? false),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              title: Text(c.text, style: const TextStyle(fontSize: 14)),
-            ),
+        ..._consents(),
         const SizedBox(height: 20),
         BusyButton(label: 'Send code', onPressed: _sendCode),
         const SizedBox(height: 12),
+        _switchMethod(),
         TextButton(
           onPressed: () => setState(() => _register = !_register),
           child: Text(_register ? 'I already have an account' : widget.registerLabel),

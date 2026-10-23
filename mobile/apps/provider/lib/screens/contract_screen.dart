@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:homend_core/homend_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Contract and code of conduct, signed with an SMS code to the provider's own phone.
+/// Contract and code of conduct, signed with the provider's password or an SMS code to their own phone.
 class ContractScreen extends StatefulWidget {
   const ContractScreen({super.key});
 
@@ -15,6 +15,14 @@ class _ContractScreenState extends State<ContractScreen> {
   OtpSent? _sent;
   bool _agreed = false;
   final _code = TextEditingController();
+  final _password = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _password.dispose();
+    super.dispose();
+  }
 
   Future<void> _sendCode() async {
     final phone = context.session.me?.phone;
@@ -24,6 +32,18 @@ class _ContractScreenState extends State<ContractScreen> {
     }
     final sent = await context.api.requestOtp(phone, purpose: 'verify_phone');
     if (mounted) setState(() => _sent = sent);
+  }
+
+  Future<void> _signWithPassword(Contract c) async {
+    if (_password.text.isEmpty) {
+      showMessage(context, 'Enter your password to sign.', error: true);
+      return;
+    }
+    await context.api.signContract(c, password: _password.text);
+    if (!mounted) return;
+    showMessage(context, 'Signed. Thank you.');
+    _password.clear();
+    await _view.currentState?.reload();
   }
 
   Future<void> _sign(Contract c) async {
@@ -36,7 +56,8 @@ class _ContractScreenState extends State<ContractScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final status = HomendScope.of(context).me?.providerStatus;
+    final me = HomendScope.of(context).me;
+    final status = me?.providerStatus;
     return Scaffold(
       appBar: AppBar(title: const Text('Contract')),
       body: AsyncView<Contract>(
@@ -77,7 +98,25 @@ class _ContractScreenState extends State<ContractScreen> {
                 title: const Text('I have read and agree to the contract and the code of conduct.'),
               ),
               const SizedBox(height: 8),
-              BusyButton(label: 'Sign with an SMS code', onPressed: _agreed ? _sendCode : null),
+              if (me?.hasPassword == true) ...[
+                TextField(
+                  controller: _password,
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.password],
+                  decoration: const InputDecoration(labelText: 'Your password'),
+                ),
+                const SizedBox(height: 12),
+                BusyButton(label: 'Sign with my password', onPressed: _agreed ? () => _signWithPassword(c) : null),
+                const SizedBox(height: 8),
+              ],
+              if (me?.phone != null)
+                BusyButton(
+                  label: 'Sign with an SMS code',
+                  outlined: me?.hasPassword == true,
+                  onPressed: _agreed ? _sendCode : null,
+                ),
+              if (me?.hasPassword != true && me?.phone == null)
+                const Notice('Set a password under More, Email and password, to sign.'),
             ] else ...[
               const Text('Enter the code we sent to your phone to sign.'),
               const SizedBox(height: 12),
