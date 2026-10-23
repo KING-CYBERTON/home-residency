@@ -129,13 +129,19 @@ test("variations: the provider asks for extra work; the household approves one a
   await c.goto(`${SITE}/account/requests/${job.requestId}`);
   const balcony = c.locator("div.rounded-xl").filter({ hasText: balconyWork });
   await expect(balcony).toContainText(/Adds KES [\d,]+/);
-  await balcony.getByRole("button", { name: "Approve" }).click();
+  // The portal's tab bar is fixed to the bottom of the screen; a button scrolled only just into
+  // view sits under it, so bring each one to the middle before clicking.
+  const approve = balcony.getByRole("button", { name: "Approve" });
+  await approve.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await approve.click();
   // Each choice is a form post; wait for the reloaded page before the next click, or the second
   // post cancels the first and the approval is lost.
-  await expect(balcony.getByRole("button", { name: "Approve" })).toHaveCount(0);
+  await expect(approve).toHaveCount(0);
   const curtains = c.locator("div.rounded-xl").filter({ hasText: curtainWork });
-  await curtains.getByRole("button", { name: "Decline" }).click();
-  await expect(curtains.getByRole("button", { name: "Decline" })).toHaveCount(0);
+  const decline = curtains.getByRole("button", { name: "Decline" });
+  await decline.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await decline.click();
+  await expect(decline).toHaveCount(0);
 
   await goConsole(ops, "/variations?status=approved");
   await expect(ops.getByRole("row").filter({ hasText: balconyWork })).toBeVisible();
