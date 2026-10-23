@@ -38,7 +38,13 @@ variable "vapid_subject" {
 }
 
 variable "sms_provider" {
-  description = "Must not be \"log\" (refused when APP_ENV=prod). See the note in infra/README.md."
+  description = "none until an SMS gateway is wired: households and providers then sign in with email and password. \"log\" is refused when APP_ENV=prod."
+  type        = string
+  default     = "none"
+}
+
+variable "email_from" {
+  description = "Address password reset emails come from, e.g. no-reply@example.co.ke (required: production cannot log emails)."
   type        = string
 }
 
@@ -108,6 +114,7 @@ module "env" {
   console_certificate_arn = var.console_certificate_arn
 
   sms_provider          = var.sms_provider
+  email_from            = var.email_from
   mpesa_mode            = "production"
   mpesa_shortcode       = var.mpesa_shortcode
   mpesa_b2c_shortcode   = var.mpesa_b2c_shortcode

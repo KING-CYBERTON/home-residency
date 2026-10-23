@@ -18,6 +18,7 @@ const unused = {
   'GET /healthz': 'ops only',
   'POST /auth/staff/login': 'staff use the console',
   'POST /auth/staff/mfa': 'staff use the console',
+  'POST /auth/password/reset': 'the emailed link opens the web portal',
   'GET /public/pages/{}': 'public website content',
   'GET /public/faqs': 'public website content',
   'POST /public/leads': 'public website form',

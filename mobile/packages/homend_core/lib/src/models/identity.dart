@@ -12,6 +12,7 @@ class Me {
     this.preferredLanguage = 'en',
     this.providerStatus,
     this.idVerification,
+    this.hasPassword = false,
   });
 
   factory Me.fromJson(Json j) => Me(
@@ -24,6 +25,7 @@ class Me {
     preferredLanguage: j.strOrNull('preferred_language') ?? 'en',
     providerStatus: j.strOrNull('provider_status'),
     idVerification: j.strOrNull('id_verification'),
+    hasPassword: j.flag('has_password'),
   );
 
   final String id;
@@ -41,6 +43,9 @@ class Me {
 
   /// `none`, `pending`, `verified` or `rejected`.
   final String? idVerification;
+
+  /// The account can sign in with its email and password.
+  final bool hasPassword;
 
   String get firstName => fullName.split(' ').first;
 }

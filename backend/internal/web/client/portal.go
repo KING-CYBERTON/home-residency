@@ -36,7 +36,10 @@ type Deps struct {
 	Auth         *auth.Service       // resolves the session cookie when the portal is mounted outside the API middleware
 	CookieSecure bool
 	PushKey      string // VAPID public key; empty hides the push sign-up
-	Base         string // mount path, default web.ClientPortalPath
+	// NoPhoneSignIn hides sign-in by SMS code, for when the service runs without SMS
+	// (SMS_PROVIDER=none); email and password always work.
+	NoPhoneSignIn bool
+	Base          string // mount path, default web.ClientPortalPath
 	// Invoke runs one API handler in process. It defaults to an in-memory recorder; the service can
 	// pass api.Invoke so every HTML portal shares one implementation.
 	// Same signature as api.Invoke (Provider portal).
@@ -94,6 +97,11 @@ func (p *Portal) Routes() chi.Router {
 	r.Get("/login", p.loginPage)
 	r.Post("/login", p.loginStart)
 	r.Post("/login/verify", p.loginVerify)
+	r.Post("/login/password", p.loginPassword)
+	r.Get("/forgot-password", p.forgotPage)
+	r.Post("/forgot-password", p.forgot)
+	r.Get("/reset-password", p.resetPage)
+	r.Post("/reset-password", p.reset)
 
 	r.Group(func(r chi.Router) {
 		r.Use(p.requireClient)
@@ -127,6 +135,7 @@ func (p *Portal) Routes() chi.Router {
 		r.Get("/profile", p.accountPage)
 		r.Post("/profile", p.profileSave)
 		r.Post("/profile/id-verification", p.idVerification)
+		r.Post("/profile/password", p.passwordSave)
 		r.Post("/uploads", p.uploadTicket)
 		r.Post("/uploads/{id}/complete", p.uploadComplete)
 

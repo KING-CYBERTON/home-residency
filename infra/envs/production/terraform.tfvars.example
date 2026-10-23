@@ -2,7 +2,8 @@
 public_base_url = "https://api.example.co.ke"
 certificate_arn = "arn:aws:acm:eu-central-1:111111111111:certificate/..."
 allowed_origins = ["https://console.example.co.ke", "https://example.co.ke"]
-sms_provider    = "africastalking"
+sms_provider    = "none" # email and password sign-in until an SMS gateway is wired
+email_from      = "no-reply@example.co.ke"
 mpesa_shortcode = "000000"
 vapid_subject   = "mailto:ops@example.co.ke"
 console_domain          = "console.example.co.ke"

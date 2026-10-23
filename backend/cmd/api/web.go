@@ -5,6 +5,7 @@ import (
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/web/client"
@@ -27,7 +28,8 @@ func mountWeb(srv *api.Server, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	clientPortal, err := client.New(client.Deps{Site: site, API: srv, Auth: srv.Auth, CookieSecure: cfg.CookieSecure, PushKey: cfg.VAPIDPublicKey})
+	clientPortal, err := client.New(client.Deps{Site: site, API: srv, Auth: srv.Auth, CookieSecure: cfg.CookieSecure, PushKey: cfg.VAPIDPublicKey,
+		NoPhoneSignIn: !sms.Enabled(srv.SMS)})
 	if err != nil {
 		return err
 	}

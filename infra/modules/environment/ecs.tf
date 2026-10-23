@@ -22,6 +22,8 @@ locals {
     STORAGE_BUCKET        = aws_s3_bucket.vault.bucket
     STORAGE_KMS_KEY_ID    = aws_kms_key.main.arn
     SMS_PROVIDER          = var.sms_provider
+    EMAIL_PROVIDER        = var.email_from == "" ? "log" : "ses"
+    EMAIL_FROM            = var.email_from == "" ? "" : "Homend Residence <${var.email_from}>"
     MPESA_MODE            = var.mpesa_mode
     MPESA_SHORTCODE       = var.mpesa_shortcode
     MPESA_B2C_SHORTCODE   = var.mpesa_b2c_shortcode

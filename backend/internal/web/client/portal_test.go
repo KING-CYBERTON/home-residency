@@ -25,6 +25,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/email"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
@@ -50,7 +51,8 @@ func TestPagesRenderWithoutDatabase(t *testing.T) {
 	defer srv.Close()
 
 	for path, want := range map[string]string{
-		"/account/login":               "Send code",
+		"/account/login":               "Forgotten your password?",
+		"/account/login?with=phone":    "Send code",
 		"/account/login?mode=register": "privacy notice",
 		"/account/login?next=%2Faccount%2Fbook%3Fservice%3Dstandard-clean": `mode=register&amp;next=%2Faccount%2Fbook%3Fservice%3Dstandard-clean`,
 		"/account/offline":              "You are offline",
@@ -579,4 +581,81 @@ func TestIDVerificationGate(t *testing.T) {
 	}
 	_, page, _ = b.post("/account/profile/id-verification", url.Values{"document_id": {ticket.Document.Id.String()}, "id_number": {"12345678"}}, false)
 	must(t, page, "We will check your ID", "We are checking your ID")
+}
+
+// Households can sign up and sign in with email and password, and recover a forgotten password.
+func TestEmailSignUpAndReset(t *testing.T) {
+	e := newEnv(t)
+	mail := &email.Capture{}
+	e.app.Email = mail
+	b := e.browser()
+	next := "/account/book?category=cleaning&service=standard-clean"
+
+	page, _ := b.get("/account/login?mode=register&next=" + url.QueryEscape(next))
+	must(t, page, `action="/account/login/password"`, "Use your phone number instead")
+	_, page, _ = b.post("/account/login/password", url.Values{"mode": {"register"}, "full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"},
+		"password": {"a good password"}, "next": {next}}, true)
+	must(t, page, "Please accept the privacy notice")
+	_, page, at := b.post("/account/login/password", url.Values{"mode": {"register"}, "full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"},
+		"password": {"a good password"}, "consent": {"yes"}, "next": {next}}, false)
+	if at != "/account/addresses" {
+		t.Fatalf("after email sign-up landed on %s", at)
+	}
+	must(t, page, `name="next" value="/account/book?category=cleaning&amp;service=standard-clean"`)
+	page, _ = b.get("/account/profile")
+	must(t, page, "Change the password you sign in with", `value="achieng@example.com"`)
+	b.post("/account/logout", nil, false)
+
+	_, page, _ = b.post("/account/login/password", url.Values{"email": {"achieng@example.com"}, "password": {"not it at all"}}, true)
+	must(t, page, "Email or password is wrong", "Forgotten your password?")
+	_, page, _ = b.post("/account/forgot-password", url.Values{"email": {"achieng@example.com"}}, false)
+	must(t, page, "Check your email")
+	link := regexp.MustCompile(`/account/reset-password\?token=\S+`).FindString(mail.Msgs[0].Text)
+	page, _ = b.get(link)
+	token := regexp.MustCompile(`name="token" value="([^"]+)"`).FindStringSubmatch(page)[1]
+	_, _, at = b.post("/account/reset-password", url.Values{"token": {token}, "password": {"a better password"}}, false)
+	if at != "/account/login" {
+		t.Fatalf("after reset landed on %s", at)
+	}
+	_, _, at = b.post("/account/login/password", url.Values{"email": {"achieng@example.com"}, "password": {"a better password"}}, false)
+	if at != "/account/" {
+		t.Fatalf("after sign-in landed on %s", at)
+	}
+
+	// A household that signed up by phone sets a password from the account page.
+	p := e.browser()
+	p.signUp("+254700000003", "0700 000 003", "Wanjiru Kamau")
+	page, _ = p.get("/account/profile")
+	must(t, page, "Set a password so you can sign in with your email")
+	_, page, _ = p.post("/account/profile/password", url.Values{"email": {"wanjiru@example.com"}, "new_password": {"wanjiru password"}}, false)
+	must(t, page, "Password saved", "Change the password you sign in with")
+	_, _, at = e.browser().post("/account/login/password", url.Values{"email": {"wanjiru@example.com"}, "password": {"wanjiru password"}}, false)
+	if at != "/account/" {
+		t.Fatalf("phone household signing in by email landed on %s", at)
+	}
+}
+
+// Without SMS the sign-in page offers email and password only.
+func TestNoPhoneSignIn(t *testing.T) {
+	site, err := web.New(web.Options{BaseURL: "https://homend.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := client.New(client.Deps{Site: site, API: gen.Unimplemented{}, NoPhoneSignIn: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(p.Routes())
+	defer srv.Close()
+	for _, path := range []string{"/login", "/login?with=phone", "/login?mode=register&with=phone"} {
+		res, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		if !strings.Contains(string(body), `/login/password"`) || strings.Contains(string(body), "with=phone") || strings.Contains(string(body), `name="phone"`) {
+			t.Errorf("GET %s offers phone sign-in:\n%s", path, body)
+		}
+	}
 }

@@ -3,7 +3,24 @@
   {{template "top" .}}
   {{with .V}}
   <h1 class="text-2xl font-bold text-slate-900">Provider sign in</h1>
-  {{if not .OtpID}}
+  {{if not .UsePhone}}
+  <form method="post" action="/provider/login/password" class="mt-6 space-y-4">
+    <input type="hidden" name="next" value="{{.Next}}">
+    <div>
+      <label for="email" class="field-label">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required value="{{.Email}}" class="field-input">
+    </div>
+    <div>
+      <label for="password" class="field-label">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required class="field-input">
+      {{template "field-error" .Error}}
+    </div>
+    <button type="submit" class="btn-primary w-full">Sign in</button>
+  </form>
+  <a href="/provider/forgot-password{{with .Email}}?email={{urlquery .}}{{end}}" class="mt-4 inline-block text-sm text-brand-700">Forgotten your password?</a>
+  {{if .PhoneOK}}<p class="mt-4 text-sm text-slate-600">Signed up with your phone? <a href="/provider/login?with=phone{{with .Next}}&amp;next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Get a code by SMS</a></p>{{end}}
+  <p class="mt-6 text-sm text-slate-600">New to Homend Residence? <a href="/join" class="font-medium text-brand-700">Apply to work with us</a></p>
+  {{else if not .OtpID}}
   <p class="mt-2 text-slate-600">We will send a code to your phone by SMS.</p>
   <form method="post" action="/provider/login" class="mt-6 space-y-4">
     <input type="hidden" name="next" value="{{.Next}}">
@@ -14,6 +31,7 @@
     </div>
     <button type="submit" class="btn-primary w-full">Send code</button>
   </form>
+  <p class="mt-4 text-sm text-slate-600"><a href="/provider/login{{with .Next}}?next={{urlquery .}}{{end}}" class="font-medium text-brand-700">Sign in with email and password</a></p>
   <p class="mt-6 text-sm text-slate-600">New to Homend Residence? <a href="/join" class="font-medium text-brand-700">Apply to work with us</a></p>
   {{else}}
   <p class="mt-2 text-slate-600">Enter the code we sent to {{.Phone}}.</p>
@@ -28,7 +46,7 @@
     </div>
     <button type="submit" class="btn-primary w-full">Sign in</button>
   </form>
-  <a href="/provider/login" class="mt-4 inline-block text-sm text-brand-700">Use a different number</a>
+  <a href="/provider/login?with=phone" class="mt-4 inline-block text-sm text-brand-700">Use a different number</a>
   {{end}}
   {{end}}
 </section>

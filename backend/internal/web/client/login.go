@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api/gen"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/auth"
@@ -19,10 +20,37 @@ const privacyNoticeVersion = "2026-10"
 func chiParam(r *http.Request, key string) string { return chi.URLParam(r, key) }
 
 type loginForm struct {
-	Phone, Name, Mode, Next, OtpID string
-	Consent                        bool
-	CodeSent                       bool
-	Err                            string
+	Phone, Name, Email, Mode, Next, OtpID string
+	Consent                               bool
+	CodeSent                              bool
+	Err                                   string
+	// UsePhone shows the SMS code form instead of email and password; PhoneOK says SMS codes are
+	// available at all.
+	UsePhone, PhoneOK bool
+}
+
+// newLoginForm reads the fields every sign-in form posts.
+func (p *Portal) newLoginForm(r *http.Request, usePhone bool) loginForm {
+	f := loginForm{
+		Name: strings.TrimSpace(r.FormValue("full_name")), Email: strings.TrimSpace(r.FormValue("email")),
+		Mode: r.FormValue("mode"), Next: r.FormValue("next"), Consent: r.FormValue("consent") == "yes", PhoneOK: !p.NoPhoneSignIn,
+	}
+	f.UsePhone = f.PhoneOK && usePhone
+	if f.Mode != "register" {
+		f.Mode = "login"
+	}
+	return f
+}
+
+// checkRegistration is what both sign-up forms ask of a new household.
+func checkRegistration(f loginForm) string {
+	if len(f.Name) < 2 {
+		return "Tell us your name so providers know who they are working for."
+	}
+	if !f.Consent {
+		return "Please accept the privacy notice to create an account."
+	}
+	return ""
 }
 
 func (p *Portal) loginPage(w http.ResponseWriter, r *http.Request) {
@@ -30,11 +58,7 @@ func (p *Portal) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, p.Base+"/", http.StatusSeeOther)
 		return
 	}
-	mode := "login"
-	if r.URL.Query().Get("mode") == "register" {
-		mode = "register"
-	}
-	p.render(w, r, "login", &view{Title: "Sign in", Data: loginForm{Mode: mode, Next: r.URL.Query().Get("next")}})
+	p.render(w, r, "login", &view{Title: "Sign in", Data: p.newLoginForm(r, r.URL.Query().Get("with") == "phone")})
 }
 
 func (p *Portal) loginForm(w http.ResponseWriter, r *http.Request, f loginForm, errMsg string) {
@@ -49,20 +73,11 @@ func (p *Portal) loginForm(w http.ResponseWriter, r *http.Request, f loginForm, 
 
 // loginStart sends the SMS code, for signing in or for creating an account.
 func (p *Portal) loginStart(w http.ResponseWriter, r *http.Request) {
-	f := loginForm{
-		Phone: phoneE164(r.PostFormValue("phone")), Name: strings.TrimSpace(r.PostFormValue("full_name")),
-		Mode: r.PostFormValue("mode"), Next: r.PostFormValue("next"), Consent: r.PostFormValue("consent") == "yes",
-	}
-	if f.Mode != "register" {
-		f.Mode = "login"
-	}
+	f := p.newLoginForm(r, true)
+	f.Phone = phoneE164(r.PostFormValue("phone"))
 	if f.Mode == "register" {
-		if len(f.Name) < 2 {
-			p.loginForm(w, r, f, "Tell us your name so providers know who they are working for.")
-			return
-		}
-		if !f.Consent {
-			p.loginForm(w, r, f, "Please accept the privacy notice to create an account.")
+		if msg := checkRegistration(f); msg != "" {
+			p.loginForm(w, r, f, msg)
 			return
 		}
 	}
@@ -80,10 +95,8 @@ func (p *Portal) loginStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Portal) loginVerify(w http.ResponseWriter, r *http.Request) {
-	f := loginForm{
-		Phone: r.PostFormValue("phone"), Name: strings.TrimSpace(r.PostFormValue("full_name")), Mode: r.PostFormValue("mode"),
-		Next: r.PostFormValue("next"), OtpID: r.PostFormValue("otp_id"), Consent: r.PostFormValue("consent") == "yes", CodeSent: true,
-	}
+	f := p.newLoginForm(r, true)
+	f.Phone, f.OtpID, f.CodeSent = r.PostFormValue("phone"), r.PostFormValue("otp_id"), true
 	otpID, ok := formUUID(r, "otp_id")
 	if !ok {
 		f.CodeSent = false
@@ -96,15 +109,45 @@ func (p *Portal) loginVerify(w http.ResponseWriter, r *http.Request) {
 		in.Kind, in.FullName = &kind, &f.Name
 		in.Consents = &[]gen.ConsentInput{{Purpose: "privacy_notice", NoticeVersion: privacyNoticeVersion, Granted: f.Consent}}
 	}
-	var sess struct {
-		Token     string    `json:"token"`
-		ExpiresAt time.Time `json:"expires_at"`
-		User      gen.Me    `json:"user"`
-	}
+	var sess session
 	if err := p.call(r, in, &sess, p.API.PostAuthOtpVerify); err != nil {
 		p.loginForm(w, r, f, errText(err))
 		return
 	}
+	p.signedIn(w, r, sess, f)
+}
+
+// loginPassword signs in, or creates the account, with email and password.
+func (p *Portal) loginPassword(w http.ResponseWriter, r *http.Request) {
+	f := p.newLoginForm(r, false)
+	var sess session
+	var err error
+	if f.Mode == "register" {
+		if msg := checkRegistration(f); msg != "" {
+			p.loginForm(w, r, f, msg)
+			return
+		}
+		in := gen.PasswordRegister{Kind: gen.PasswordRegisterKindClient, FullName: f.Name, Email: openapi_types.Email(f.Email), Password: r.PostFormValue("password"),
+			Consents: &[]gen.ConsentInput{{Purpose: "privacy_notice", NoticeVersion: privacyNoticeVersion, Granted: f.Consent}}}
+		err = p.call(r, in, &sess, p.API.PostAuthRegister)
+	} else {
+		err = p.call(r, gen.PasswordLogin{Email: openapi_types.Email(f.Email), Password: r.PostFormValue("password")}, &sess, p.API.PostAuthLogin)
+	}
+	if err != nil {
+		p.loginForm(w, r, f, errText(err))
+		return
+	}
+	p.signedIn(w, r, sess, f)
+}
+
+type session struct {
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+	User      gen.Me    `json:"user"`
+}
+
+// signedIn sets the session cookie and sends the household on: new accounts to add an address.
+func (p *Portal) signedIn(w http.ResponseWriter, r *http.Request, sess session, f loginForm) {
 	http.SetCookie(w, &http.Cookie{Name: auth.CookieName, Value: sess.Token, Path: "/", Expires: sess.ExpiresAt,
 		HttpOnly: true, Secure: p.CookieSecure, SameSite: http.SameSiteLaxMode})
 	if sess.User.Kind != "client" {
@@ -124,6 +167,41 @@ func (p *Portal) loginVerify(w http.ResponseWriter, r *http.Request) {
 		next = addresses
 	}
 	p.redirect(w, r, next)
+}
+
+// ---- forgotten password
+
+type resetForm struct {
+	Email, Token string
+	Sent         bool
+}
+
+func (p *Portal) forgotPage(w http.ResponseWriter, r *http.Request) {
+	p.render(w, r, "password", &view{Title: "Forgotten password", Data: resetForm{Email: r.URL.Query().Get("email")}})
+}
+
+func (p *Portal) forgot(w http.ResponseWriter, r *http.Request) {
+	f := resetForm{Email: strings.TrimSpace(r.PostFormValue("email"))}
+	if err := p.call(r, gen.PasswordForgot{Email: openapi_types.Email(f.Email)}, nil, p.API.PostAuthPasswordForgot); err != nil {
+		p.renderStatus(w, r, "password", http.StatusUnprocessableEntity, &view{Title: "Forgotten password", Error: errText(err), Data: f})
+		return
+	}
+	f.Sent = true
+	p.render(w, r, "password", &view{Title: "Check your email", Data: f})
+}
+
+func (p *Portal) resetPage(w http.ResponseWriter, r *http.Request) {
+	p.render(w, r, "password", &view{Title: "Choose a new password", Data: resetForm{Token: r.URL.Query().Get("token")}})
+}
+
+func (p *Portal) reset(w http.ResponseWriter, r *http.Request) {
+	f := resetForm{Token: r.PostFormValue("token")}
+	if err := p.call(r, gen.PasswordReset{Token: f.Token, Password: r.PostFormValue("password")}, nil, p.API.PostAuthPasswordReset); err != nil {
+		p.renderStatus(w, r, "password", http.StatusUnprocessableEntity, &view{Title: "Choose a new password", Error: errText(err), Data: f})
+		return
+	}
+	p.flash(w, "Your password is changed. Sign in with it now.")
+	p.redirect(w, r, p.Base+"/login")
 }
 
 func (p *Portal) logout(w http.ResponseWriter, r *http.Request) {
