@@ -562,19 +562,20 @@ function Advanced({
   const [text, setText] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   return (
-    <details
-      className="mt-4 text-sm"
-      open={open}
-      onToggle={(e) => {
-        const next = (e.target as HTMLDetailsElement).open;
-        setOpen(next);
-        if (next) {
-          setText(toText(rows));
-          setErrors([]);
-        }
-      }}
-    >
-      <summary className="text-muted-foreground cursor-pointer">
+    <details className="mt-4 text-sm" open={open}>
+      {/* Opened from the click rather than the toggle event, which fires later and would
+          overwrite anything typed in the meantime. */}
+      <summary
+        className="text-muted-foreground cursor-pointer"
+        onClick={(e) => {
+          e.preventDefault();
+          if (!open) {
+            setText(toText(rows));
+            setErrors([]);
+          }
+          setOpen(!open);
+        }}
+      >
         Advanced: edit as text
       </summary>
       <p className="text-muted-foreground mt-2 text-xs">{textHelp}</p>
