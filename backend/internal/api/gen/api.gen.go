@@ -304,6 +304,15 @@ const (
 	Sw Language = "sw"
 )
 
+// Defines values for LeadStatus.
+const (
+	LeadStatusClosed    LeadStatus = "closed"
+	LeadStatusContacted LeadStatus = "contacted"
+	LeadStatusConverted LeadStatus = "converted"
+	LeadStatusNew       LeadStatus = "new"
+	LeadStatusQualified LeadStatus = "qualified"
+)
+
 // Defines values for LedgerBalanceAccount.
 const (
 	ClientFunds        LedgerBalanceAccount = "client_funds"
@@ -610,8 +619,8 @@ const (
 
 // Defines values for VisitUpdateStatus.
 const (
-	VisitUpdateStatusCancelled VisitUpdateStatus = "cancelled"
-	VisitUpdateStatusMissed    VisitUpdateStatus = "missed"
+	Cancelled VisitUpdateStatus = "cancelled"
+	Missed    VisitUpdateStatus = "missed"
 )
 
 // Defines values for GetConsoleReportsByIdParamsGroupBy.
@@ -736,7 +745,10 @@ type Application struct {
 	Status           ApplicationStatus   `json:"status"`
 	SubmittedAt      *time.Time          `json:"submitted_at"`
 	VettingOfficerId *openapi_types.UUID `json:"vetting_officer_id"`
-	VettingReport    *string             `json:"vetting_report"`
+
+	// VettingOfficerName Staff only
+	VettingOfficerName *string `json:"vetting_officer_name"`
+	VettingReport      *string `json:"vetting_report"`
 }
 
 // ApplicationCreate defines model for ApplicationCreate.
@@ -783,6 +795,9 @@ type ApplicationSummary struct {
 	Status           ApplicationStatus   `json:"status"`
 	SubmittedAt      *time.Time          `json:"submitted_at"`
 	VettingOfficerId *openapi_types.UUID `json:"vetting_officer_id"`
+
+	// VettingOfficerName Staff only
+	VettingOfficerName *string `json:"vetting_officer_name"`
 }
 
 // ApplicationSummaryPage defines model for ApplicationSummaryPage.
@@ -1312,12 +1327,15 @@ type DashboardSummary struct {
 	ApplicationsAwaitingVetting  *int `json:"applications_awaiting_vetting,omitempty"`
 	AwaitingProvider             *int `json:"awaiting_provider,omitempty"`
 	DocumentsExpiring30d         *int `json:"documents_expiring_30d,omitempty"`
-	OpenComplaints               *int `json:"open_complaints,omitempty"`
-	OpenExceptions               *int `json:"open_exceptions,omitempty"`
-	OpenSafeguardingComplaints   *int `json:"open_safeguarding_complaints,omitempty"`
-	PayoutsAwaitingApproval      *int `json:"payouts_awaiting_approval,omitempty"`
-	TodaysVisits                 *int `json:"todays_visits,omitempty"`
-	TriageQueue                  *int `json:"triage_queue,omitempty"`
+
+	// NewLeads Website enquiries nobody has contacted yet
+	NewLeads                   *int `json:"new_leads,omitempty"`
+	OpenComplaints             *int `json:"open_complaints,omitempty"`
+	OpenExceptions             *int `json:"open_exceptions,omitempty"`
+	OpenSafeguardingComplaints *int `json:"open_safeguarding_complaints,omitempty"`
+	PayoutsAwaitingApproval    *int `json:"payouts_awaiting_approval,omitempty"`
+	TodaysVisits               *int `json:"todays_visits,omitempty"`
+	TriageQueue                *int `json:"triage_queue,omitempty"`
 }
 
 // DeclineInput defines model for DeclineInput.
@@ -1633,32 +1651,69 @@ type Language string
 
 // Lead defines model for Lead.
 type Lead struct {
-	CategoryId    *openapi_types.UUID  `json:"category_id,omitempty"`
+	// AreaName The area the visitor typed when theirs was not listed
+	AreaName *string `json:"area_name,omitempty"`
+
+	// AreaNotListed The visitor chose "Other / not listed" for the area
+	AreaNotListed  *bool               `json:"area_not_listed,omitempty"`
+	AssignedTo     *openapi_types.UUID `json:"assigned_to"`
+	AssignedToName *string             `json:"assigned_to_name"`
+	CategoryId     *openapi_types.UUID `json:"category_id,omitempty"`
+
+	// CategoryNotSure The visitor chose "Not sure yet" for the service
+	CategoryNotSure *bool `json:"category_not_sure,omitempty"`
+
+	// ClientId Detail only. A client account with the same phone or email, if any.
+	ClientId      *openapi_types.UUID  `json:"client_id"`
+	ClientName    *string              `json:"client_name"`
+	ContactedAt   *time.Time           `json:"contacted_at"`
 	CreatedAt     *time.Time           `json:"created_at,omitempty"`
 	Email         *openapi_types.Email `json:"email,omitempty"`
 	FullName      string               `json:"full_name"`
 	Id            *openapi_types.UUID  `json:"id,omitempty"`
 	Message       *string              `json:"message,omitempty"`
+	Notes         *string              `json:"notes"`
 	Phone         *string              `json:"phone,omitempty"`
 	ServiceAreaId *openapi_types.UUID  `json:"service_area_id,omitempty"`
 	Source        *string              `json:"source,omitempty"`
+	Status        *LeadStatus          `json:"status,omitempty"`
+	UpdatedAt     *time.Time           `json:"updated_at,omitempty"`
 }
 
 // LeadInput defines model for LeadInput.
 type LeadInput struct {
-	CategoryId    *openapi_types.UUID  `json:"category_id,omitempty"`
-	Email         *openapi_types.Email `json:"email,omitempty"`
-	FullName      string               `json:"full_name"`
-	Message       *string              `json:"message,omitempty"`
-	Phone         *string              `json:"phone,omitempty"`
-	ServiceAreaId *openapi_types.UUID  `json:"service_area_id,omitempty"`
-	Source        *string              `json:"source,omitempty"`
+	// AreaName The area the visitor typed when theirs was not listed
+	AreaName *string `json:"area_name,omitempty"`
+
+	// AreaNotListed The visitor chose "Other / not listed" for the area
+	AreaNotListed *bool               `json:"area_not_listed,omitempty"`
+	CategoryId    *openapi_types.UUID `json:"category_id,omitempty"`
+
+	// CategoryNotSure The visitor chose "Not sure yet" for the service
+	CategoryNotSure *bool                `json:"category_not_sure,omitempty"`
+	Email           *openapi_types.Email `json:"email,omitempty"`
+	FullName        string               `json:"full_name"`
+	Message         *string              `json:"message,omitempty"`
+	Phone           *string              `json:"phone,omitempty"`
+	ServiceAreaId   *openapi_types.UUID  `json:"service_area_id,omitempty"`
+	Source          *string              `json:"source,omitempty"`
 }
 
 // LeadPage defines model for LeadPage.
 type LeadPage struct {
 	Data []Lead   `json:"data"`
 	Meta PageMeta `json:"meta"`
+}
+
+// LeadStatus defines model for LeadStatus.
+type LeadStatus string
+
+// LeadUpdate defines model for LeadUpdate.
+type LeadUpdate struct {
+	// AssignedTo A staff user; null clears it
+	AssignedTo *openapi_types.UUID `json:"assigned_to"`
+	Notes      *string             `json:"notes"`
+	Status     *LeadStatus         `json:"status,omitempty"`
 }
 
 // LedgerBalance defines model for LedgerBalance.
@@ -3119,8 +3174,13 @@ type GetConsoleInvoicesParams struct {
 
 // GetConsoleLeadsParams defines parameters for GetConsoleLeads.
 type GetConsoleLeadsParams struct {
-	From *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
-	To   *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	From       *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+	To         *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	Status     *LeadStatus         `form:"status,omitempty" json:"status,omitempty"`
+	AssignedTo *openapi_types.UUID `form:"assigned_to,omitempty" json:"assigned_to,omitempty"`
+
+	// Q Matches name, phone, email or message
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
 	// Cursor Opaque cursor from meta.next_cursor
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -3600,6 +3660,9 @@ type PatchConsoleFaqsByIdJSONRequestBody = FaqInput
 
 // PostConsoleInvoicesVoidJSONRequestBody defines body for PostConsoleInvoicesVoid for application/json ContentType.
 type PostConsoleInvoicesVoidJSONRequestBody = ReasonInput
+
+// PatchConsoleLeadsByIdJSONRequestBody defines body for PatchConsoleLeadsById for application/json ContentType.
+type PatchConsoleLeadsByIdJSONRequestBody = LeadUpdate
 
 // PostConsoleNotificationTemplatesJSONRequestBody defines body for PostConsoleNotificationTemplates for application/json ContentType.
 type PostConsoleNotificationTemplatesJSONRequestBody = NotificationTemplateInput
@@ -4095,6 +4158,12 @@ type ServerInterface interface {
 	// Enquiries from the public site
 	// (GET /console/leads)
 	GetConsoleLeads(w http.ResponseWriter, r *http.Request, params GetConsoleLeadsParams)
+	// One enquiry, with any client account that has the same phone or email
+	// (GET /console/leads/{id})
+	GetConsoleLeadsById(w http.ResponseWriter, r *http.Request, id Id)
+	// Follow up an enquiry (status, owner, notes)
+	// (PATCH /console/leads/{id})
+	PatchConsoleLeadsById(w http.ResponseWriter, r *http.Request, id Id)
 	// Ledger account balances
 	// (GET /console/ledger/balances)
 	GetConsoleLedgerBalances(w http.ResponseWriter, r *http.Request, params GetConsoleLedgerBalancesParams)
@@ -5121,6 +5190,18 @@ func (_ Unimplemented) PostConsoleInvoicesVoid(w http.ResponseWriter, r *http.Re
 // Enquiries from the public site
 // (GET /console/leads)
 func (_ Unimplemented) GetConsoleLeads(w http.ResponseWriter, r *http.Request, params GetConsoleLeadsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// One enquiry, with any client account that has the same phone or email
+// (GET /console/leads/{id})
+func (_ Unimplemented) GetConsoleLeadsById(w http.ResponseWriter, r *http.Request, id Id) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Follow up an enquiry (status, owner, notes)
+// (PATCH /console/leads/{id})
+func (_ Unimplemented) PatchConsoleLeadsById(w http.ResponseWriter, r *http.Request, id Id) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -9360,6 +9441,30 @@ func (siw *ServerInterfaceWrapper) GetConsoleLeads(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "assigned_to" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "assigned_to", r.URL.Query(), &params.AssignedTo)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "assigned_to", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "q", r.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		return
+	}
+
 	// ------------- Optional query parameter "cursor" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "cursor", r.URL.Query(), &params.Cursor)
@@ -9378,6 +9483,72 @@ func (siw *ServerInterfaceWrapper) GetConsoleLeads(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetConsoleLeads(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetConsoleLeadsById operation middleware
+func (siw *ServerInterfaceWrapper) GetConsoleLeadsById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetConsoleLeadsById(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchConsoleLeadsById operation middleware
+func (siw *ServerInterfaceWrapper) PatchConsoleLeadsById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchConsoleLeadsById(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14631,6 +14802,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/console/leads", wrapper.GetConsoleLeads)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/console/leads/{id}", wrapper.GetConsoleLeadsById)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/console/leads/{id}", wrapper.PatchConsoleLeadsById)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/console/ledger/balances", wrapper.GetConsoleLedgerBalances)

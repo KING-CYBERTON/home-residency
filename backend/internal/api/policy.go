@@ -114,8 +114,8 @@ func (p *Policy) authorise(pr *auth.Principal, rl rule, method, pattern string) 
 		if pr.Kind != auth.KindStaff {
 			return httpx.ErrForbidden
 		}
-		// Only the roles listed in x-roles may call the operation. Admin is deliberately not implied,
-		// so segregation-of-duties actions (approve, authorise, decide) stay with their named roles.
+		// Only the roles listed in x-roles may call the operation, and admin, which holds every role
+		// (see auth.Principal.HasAnyRole).
 		if rl.anyStaff || (rl.anyStaffRead && method == http.MethodGet) || pr.HasAnyRole(rl.roles...) {
 			return nil
 		}

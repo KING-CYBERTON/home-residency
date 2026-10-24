@@ -62,7 +62,7 @@ func TestAdminAndCatalogue(t *testing.T) {
 		t.Fatalf("checklist: %v", tpl)
 	}
 	h.expect(422, "admin", "POST", "/console/checklists", map[string]any{"category_id": cat["id"], "items": []map[string]any{{"kind": "document", "label": "no type", "is_mandatory": true}}})
-	h.expect(403, "admin", "POST", "/console/checklists/"+tpl["id"].(string)+"/publish", nil)
+	h.expect(403, "finance", "POST", "/console/checklists/"+tpl["id"].(string)+"/publish", nil)
 	pub := h.expect(200, "approver", "POST", "/console/checklists/"+tpl["id"].(string)+"/publish", nil)
 	if pub["is_current"] != true {
 		t.Fatalf("publish: %v", pub)
@@ -88,14 +88,14 @@ func TestAdminAndCatalogue(t *testing.T) {
 	h.expect(204, "finance", "DELETE", "/console/subscription-plans/"+plan["id"].(string), nil)
 	h.expect(404, "finance", "DELETE", "/console/subscription-plans/"+plan["id"].(string), nil)
 
-	page := h.expect(201, "admin", "POST", "/console/content-pages", map[string]any{"slug": "about", "title": "About us", "body_markdown": "# Hello", "language": "en"})
-	h.expect(404, "", "GET", "/public/pages/about", nil) // unpublished
+	page := h.expect(201, "admin", "POST", "/console/content-pages", map[string]any{"slug": "our-story", "title": "Our story", "body_markdown": "# Hello", "language": "en"})
+	h.expect(404, "", "GET", "/public/pages/our-story", nil) // unpublished
 	pg := h.expect(200, "admin", "PATCH", "/console/content-pages/"+page["id"].(string), map[string]any{"is_published": true})
 	if pg["published_at"] == nil {
 		t.Fatalf("published_at not set: %v", pg)
 	}
-	h.expect(200, "", "GET", "/public/pages/about", nil)
-	if sw := h.expect(200, "", "GET", "/public/pages/about?lang=sw", nil); sw["language"] != "en" {
+	h.expect(200, "", "GET", "/public/pages/our-story", nil)
+	if sw := h.expect(200, "", "GET", "/public/pages/our-story?lang=sw", nil); sw["language"] != "en" {
 		t.Fatalf("expected the English fallback: %v", sw)
 	}
 	h.expect(404, "", "GET", "/public/pages/missing", nil)

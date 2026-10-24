@@ -7,6 +7,10 @@ type Variant = "default" | "secondary" | "destructive" | "outline" | "warning" |
 const variants: Record<string, Variant> = {
   // waiting on staff
   submitted: "warning",
+  new: "warning",
+  contacted: "info",
+  qualified: "info",
+  converted: "success",
   triaging: "info",
   in_vetting: "info",
   awaiting_approval: "warning",

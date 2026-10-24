@@ -522,6 +522,7 @@ func (s *Server) GetConsoleDashboard(w http.ResponseWriter, r *http.Request) {
 		DocumentsExpiring30d         int `json:"documents_expiring_30d"`
 		PayoutsAwaitingApproval      int `json:"payouts_awaiting_approval"`
 		TodaysVisits                 int `json:"todays_visits"`
+		NewLeads                     int `json:"new_leads"`
 	}
 	err := s.DB.QueryRow(r.Context(), `
 		SELECT
@@ -534,9 +535,10 @@ func (s *Server) GetConsoleDashboard(w http.ResponseWriter, r *http.Request) {
 		 (SELECT count(*) FROM job_exceptions WHERE reviewed_at IS NULL),
 		 (SELECT count(*) FROM documents WHERE status = 'verified' AND expires_on BETWEEN current_date AND current_date + 30),
 		 (SELECT count(*) FROM payout_batches WHERE status = 'draft'),
-		 (SELECT count(*) FROM visits WHERE scheduled_start::date = current_date AND status IN ('scheduled','checked_in'))`).
+		 (SELECT count(*) FROM visits WHERE scheduled_start::date = current_date AND status IN ('scheduled','checked_in')),
+		 (SELECT count(*) FROM leads WHERE status = 'new')`).
 		Scan(&d.TriageQueue, &d.AwaitingProvider, &d.ApplicationsAwaitingVetting, &d.ApplicationsAwaitingApproval, &d.OpenComplaints,
-			&d.OpenSafeguardingComplaints, &d.OpenExceptions, &d.DocumentsExpiring30d, &d.PayoutsAwaitingApproval, &d.TodaysVisits)
+			&d.OpenSafeguardingComplaints, &d.OpenExceptions, &d.DocumentsExpiring30d, &d.PayoutsAwaitingApproval, &d.TodaysVisits, &d.NewLeads)
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return

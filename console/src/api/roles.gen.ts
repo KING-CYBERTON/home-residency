@@ -134,6 +134,8 @@ export const operationRoles: Record<string, readonly string[]> = {
   "PUT /console/settings/{key}": ["admin"],
   "GET /console/audit-log": ["admin","compliance"],
   "GET /console/leads": ["admin","triage_officer"],
+  "GET /console/leads/{id}": ["admin","triage_officer"],
+  "PATCH /console/leads/{id}": ["admin","triage_officer"],
   "GET /console/reports/{report}": ["reporting","admin","finance","compliance"],
   "GET /console/reports/{report}/export": ["reporting","admin","finance","compliance"],
 };

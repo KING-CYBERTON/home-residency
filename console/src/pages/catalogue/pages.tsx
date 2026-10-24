@@ -224,7 +224,7 @@ export function NotificationTemplatesPage() {
     <CrudPage<Schemas["NotificationTemplate"]>
       resource="notification-templates"
       title="Message templates"
-      description="Text sent by SMS, WhatsApp, email and push for each platform event."
+      description="Text for SMS, WhatsApp, email and push by platform event. Not used for sending yet: today's messages are written in the platform, so an empty list does not stop anything being sent."
       noun="template"
       columns={[
         { header: "Event", cell: (t) => <code className="text-xs">{t.event_key}</code> },

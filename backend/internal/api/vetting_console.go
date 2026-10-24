@@ -41,7 +41,7 @@ func (s *Server) GetConsoleApplications(w http.ResponseWriter, r *http.Request, 
 		b.add("(u.full_name ILIKE ? OR a.reference ILIKE ?)", "%"+strings.TrimSpace(*params.Q)+"%")
 	}
 	// Oldest first: a work queue is worked from the front.
-	pg, err := pagedRawDir(r.Context(), s.DB, `SELECT `+applicationSummaryObj+` AS summary, COALESCE(a.submitted_at, a.created_at) AS _t, a.id AS _id`+
+	pg, err := pagedRawDir(r.Context(), s.DB, `SELECT `+applicationSummaryObj+applicationOfficerObj+` AS summary, COALESCE(a.submitted_at, a.created_at) AS _t, a.id AS _id`+
 		applicationSummaryFrom+` WHERE `+b.where(), b.args, cur, pageLimit(params.Limit), true)
 	if err != nil {
 		httpx.Fail(w, r, err)

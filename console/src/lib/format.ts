@@ -38,10 +38,32 @@ export function ago(value: string | null | undefined): string {
   return rtf.format(Math.round(diff / 86400), "day");
 }
 
-/** "awaiting_client_choice" -> "Awaiting client choice" */
+/** Words that keep their own spelling when an enum value is shown to people. */
+const words: Record<string, string> = {
+  id: "ID",
+  kra: "KRA",
+  pin: "PIN",
+  nssf: "NSSF",
+  shif: "SHIF",
+  sha: "SHA",
+  nhif: "NHIF",
+  sms: "SMS",
+  ussd: "USSD",
+  otp: "OTP",
+  vat: "VAT",
+  mfa: "MFA",
+  stk: "STK",
+  mpesa: "M-Pesa",
+  url: "URL",
+};
+
+/** "awaiting_client_choice" -> "Awaiting client choice", "kra_pin" -> "KRA PIN" */
 export function humanize(value: string | null | undefined): string {
   if (!value) return "—";
-  const s = value.replace(/_/g, " ");
+  const s = value
+    .split("_")
+    .map((w) => words[w.toLowerCase()] ?? w)
+    .join(" ");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 

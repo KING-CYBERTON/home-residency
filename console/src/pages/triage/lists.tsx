@@ -4,7 +4,6 @@ import { $api, type Schemas } from "@/api/client";
 import { ExceptionKind, VariationStatus } from "@/api/enums.gen";
 import { DataTable } from "@/components/data-table";
 import { EnumFilter, FilterBar, TextFilter } from "@/components/filters";
-import { useAreaName, useCategoryName } from "@/components/lookups";
 import { PageHeader } from "@/components/page";
 import { Pager } from "@/components/pager";
 import { useCursor } from "@/hooks/use-cursor";
@@ -92,43 +91,6 @@ export function ExceptionsPage() {
           { header: "Details", cell: (x) => <code className="text-xs">{x.details ? JSON.stringify(x.details) : ""}</code> },
           { header: "Resolution", cell: (x) => x.resolution ?? "—" },
           { header: "", cell: (x) => !x.reviewed_at && <ExceptionResolveButton id={x.id} /> },
-        ]}
-      />
-      <Pager pager={pager} nextCursor={data?.meta.next_cursor} />
-    </>
-  );
-}
-
-export function LeadsPage() {
-  const pager = useCursor();
-  const [f, set] = useParamState(["from", "to"], pager.reset);
-  const categoryName = useCategoryName();
-  const areaName = useAreaName();
-  const { data, isLoading, error } = $api.useQuery("get", "/console/leads", {
-    params: { query: { from: f.from, to: f.to, cursor: pager.cursor } },
-  });
-  return (
-    <>
-      <PageHeader title="Leads" description="Enquiries from the public website." />
-      <FilterBar>
-        <TextFilter label="From" type="date" value={f.from} onChange={(v) => set("from", v)} />
-        <TextFilter label="To" type="date" value={f.to} onChange={(v) => set("to", v)} />
-      </FilterBar>
-      <DataTable<Schemas["Lead"]>
-        rows={data?.data}
-        loading={isLoading}
-        error={error}
-        rowKey={(l) => l.id ?? `${l.full_name}-${l.created_at}`}
-        empty="No leads."
-        columns={[
-          { header: "Received", cell: (l) => dateTime(l.created_at) },
-          { header: "Name", cell: (l) => l.full_name },
-          { header: "Phone", cell: (l) => l.phone ?? "—" },
-          { header: "Email", cell: (l) => l.email ?? "—" },
-          { header: "Category", cell: (l) => categoryName(l.category_id) },
-          { header: "Area", cell: (l) => areaName(l.service_area_id) },
-          { header: "Message", cell: (l) => <span className="line-clamp-2 max-w-sm">{l.message}</span> },
-          { header: "Source", cell: (l) => l.source ?? "—" },
         ]}
       />
       <Pager pager={pager} nextCursor={data?.meta.next_cursor} />
