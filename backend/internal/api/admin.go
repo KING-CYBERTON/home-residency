@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -309,6 +310,13 @@ func (s *Server) GetConsoleAuditLog(w http.ResponseWriter, r *http.Request, para
 	httpx.JSON(w, http.StatusOK, pg)
 }
 
+// leadCols is one lead as the console sees it; the detail adds a client account with the same contact.
+const leadCols = `l.id, l.full_name, l.phone_e164 AS phone, l.email, l.service_area_id, l.category_id, l.message, l.source,
+		l.category_not_sure, l.area_not_listed, l.area_name, l.status, l.assigned_to, u.full_name AS assigned_to_name, l.notes,
+		l.contacted_at, l.created_at, l.updated_at`
+
+const leadFrom = ` FROM leads l LEFT JOIN users u ON u.id = l.assigned_to`
+
 func (s *Server) GetConsoleLeads(w http.ResponseWriter, r *http.Request, params gen.GetConsoleLeadsParams) {
 	cur, err := decodeCursor(params.Cursor)
 	if err != nil {
@@ -322,11 +330,113 @@ func (s *Server) GetConsoleLeads(w http.ResponseWriter, r *http.Request, params 
 	if params.To != nil {
 		b.add("l.created_at < ?", params.To.Time.AddDate(0, 0, 1))
 	}
-	pg, err := pagedRaw(r.Context(), s.DB, `SELECT l.id, l.full_name, l.phone_e164 AS phone, l.email, l.service_area_id, l.category_id, l.message, l.source,
-		l.created_at, l.created_at AS _t, l.id AS _id FROM leads l WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
+	if params.Status != nil {
+		b.add("l.status = ?::lead_status", string(*params.Status))
+	}
+	if params.AssignedTo != nil {
+		b.add("l.assigned_to = ?", uuid.UUID(*params.AssignedTo))
+	}
+	if params.Q != nil && strings.TrimSpace(*params.Q) != "" {
+		b.add("(l.full_name ILIKE ? OR l.phone_e164 ILIKE ? OR l.email::text ILIKE ? OR l.message ILIKE ?)", "%"+strings.TrimSpace(*params.Q)+"%")
+	}
+	pg, err := pagedRaw(r.Context(), s.DB, `SELECT `+leadCols+`, l.created_at AS _t, l.id AS _id`+leadFrom+` WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, pg)
+}
+
+func (s *Server) leadOne(ctx context.Context, q db, id uuid.UUID) (json.RawMessage, error) {
+	raw, err := rawOne(ctx, q, `SELECT to_jsonb(x) FROM (SELECT `+leadCols+`, c.id AS client_id, c.full_name AS client_name`+leadFrom+`
+		LEFT JOIN LATERAL (SELECT id, full_name FROM users c WHERE c.kind = 'client'
+		  AND ((l.phone_e164 IS NOT NULL AND c.phone_e164 = l.phone_e164) OR (l.email IS NOT NULL AND c.email = l.email))
+		  ORDER BY c.created_at LIMIT 1) c ON true
+		WHERE l.id = $1) x`, id)
+	if err != nil {
+		return nil, err
+	}
+	return stripNulls(raw), nil
+}
+
+func (s *Server) GetConsoleLeadsById(w http.ResponseWriter, r *http.Request, id gen.Id) {
+	raw, err := s.leadOne(r.Context(), s.DB, uuid.UUID(id))
+	if err != nil {
+		httpx.Fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, raw)
+}
+
+func (s *Server) PatchConsoleLeadsById(w http.ResponseWriter, r *http.Request, id gen.Id) {
+	// Decoded as a map too, so "assigned_to": null (clear it) differs from leaving it out.
+	fields, err := httpx.Decode[map[string]json.RawMessage](r)
+	if err != nil {
+		httpx.Fail(w, r, err)
+		return
+	}
+	var in gen.LeadUpdate
+	b, _ := json.Marshal(fields)
+	if err := json.Unmarshal(b, &in); err != nil {
+		httpx.Fail(w, r, httpx.Invalid("Invalid lead update: "+err.Error()))
+		return
+	}
+	_, setAssignee := fields["assigned_to"]
+	_, setNotes := fields["notes"]
+	var status *string
+	if in.Status != nil {
+		st := string(*in.Status)
+		status = &st
+	}
+	var assignee *uuid.UUID
+	if in.AssignedTo != nil {
+		a := uuid.UUID(*in.AssignedTo)
+		assignee = &a
+	}
+	ctx := r.Context()
+	lid := uuid.UUID(id)
+	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
+		if assignee != nil {
+			var ok bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE id = $1 AND kind = 'staff' AND status = 'active')`, *assignee).Scan(&ok); err != nil {
+				return err
+			}
+			if !ok {
+				return httpx.Invalid("assigned_to must be an active staff user")
+			}
+		}
+		var before map[string]any
+		if err := tx.QueryRow(ctx, `SELECT jsonb_build_object('status', status, 'assigned_to', assigned_to) FROM leads WHERE id = $1 FOR UPDATE`, lid).Scan(&before); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE leads SET
+			status = COALESCE($2::lead_status, status),
+			assigned_to = CASE WHEN $3 THEN $4 ELSE assigned_to END,
+			notes = CASE WHEN $5 THEN NULLIF(btrim($6), '') ELSE notes END,
+			contacted_at = CASE WHEN contacted_at IS NULL AND COALESCE($2::lead_status, status) <> 'new' THEN now() ELSE contacted_at END
+			WHERE id = $1`, lid, status, setAssignee, assignee, setNotes, in.Notes); err != nil {
+			return err
+		}
+		after := map[string]any{}
+		if status != nil {
+			after["status"] = *status
+		}
+		if setAssignee {
+			after["assigned_to"] = assignee
+		}
+		if setNotes {
+			after["notes_changed"] = true
+		}
+		return audit(ctx, tx, "lead.update", "lead", lid, before, after, "")
+	})
+	if err != nil {
+		httpx.Fail(w, r, mapErr(err))
+		return
+	}
+	raw, err := s.leadOne(ctx, s.DB, lid)
+	if err != nil {
+		httpx.Fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, raw)
 }

@@ -19,6 +19,7 @@ const tiles: Tile[] = [
   { key: "awaiting_provider", label: "Waiting on a provider", to: "/requests?status=awaiting_provider", op: "GET /console/requests" },
   { key: "todays_visits", label: "Visits today", to: "/requests?status=confirmed", op: "GET /console/requests" },
   { key: "open_exceptions", label: "Open exceptions", to: "/exceptions", op: "GET /console/exceptions" },
+  { key: "new_leads", label: "New website enquiries", to: "/leads?status=new", op: "GET /console/leads" },
   { key: "applications_awaiting_vetting", label: "Applications to vet", to: "/applications?status=submitted", op: "GET /console/applications" },
   { key: "applications_awaiting_approval", label: "Awaiting approval", to: "/applications?status=awaiting_approval", op: "GET /console/applications" },
   { key: "documents_expiring_30d", label: "Documents expiring in 30 days", to: "/expiring-documents", op: "GET /console/compliance/expiring-documents" },

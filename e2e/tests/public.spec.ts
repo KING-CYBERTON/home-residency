@@ -62,6 +62,38 @@ test("contact form: missing details are explained, a good enquiry reaches Leads"
   await expect(row).toContainText(stamp);
 });
 
+test("leads: \"Not sure yet\" and an unlisted area are kept, and a lead is followed up in the console", async () => {
+  const long = `We have a four-bedroom house and need help twice a week, mostly laundry and ironing, plus a deep clean before guests arrive at the end of the month. ${stamp}`;
+  await visitor.goto(SITE + "/contact");
+  const form = visitor.locator("#contact-form");
+  await form.locator("input[name=full_name]").fill(`Unsure ${stamp}`);
+  await form.locator("input[name=phone]").fill(newPhone().local);
+  await form.locator("input[name=area_name]").fill("Ruaka");
+  await form.locator("textarea[name=message]").fill(long);
+  await form.getByRole("button", { name: "Send" }).click();
+  await expect(visitor.getByRole("status")).toContainText(`Thank you, Unsure ${stamp}`);
+
+  await goConsole(ops, "/");
+  await expect(ops.locator("main")).toContainText("New website enquiries");
+
+  await goConsole(ops, "/leads?status=new");
+  const row = ops.getByRole("row").filter({ hasText: `Unsure ${stamp}` });
+  await expect(row).toContainText("Not sure yet");
+  await expect(row).toContainText("Other: Ruaka");
+  await row.click();
+  await expect(ops.locator("main")).toContainText(long); // the whole message, not cut off
+  await ops.getByRole("button", { name: "Mark contacted" }).click();
+  await expect(ops.locator("main").getByText("Contacted", { exact: true }).first()).toBeVisible();
+  await act(ops, "Update", { status: "qualified", notes: `Wants a quote for twice weekly (${stamp})` });
+  await expect(ops.locator("main")).toContainText(`Wants a quote for twice weekly (${stamp})`);
+  await expect(ops.locator("main")).toContainText("E2E ops"); // the owner is whoever marked it contacted
+
+  await goConsole(ops, `/leads?q=${encodeURIComponent("Unsure " + stamp)}`);
+  await expect(ops.getByRole("row").filter({ hasText: `Unsure ${stamp}` })).toContainText("Qualified");
+  await goConsole(ops, "/leads?status=new");
+  await expect(ops.getByRole("row").filter({ hasText: `Unsure ${stamp}` })).toHaveCount(0);
+});
+
 test("FAQs: one written in the console shows on the FAQ page; unpublished ones do not", async () => {
   await goConsole(ops, "/faqs");
   await act(ops, "New FAQ", { question: `Do you bring supplies? ${stamp}`, answer: "Yes, our cleaners bring eco-friendly supplies.", is_published: true });

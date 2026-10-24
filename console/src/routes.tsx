@@ -28,7 +28,8 @@ import { ReconciliationPage } from "@/pages/finance/reconciliation";
 import { ProvidersPage } from "@/pages/providers/list";
 import { ProviderPage } from "@/pages/providers/show";
 import { TrainingsPage } from "@/pages/training/enrolments";
-import { ExceptionsPage, LeadsPage, VariationsPage } from "@/pages/triage/lists";
+import { LeadPage, LeadsPage } from "@/pages/triage/leads";
+import { ExceptionsPage, VariationsPage } from "@/pages/triage/lists";
 import { RequestQueuePage } from "@/pages/triage/queue";
 import { RequestPage } from "@/pages/triage/request";
 import { ApplicationPage } from "@/pages/vetting/application";
@@ -45,6 +46,7 @@ export const routes: { path: string; op: string; element: ReactNode }[] = [
   { path: "/variations", op: "GET /console/variations", element: <VariationsPage /> },
   { path: "/exceptions", op: "GET /console/exceptions", element: <ExceptionsPage /> },
   { path: "/leads", op: "GET /console/leads", element: <LeadsPage /> },
+  { path: "/leads/:id", op: "GET /console/leads/{id}", element: <LeadPage /> },
 
   { path: "/applications", op: "GET /console/applications", element: <ApplicationsPage /> },
   { path: "/applications/:id", op: "GET /console/applications/{id}", element: <ApplicationPage /> },

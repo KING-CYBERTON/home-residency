@@ -168,6 +168,9 @@ const applicationSummaryObj = `jsonb_build_object('id', a.id, 'reference', a.ref
 
 const applicationSummaryFrom = ` FROM applications a JOIN users u ON u.id = a.provider_id`
 
+// applicationOfficerObj adds the vetting officer's name, which only staff see.
+const applicationOfficerObj = ` || jsonb_build_object('vetting_officer_name', (SELECT o.full_name FROM users o WHERE o.id = a.vetting_officer_id))`
+
 func (s *Server) PostProviderApplications(w http.ResponseWriter, r *http.Request) {
 	in, err := httpx.Decode[gen.ApplicationCreate](r)
 	if err != nil {
@@ -253,7 +256,11 @@ func (s *Server) respondApplication(w http.ResponseWriter, r *http.Request, id u
 // loadApplication builds the Application resource. Staff also see the vetting report, the referees'
 // statements, clearance checks and assessments, none of which the applicant sees.
 func (s *Server) loadApplication(ctx context.Context, q db, id uuid.UUID, staff bool) (map[string]any, error) {
-	raw, err := rawOne(ctx, q, `SELECT `+applicationSummaryObj+` || jsonb_build_object('answers', a.answers, 'decided_by', a.decided_by,
+	officer := ""
+	if staff {
+		officer = applicationOfficerObj
+	}
+	raw, err := rawOne(ctx, q, `SELECT `+applicationSummaryObj+officer+` || jsonb_build_object('answers', a.answers, 'decided_by', a.decided_by,
 		'decision_reason', a.decision_reason, 'decided_at', a.decided_at, 'vetting_report', a.vetting_report)`+applicationSummaryFrom+` WHERE a.id = $1`, id)
 	if err != nil {
 		return nil, err

@@ -203,13 +203,15 @@ func (s *Server) PostPublicLeads(w http.ResponseWriter, r *http.Request) {
 	}
 	name := strings.TrimSpace(body.FullName)
 	id, created, err := s.CreateLead(r.Context(), Lead{FullName: name, Phone: body.Phone, Email: email,
-		ServiceAreaID: body.ServiceAreaId, CategoryID: body.CategoryId, Message: body.Message, Source: body.Source})
+		ServiceAreaID: body.ServiceAreaId, CategoryID: body.CategoryId, Message: body.Message, Source: body.Source,
+		CategoryNotSure: body.CategoryNotSure != nil && *body.CategoryNotSure, AreaNotListed: body.AreaNotListed != nil && *body.AreaNotListed, AreaName: body.AreaName})
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
 	}
 	out := map[string]any{"id": id, "created_at": created, "full_name": name}
-	for k, v := range map[string]any{"phone": body.Phone, "email": email, "service_area_id": body.ServiceAreaId, "category_id": body.CategoryId, "message": body.Message, "source": body.Source} {
+	for k, v := range map[string]any{"phone": body.Phone, "email": email, "service_area_id": body.ServiceAreaId, "category_id": body.CategoryId, "message": body.Message, "source": body.Source,
+		"category_not_sure": body.CategoryNotSure, "area_not_listed": body.AreaNotListed, "area_name": body.AreaName} {
 		if !isNilPtr(v) {
 			out[k] = v
 		}

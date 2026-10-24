@@ -78,7 +78,8 @@ export function ApplicationPage() {
             ) : (
               a.provider_name
             )}{" "}
-            · {categoryName(a.category_id)} · submitted {dateTime(a.submitted_at)}
+            · {categoryName(a.category_id)} · submitted {dateTime(a.submitted_at)} ·{" "}
+            {a.vetting_officer_id ? `vetting officer ${mine ? "you" : (a.vetting_officer_name ?? "assigned")}` : "no vetting officer yet"}
           </>
         }
         actions={
@@ -143,6 +144,14 @@ export function ApplicationPage() {
           </>
         }
       />
+
+      {["submitted", "incomplete"].includes(a.status) && !a.vetting_officer_id && (
+        <div className="bg-muted/50 mb-4 rounded-lg border p-3 text-sm">
+          {can.claim
+            ? "Claim this application to start vetting. Checklist review, referee calls, clearance checks and assessments open once it is in vetting."
+            : "A vetting officer needs to claim this application before it can be vetted."}
+        </div>
+      )}
 
       {a.missing && a.missing.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
@@ -244,10 +253,27 @@ export function ApplicationPage() {
             },
             {
               header: "Employment",
-              cell: (r) => (r.employer_name ? `${r.employer_name} (${date(r.employment_from)} – ${date(r.employment_to)})` : "—"),
+              cell: (r) => {
+                const period = r.employment_from || r.employment_to ? `${date(r.employment_from)} – ${date(r.employment_to)}` : "";
+                if (!r.employer_name && !period) return "—";
+                return (
+                  <div>
+                    <div>{r.employer_name || <span className="text-muted-foreground">Employer not given</span>}</div>
+                    {period && <div className="text-muted-foreground text-xs">{period}</div>}
+                  </div>
+                );
+              },
             },
             { header: "Outcome", cell: (r) => <StatusBadge value={r.outcome} /> },
-            { header: "Statement", cell: (r) => <span className="line-clamp-3 max-w-sm text-xs">{r.statement}</span> },
+            {
+              header: "Statement",
+              cell: (r) =>
+                r.statement ? (
+                  <span className="line-clamp-3 max-w-sm text-xs">{r.statement}</span>
+                ) : (
+                  <span className="text-muted-foreground text-xs">Not called yet</span>
+                ),
+            },
             { header: "Contacted", cell: (r) => dateTime(r.contacted_at) },
             {
               header: "",

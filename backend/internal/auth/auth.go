@@ -40,7 +40,15 @@ type Principal struct {
 	MFAPassed bool
 }
 
+// HasAnyRole reports whether the principal holds one of roles. Admin holds every staff role, so
+// admin may call any console operation; rules that compare people (the officer who vetted an
+// application may not approve it) still apply to admin.
 func (p *Principal) HasAnyRole(roles ...string) bool {
+	for _, have := range p.Roles {
+		if have == "admin" && p.Kind == KindStaff {
+			return true
+		}
+	}
 	for _, r := range roles {
 		for _, have := range p.Roles {
 			if r == have {

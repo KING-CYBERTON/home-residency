@@ -272,7 +272,7 @@ func TestEndToEnd(t *testing.T) {
 		h.expect(403, "client", "GET", "/console/requests", nil)
 		h.expect(403, "provider", "GET", "/client/addresses", nil)
 		h.expect(403, "triage", "GET", "/client/addresses", nil)
-		h.expect(403, "admin", "GET", "/console/requests", nil)      // admin is not implied for triage
+		h.expectList(200, "admin", "GET", "/console/requests")       // admin holds every staff role
 		h.expect(403, "triage", "GET", "/console/applications", nil) // not a vetting role
 		h.expectList(200, "admin", "GET", "/console/staff")
 		// rate limit: a second code to the same phone within a minute

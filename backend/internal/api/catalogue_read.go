@@ -102,6 +102,9 @@ type Lead struct {
 	CategoryID    *uuid.UUID
 	Message       *string
 	Source        *string
+	// The visitor chose "Not sure yet" or "Other / not listed" rather than leaving the field out.
+	CategoryNotSure, AreaNotListed bool
+	AreaName                       *string
 }
 
 // CreateLead validates and stores a lead. Validation failures are *httpx.Error with a message fit
@@ -117,12 +120,27 @@ func (s *Server) CreateLead(ctx context.Context, l Lead) (uuid.UUID, any, error)
 	if l.Phone == nil && l.Email == nil {
 		return uuid.Nil, nil, httpx.Invalid("Give a phone number or an email so we can reply")
 	}
+	if l.CategoryID != nil {
+		l.CategoryNotSure = false
+	}
+	if l.ServiceAreaID != nil {
+		l.AreaNotListed, l.AreaName = false, nil
+	}
+	if l.AreaName != nil {
+		if n := strings.TrimSpace(*l.AreaName); n == "" {
+			l.AreaName = nil
+		} else if len(n) > 120 {
+			return uuid.Nil, nil, httpx.Invalid("area_name is too long")
+		} else {
+			l.AreaName, l.AreaNotListed = &n, true
+		}
+	}
 	var id uuid.UUID
 	var created any
 	err := s.DB.QueryRow(ctx, `
-		INSERT INTO leads (full_name, phone_e164, email, service_area_id, category_id, message, source)
-		VALUES ($1,$2,$3::citext,$4,$5,$6,$7) RETURNING id, created_at`,
-		l.FullName, l.Phone, l.Email, l.ServiceAreaID, l.CategoryID, l.Message, l.Source).Scan(&id, &created)
+		INSERT INTO leads (full_name, phone_e164, email, service_area_id, category_id, message, source, category_not_sure, area_not_listed, area_name)
+		VALUES ($1,$2,$3::citext,$4,$5,$6,$7,$8,$9,$10) RETURNING id, created_at`,
+		l.FullName, l.Phone, l.Email, l.ServiceAreaID, l.CategoryID, l.Message, l.Source, l.CategoryNotSure, l.AreaNotListed, l.AreaName).Scan(&id, &created)
 	return id, created, mapErr(err)
 }
 

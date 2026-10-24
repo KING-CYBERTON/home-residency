@@ -136,6 +136,15 @@ test("vetting: one officer checks everything and sends it for approval", async (
   await goConsole(ops, "/applications");
   await openRow(ops, provider.name);
   await act(ops, "Claim");
+  await expect(ops.locator("main")).toContainText("vetting officer you");
+  // A document opens in a new tab through a signed link. (Headless Chrome downloads a PDF instead
+  // of showing it, so the check is that the tab goes to a link that serves the file.)
+  const [file] = await Promise.all([
+    ops.context().waitForEvent("request", (r) => r.isNavigationRequest() && r.url().startsWith(SITE)),
+    ops.getByRole("button", { name: "View", exact: true }).first().click(),
+  ]);
+  expect((await fetch(file.url())).status).toBe(200);
+  for (const p of ops.context().pages()) if (p !== ops) await p.close();
   // Each document is opened (logged) and verified.
   for (let i = 0; i < 2; i++) await act(ops, "Verify doc", { notes: "Original seen" }, { nth: i });
   for (let i = 0; i < 2; i++) await act(ops, "Record call", { outcome: "positive", statement: "Reliable and honest, worked with us two years." }, { nth: i });
@@ -151,7 +160,7 @@ test("vetting: one officer checks everything and sends it for approval", async (
   if (await decide.count()) await expect(decide).toBeDisabled();
   // Every document view was logged in the vault access log.
   const views = await one<{ n: string }>(`SELECT count(*) AS n FROM document_access_log l JOIN documents d ON d.id = l.document_id JOIN users u ON u.id = d.owner_user_id WHERE u.phone_e164 = $1`, provider.phone.e164);
-  expect(Number(views.n)).toBeGreaterThanOrEqual(0);
+  expect(Number(views.n)).toBeGreaterThanOrEqual(1);
 });
 
 test("vetting: a second officer approves", async () => {
@@ -163,13 +172,19 @@ test("vetting: a second officer approves", async () => {
   await expect(providerPage.locator("main")).toContainText("You are approved");
 });
 
-test("training: the provider is enrolled in induction and passes", async () => {
-  await goConsole(ops, "/providers");
-  await openRow(ops, provider.name);
-  await act(ops, "Enrol in training", { course_id: { label: "IND-GDN · Gardening induction" }, scheduled_for: nairobi(60) });
-  await goConsole(ops, "/trainings");
-  const row = ops.getByRole("row").filter({ hasText: "Gardening induction" }).filter({ hasText: "Scheduled" });
-  await act(ops, "Record result", { status: "passed", score: 88 }, { within: row });
+test("training: the provider is enrolled in both inductions and passes", async () => {
+  // The general induction comes with the database (migration 00015); the Gardening one was added above.
+  for (const [label, name] of [
+    ["GEN-IND · Homend induction: conduct, safeguarding and the provider app", "Homend induction"],
+    ["IND-GDN · Gardening induction", "Gardening induction"],
+  ]) {
+    await goConsole(ops, "/providers");
+    await openRow(ops, provider.name);
+    await act(ops, "Enrol in training", { course_id: { label }, scheduled_for: nairobi(60) });
+    await goConsole(ops, "/trainings");
+    const row = ops.getByRole("row").filter({ hasText: name }).filter({ hasText: provider.name }).filter({ hasText: "Scheduled" });
+    await act(ops, "Record result", { status: "passed", score: 88 }, { within: row });
+  }
   await providerPage.goto(SITE + "/provider/training");
   await expect(providerPage.locator("main")).toContainText("Passed");
 });

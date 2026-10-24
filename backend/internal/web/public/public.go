@@ -450,9 +450,9 @@ func bookURL(category, service, area string) string {
 // ---- enquiries
 
 type contactForm struct {
-	FullName, Phone, Email, Area, Category, Message string
-	Errors                                          map[string]string
-	Sent                                            bool
+	FullName, Phone, Email, Area, AreaName, Category, Message string
+	Errors                                                    map[string]string
+	Sent                                                      bool
 }
 
 func (p *Site) contact(w http.ResponseWriter, r *http.Request) {
@@ -487,6 +487,7 @@ func (p *Site) contactSubmit(w http.ResponseWriter, r *http.Request) {
 		Phone:    strings.TrimSpace(r.PostFormValue("phone")),
 		Email:    strings.TrimSpace(r.PostFormValue("email")),
 		Area:     r.PostFormValue("area"),
+		AreaName: strings.TrimSpace(r.PostFormValue("area_name")),
 		Category: r.PostFormValue("category"),
 		Message:  strings.TrimSpace(r.PostFormValue("message")),
 		Errors:   map[string]string{},
@@ -510,9 +511,16 @@ func (p *Site) contactSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	if a, ok := c.area(f.Area); ok {
 		lead.ServiceAreaID = &a.ID
+	} else if f.Area == "other" || f.AreaName != "" {
+		lead.AreaNotListed = true
+		if f.AreaName != "" {
+			lead.AreaName = &f.AreaName
+		}
 	}
 	if cat, ok := c.category(f.Category); ok {
 		lead.CategoryID = &cat.ID
+	} else if f.Category == "not_sure" {
+		lead.CategoryNotSure = true
 	}
 	source := "website"
 	if utm := r.URL.Query().Get("utm_source"); utm != "" && len(utm) <= 64 {

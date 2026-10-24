@@ -3781,6 +3781,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/console/leads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One enquiry, with any client account that has the same phone or email
+         * @description **Roles:** `admin`, `triage_officer`
+         */
+        get: operations["getConsoleLeadsById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Follow up an enquiry (status, owner, notes)
+         * @description **Roles:** `admin`, `triage_officer`. Moving to `contacted` or later stamps `contacted_at` the first time.
+         */
+        patch: operations["patchConsoleLeadsById"];
+        trace?: never;
+    };
     "/console/reports/{report}": {
         parameters: {
             query?: never;
@@ -4497,12 +4521,44 @@ export interface components {
             category_id?: string;
             message?: string;
             source?: string;
+            /** @description The visitor chose "Not sure yet" for the service */
+            category_not_sure?: boolean;
+            /** @description The visitor chose "Other / not listed" for the area */
+            area_not_listed?: boolean;
+            /** @description The area the visitor typed when theirs was not listed */
+            area_name?: string;
         };
         Lead: components["schemas"]["LeadInput"] & {
             /** Format: uuid */
             id?: string;
             /** Format: date-time */
             created_at?: string;
+            status?: components["schemas"]["LeadStatus"];
+            /** Format: uuid */
+            assigned_to?: string | null;
+            assigned_to_name?: string | null;
+            notes?: string | null;
+            /** Format: date-time */
+            contacted_at?: string | null;
+            /** Format: date-time */
+            updated_at?: string;
+            /**
+             * Format: uuid
+             * @description Detail only. A client account with the same phone or email, if any.
+             */
+            client_id?: string | null;
+            client_name?: string | null;
+        };
+        /** @enum {string} */
+        LeadStatus: "new" | "contacted" | "qualified" | "converted" | "closed";
+        LeadUpdate: {
+            status?: components["schemas"]["LeadStatus"];
+            /**
+             * Format: uuid
+             * @description A staff user; null clears it
+             */
+            assigned_to?: string | null;
+            notes?: string | null;
         };
         Address: {
             /** Format: uuid */
@@ -5083,6 +5139,8 @@ export interface components {
             submitted_at?: string | null;
             /** Format: uuid */
             vetting_officer_id?: string | null;
+            /** @description Staff only */
+            vetting_officer_name?: string | null;
             is_reverification?: boolean;
             checklist_progress?: {
                 satisfied?: number;
@@ -6017,6 +6075,8 @@ export interface components {
             documents_expiring_30d?: number;
             payouts_awaiting_approval?: number;
             todays_visits?: number;
+            /** @description Website enquiries nobody has contacted yet */
+            new_leads?: number;
         };
         Notification: {
             /** Format: uuid */
@@ -13292,6 +13352,10 @@ export interface operations {
             query?: {
                 from?: string;
                 to?: string;
+                status?: components["schemas"]["LeadStatus"];
+                assigned_to?: string;
+                /** @description Matches name, phone, email or message */
+                q?: string;
                 /** @description Opaque cursor from meta.next_cursor */
                 cursor?: components["parameters"]["cursor"];
                 limit?: components["parameters"]["limit"];
@@ -13315,6 +13379,64 @@ export interface operations {
             401: components["responses"]["E401"];
             403: components["responses"]["E403"];
             404: components["responses"]["E404"];
+            default: components["responses"]["Edefault"];
+        };
+    };
+    getConsoleLeadsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lead"];
+                };
+            };
+            401: components["responses"]["E401"];
+            403: components["responses"]["E403"];
+            404: components["responses"]["E404"];
+            default: components["responses"]["Edefault"];
+        };
+    };
+    patchConsoleLeadsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeadUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lead"];
+                };
+            };
+            400: components["responses"]["E400"];
+            401: components["responses"]["E401"];
+            403: components["responses"]["E403"];
+            404: components["responses"]["E404"];
+            422: components["responses"]["E422"];
             default: components["responses"]["Edefault"];
         };
     };

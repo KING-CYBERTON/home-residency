@@ -7941,6 +7941,20 @@ paths:
         schema:
           type: string
           format: date
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/LeadStatus'
+      - name: assigned_to
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: q
+        in: query
+        description: Matches name, phone, email or message
+        schema:
+          type: string
       - $ref: '#/components/parameters/cursor'
       - $ref: '#/components/parameters/limit'
       responses:
@@ -7958,6 +7972,69 @@ paths:
           $ref: '#/components/responses/E403'
         '404':
           $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /console/leads/{id}:
+    get:
+      tags:
+      - 'Console: Admin'
+      summary: One enquiry, with any client account that has the same phone or email
+      operationId: getConsoleLeadsById
+      x-roles:
+      - admin
+      - triage_officer
+      description: '**Roles:** `admin`, `triage_officer`'
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        default:
+          $ref: '#/components/responses/Edefault'
+    patch:
+      tags:
+      - 'Console: Admin'
+      summary: Follow up an enquiry (status, owner, notes)
+      operationId: patchConsoleLeadsById
+      x-roles:
+      - admin
+      - triage_officer
+      description: '**Roles:** `admin`, `triage_officer`. Moving to `contacted` or later stamps `contacted_at` the first time.'
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadUpdate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '422':
+          $ref: '#/components/responses/E422'
         default:
           $ref: '#/components/responses/Edefault'
   /console/reports/{report}:
@@ -9691,6 +9768,15 @@ components:
           type: string
         source:
           type: string
+        category_not_sure:
+          type: boolean
+          description: The visitor chose "Not sure yet" for the service
+        area_not_listed:
+          type: boolean
+          description: The visitor chose "Other / not listed" for the area
+        area_name:
+          type: string
+          description: The area the visitor typed when theirs was not listed
       required:
       - full_name
     Lead:
@@ -9704,6 +9790,54 @@ components:
           created_at:
             type: string
             format: date-time
+          status:
+            $ref: '#/components/schemas/LeadStatus'
+          assigned_to:
+            type: string
+            format: uuid
+            nullable: true
+          assigned_to_name:
+            type: string
+            nullable: true
+          notes:
+            type: string
+            nullable: true
+          contacted_at:
+            type: string
+            format: date-time
+            nullable: true
+          updated_at:
+            type: string
+            format: date-time
+          client_id:
+            type: string
+            format: uuid
+            nullable: true
+            description: Detail only. A client account with the same phone or email, if any.
+          client_name:
+            type: string
+            nullable: true
+    LeadStatus:
+      type: string
+      enum:
+      - new
+      - contacted
+      - qualified
+      - converted
+      - closed
+    LeadUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/LeadStatus'
+        assigned_to:
+          type: string
+          format: uuid
+          nullable: true
+          description: A staff user; null clears it
+        notes:
+          type: string
+          nullable: true
     Address:
       type: object
       properties:
@@ -10879,6 +11013,10 @@ components:
           type: string
           format: uuid
           nullable: true
+        vetting_officer_name:
+          type: string
+          nullable: true
+          description: Staff only
         is_reverification:
           type: boolean
         checklist_progress:
@@ -12755,6 +12893,9 @@ components:
           type: integer
         todays_visits:
           type: integer
+        new_leads:
+          type: integer
+          description: Website enquiries nobody has contacted yet
     Notification:
       type: object
       properties:

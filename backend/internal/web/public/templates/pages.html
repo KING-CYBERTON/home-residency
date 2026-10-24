@@ -159,16 +159,19 @@
     </label>
     <div class="grid gap-4 sm:grid-cols-2">
       <label class="block"><span class="field-label">Service</span>
-        <select name="category" class="field-input"><option value="">Not sure yet</option>
+        <select name="category" class="field-input"><option value="not_sure">Not sure yet</option>
           {{range .Catalogue.Categories}}<option value="{{.Slug}}"{{if eq .Slug $f.Category}} selected{{end}}>{{.Name}}</option>{{end}}
         </select>
       </label>
       <label class="block"><span class="field-label">Area</span>
-        <select name="area" class="field-input"><option value="">Other / not listed</option>
+        <select name="area" class="field-input"><option value="other">Other / not listed</option>
           {{range .Catalogue.Areas}}<option value="{{.Slug}}"{{if eq .Slug $f.Area}} selected{{end}}>{{.Name}}</option>{{end}}
         </select>
       </label>
     </div>
+    <label class="block"><span class="field-label">Your area or estate <span class="font-normal text-slate-500">(if it isn't listed)</span></span>
+      <input name="area_name" value="{{$f.AreaName}}" maxlength="120" autocomplete="address-level2" class="field-input">
+    </label>
     <label class="block"><span class="field-label">Message</span>
       <textarea name="message" rows="4" maxlength="2000" class="field-input"{{if $f.Errors.message}} aria-invalid="true"{{end}}>{{$f.Message}}</textarea>
       {{with $f.Errors.message}}<span class="field-error block">{{.}}</span>{{end}}
