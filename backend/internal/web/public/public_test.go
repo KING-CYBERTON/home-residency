@@ -136,7 +136,7 @@ func TestPublicPages(t *testing.T) {
 	ts, _ := newSite(t)
 
 	for _, path := range []string{"/", "/services", "/services/cleaning", "/services/cleaning/kilimani", "/areas", "/areas/karen",
-		"/pricing", "/how-it-works", "/faq", "/book", "/contact", "/privacy", "/terms", "/credits"} {
+		"/pricing", "/how-it-works", "/faq", "/book", "/contact", "/privacy", "/terms", "/credits", "/sign-in"} {
 		code, h, body := get(t, ts, path)
 		if code != 200 {
 			t.Errorf("%s: status %d", path, code)

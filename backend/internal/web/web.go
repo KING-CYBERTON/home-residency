@@ -181,6 +181,14 @@ func (s *Site) execute(w http.ResponseWriter, r *http.Request, t *template.Templ
 	_, _ = buf.WriteTo(w)
 }
 
+// SectionHero is the header of a section page (services, areas, prices, questions, how it works,
+// contact): text on the left and a photograph on the right, on the brand tint. Landing pages (home
+// and work with us) use a full-bleed photograph instead; detail pages use the same split layout.
+type SectionHero struct {
+	Eyebrow, Title, Lead string
+	Photo                *Photo
+}
+
 // Cacheable marks a response as shareable by CloudFront and browsers. Only use it on pages that
 // look the same for every visitor.
 func Cacheable(w http.ResponseWriter, maxAge time.Duration) {
@@ -210,6 +218,9 @@ func (s *Site) funcs() template.FuncMap {
 		"clientPath":   func() string { return ClientPortalPath },
 		"providerPath": func() string { return ProviderPortalPath },
 		"joinPath":     func() string { return JoinPath },
+		"hero": func(eyebrow, title, lead, photo string) SectionHero {
+			return SectionHero{Eyebrow: eyebrow, Title: title, Lead: lead, Photo: s.Photo(photo)}
+		},
 		"deref": func(p *string) string {
 			if p == nil {
 				return ""

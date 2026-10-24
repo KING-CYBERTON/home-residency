@@ -29,7 +29,7 @@ var templates embed.FS
 // within this window.
 const cacheFor = 5 * time.Minute
 
-var pageNames = []string{"home", "services", "category", "areas", "area", "pricing", "how-it-works", "privacy", "terms", "faq", "book", "contact", "credits"}
+var pageNames = []string{"home", "services", "category", "areas", "area", "pricing", "how-it-works", "privacy", "terms", "faq", "book", "contact", "credits", "sign-in"}
 
 type Site struct {
 	srv   *api.Server
@@ -75,6 +75,8 @@ func (p *Site) Routes(r chi.Router) {
 		"The terms for booking Homend Residence services and household plans: prices and VAT, payment, cancellations, refunds and complaints."))
 	r.Get("/credits", p.static("credits", "Photo credits", "",
 		"The photographers whose work appears on the Homend Residence website."))
+	r.Get("/sign-in", p.static("sign-in", "Sign in", "",
+		"Sign in to Homend Residence: households to book and manage visits, providers to see jobs, earnings and documents."))
 	r.Get("/faq", p.faq)
 	r.Get("/book", p.book)
 	r.Get("/contact", p.contact)
