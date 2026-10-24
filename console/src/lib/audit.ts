@@ -4,6 +4,9 @@ import { humanize } from "@/lib/format";
 const labels: Record<string, string> = {
   "user.register": "Signed up",
   "consent.record": "Accepted a notice",
+  "session.revoke": "Signed out one of their sessions",
+  "staff.sign_out": "Signed a colleague out everywhere",
+  "staff.reset_password": "Reset a colleague's password",
   "application.create": "Started an application",
   "application.update": "Updated the application",
   "application.submit": "Submitted the application",

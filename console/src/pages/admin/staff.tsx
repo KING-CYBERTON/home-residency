@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,6 +13,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { roleLabels, useCan, useMe } from "@/lib/access";
 import { ago } from "@/lib/format";
 import { useParamState } from "@/lib/params";
+import { SessionsTable } from "@/components/sessions";
 
 const roleOptions = StaffRole.map((r) => ({ value: r, label: roleLabels[r] }));
 
@@ -28,17 +30,26 @@ export function StaffPage() {
   const update = $api.useMutation("patch", "/console/staff/{id}");
   const roles = $api.useMutation("put", "/console/staff/{id}/roles");
   const resetMfa = $api.useMutation("post", "/console/staff/{id}/reset-mfa");
+  const resetPassword = $api.useMutation("post", "/console/staff/{id}/reset-password");
+  const [sessionsOf, setSessionsOf] = useState<Schemas["StaffUser"] | null>(null);
   const can = {
     create: useCan("POST /console/staff"),
     update: useCan("PATCH /console/staff/{id}"),
     roles: useCan("PUT /console/staff/{id}/roles"),
     reset: useCan("POST /console/staff/{id}/reset-mfa"),
+    resetPassword: useCan("POST /console/staff/{id}/reset-password"),
+    sessions: useCan("GET /console/staff/{id}/sessions"),
   };
   return (
     <>
       <PageHeader
         title="Staff"
-        description="Console users and their roles. Admin does not imply other roles: approvals, authorisations and decisions stay with their named roles."
+        description={
+          <>
+            Console users and their roles. Admin holds every role. Two-person rules still apply: whoever prepares or investigates cannot also
+            approve or decide. <Link to="/roles" className="underline">See what each role can do</Link>.
+          </>
+        }
         actions={
           <Allowed when={can.create}>
             <FormDialog
@@ -115,12 +126,30 @@ export function StaffPage() {
                     onDone={(t) => setSecret({ title: `New authenticator for ${s.full_name}`, ...(t as Schemas["TotpEnrolment"]) })}
                   />
                 </Allowed>
+                <Allowed when={can.resetPassword && s.id !== me?.id}>
+                  <FormDialog
+                    trigger="Reset password"
+                    title={`Reset ${s.full_name}'s password`}
+                    description="They get a new temporary password and are signed out everywhere. Their authenticator stays the same."
+                    fields={[{ name: "reason", label: "Reason", required: true, placeholder: "Forgot their password" }]}
+                    destructive
+                    submitLabel="Reset"
+                    onSubmit={(body) => resetPassword.mutateAsync({ params: { path: { id: s.id } }, body: body as Schemas["ReasonInput"] })}
+                    onDone={(t) => setSecret({ title: `New password for ${s.full_name}`, ...(t as Schemas["TemporaryPassword"]) })}
+                  />
+                </Allowed>
+                <Allowed when={can.sessions}>
+                  <Button variant="outline" size="sm" onClick={() => setSessionsOf(s)}>
+                    Sessions
+                  </Button>
+                </Allowed>
               </div>
             ),
           },
         ]}
       />
       <SecretDialog secret={secret} onClose={() => setSecret(null)} />
+      <SessionsDialog user={sessionsOf} onClose={() => setSessionsOf(null)} />
     </>
   );
 }
@@ -156,6 +185,41 @@ function SecretDialog({ secret, onClose }: { secret: Secret | null; onClose: () 
         </dl>
         <DialogFooter>
           <Button onClick={onClose}>I have saved these</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Where a colleague is signed in, with a way to end all of it after a lost phone or a shared computer. */
+function SessionsDialog({ user, onClose }: { user: Schemas["StaffUser"] | null; onClose: () => void }) {
+  const me = useMe();
+  const id = user?.id ?? "";
+  const { data, isLoading, error } = $api.useQuery("get", "/console/staff/{id}/sessions", { params: { path: { id } } }, { enabled: !!user });
+  const signOut = $api.useMutation("post", "/console/staff/{id}/sign-out");
+  const canSignOut = useCan("POST /console/staff/{id}/sign-out");
+  return (
+    <Dialog open={!!user} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Where {user?.full_name} is signed in</DialogTitle>
+          <DialogDescription>Signing them out ends every session. They sign in again with their password and authenticator.</DialogDescription>
+        </DialogHeader>
+        <SessionsTable rows={data} loading={isLoading} error={error} />
+        <DialogFooter>
+          <Allowed when={canSignOut && !!data?.length && user?.id !== me?.id}>
+            <FormDialog
+              trigger="Sign out everywhere"
+              title={`Sign ${user?.full_name} out everywhere?`}
+              fields={[{ name: "reason", label: "Reason", required: true, placeholder: "Lost phone" }]}
+              destructive
+              submitLabel="Sign out"
+              onSubmit={(body) => signOut.mutateAsync({ params: { path: { id } }, body: body as Schemas["ReasonInput"] })}
+            />
+          </Allowed>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

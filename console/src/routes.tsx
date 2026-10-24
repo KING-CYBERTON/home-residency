@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 
+import { AccountPage } from "@/pages/account/account";
 import { AuditLogPage } from "@/pages/admin/audit";
 import { ReportsPage } from "@/pages/admin/reports";
+import { RolesPage } from "@/pages/admin/roles";
 import { SettingsPage } from "@/pages/admin/settings";
 import { StaffPage } from "@/pages/admin/staff";
 import { ChecklistEditorPage } from "@/pages/catalogue/checklist-editor";
@@ -208,6 +210,8 @@ export const routes: { path: string; op: string; element: ReactNode }[] = [
     element: <ReportsPage />,
   },
   { path: "/staff", op: "GET /console/staff", element: <StaffPage /> },
+  { path: "/roles", op: "GET /console/dashboard", element: <RolesPage /> },
+  { path: "/account", op: "GET /console/dashboard", element: <AccountPage /> },
   { path: "/settings", op: "GET /console/settings", element: <SettingsPage /> },
   {
     path: "/audit-log",

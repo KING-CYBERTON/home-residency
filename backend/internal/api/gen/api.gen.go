@@ -2607,6 +2607,20 @@ type Session struct {
 	User  Me     `json:"user"`
 }
 
+// SessionInfo defines model for SessionInfo.
+type SessionInfo struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Current The session making this request.
+	Current    bool               `json:"current"`
+	ExpiresAt  time.Time          `json:"expires_at"`
+	Id         openapi_types.UUID `json:"id"`
+	IpAddress  *string            `json:"ip_address"`
+	LastSeenAt time.Time          `json:"last_seen_at"`
+	MfaPassed  bool               `json:"mfa_passed"`
+	UserAgent  *string            `json:"user_agent"`
+}
+
 // Setting defines model for Setting.
 type Setting struct {
 	Description *string             `json:"description"`
@@ -2836,6 +2850,11 @@ type SyncResult struct {
 
 // SyncResultResultsStatus defines model for SyncResult.Results.Status.
 type SyncResultResultsStatus string
+
+// TemporaryPassword defines model for TemporaryPassword.
+type TemporaryPassword struct {
+	Password string `json:"password"`
+}
 
 // TimeOff defines model for TimeOff.
 type TimeOff struct {
@@ -3823,8 +3842,14 @@ type PostConsoleStaffJSONRequestBody = StaffCreate
 // PatchConsoleStaffByIdJSONRequestBody defines body for PatchConsoleStaffById for application/json ContentType.
 type PatchConsoleStaffByIdJSONRequestBody = StaffUpdate
 
+// PostConsoleStaffResetPasswordJSONRequestBody defines body for PostConsoleStaffResetPassword for application/json ContentType.
+type PostConsoleStaffResetPasswordJSONRequestBody = ReasonInput
+
 // PutConsoleStaffRolesJSONRequestBody defines body for PutConsoleStaffRoles for application/json ContentType.
 type PutConsoleStaffRolesJSONRequestBody = RolesInput
+
+// PostConsoleStaffSignOutJSONRequestBody defines body for PostConsoleStaffSignOut for application/json ContentType.
+type PostConsoleStaffSignOutJSONRequestBody = ReasonInput
 
 // PostConsoleSubscriptionPlansJSONRequestBody defines body for PostConsoleSubscriptionPlans for application/json ContentType.
 type PostConsoleSubscriptionPlansJSONRequestBody = SubscriptionPlanInput
@@ -4422,9 +4447,18 @@ type ServerInterface interface {
 	// Reset a staff user's TOTP
 	// (POST /console/staff/{id}/reset-mfa)
 	PostConsoleStaffResetMfa(w http.ResponseWriter, r *http.Request, id Id)
+	// Give a staff user a new temporary password
+	// (POST /console/staff/{id}/reset-password)
+	PostConsoleStaffResetPassword(w http.ResponseWriter, r *http.Request, id Id)
 	// Replace a staff user's roles
 	// (PUT /console/staff/{id}/roles)
 	PutConsoleStaffRoles(w http.ResponseWriter, r *http.Request, id Id)
+	// A staff user's signed-in sessions
+	// (GET /console/staff/{id}/sessions)
+	GetConsoleStaffSessions(w http.ResponseWriter, r *http.Request, id Id)
+	// Sign a staff user out everywhere
+	// (POST /console/staff/{id}/sign-out)
+	PostConsoleStaffSignOut(w http.ResponseWriter, r *http.Request, id Id)
 	// List subscription plans
 	// (GET /console/subscription-plans)
 	GetConsoleSubscriptionPlans(w http.ResponseWriter, r *http.Request)
@@ -4506,6 +4540,12 @@ type ServerInterface interface {
 	// Set or change your own password
 	// (POST /me/password)
 	PostMePassword(w http.ResponseWriter, r *http.Request)
+	// Your signed-in sessions
+	// (GET /me/sessions)
+	GetMeSessions(w http.ResponseWriter, r *http.Request)
+	// Sign out one of your sessions
+	// (DELETE /me/sessions/{id})
+	DeleteMeSession(w http.ResponseWriter, r *http.Request, id Id)
 	// In-app notifications
 	// (GET /notifications)
 	GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams)
@@ -5640,9 +5680,27 @@ func (_ Unimplemented) PostConsoleStaffResetMfa(w http.ResponseWriter, r *http.R
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Give a staff user a new temporary password
+// (POST /console/staff/{id}/reset-password)
+func (_ Unimplemented) PostConsoleStaffResetPassword(w http.ResponseWriter, r *http.Request, id Id) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Replace a staff user's roles
 // (PUT /console/staff/{id}/roles)
 func (_ Unimplemented) PutConsoleStaffRoles(w http.ResponseWriter, r *http.Request, id Id) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// A staff user's signed-in sessions
+// (GET /console/staff/{id}/sessions)
+func (_ Unimplemented) GetConsoleStaffSessions(w http.ResponseWriter, r *http.Request, id Id) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Sign a staff user out everywhere
+// (POST /console/staff/{id}/sign-out)
+func (_ Unimplemented) PostConsoleStaffSignOut(w http.ResponseWriter, r *http.Request, id Id) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -5805,6 +5863,18 @@ func (_ Unimplemented) PostMeConsents(w http.ResponseWriter, r *http.Request) {
 // Set or change your own password
 // (POST /me/password)
 func (_ Unimplemented) PostMePassword(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Your signed-in sessions
+// (GET /me/sessions)
+func (_ Unimplemented) GetMeSessions(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Sign out one of your sessions
+// (DELETE /me/sessions/{id})
+func (_ Unimplemented) DeleteMeSession(w http.ResponseWriter, r *http.Request, id Id) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -11913,6 +11983,39 @@ func (siw *ServerInterfaceWrapper) PostConsoleStaffResetMfa(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// PostConsoleStaffResetPassword operation middleware
+func (siw *ServerInterfaceWrapper) PostConsoleStaffResetPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostConsoleStaffResetPassword(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PutConsoleStaffRoles operation middleware
 func (siw *ServerInterfaceWrapper) PutConsoleStaffRoles(w http.ResponseWriter, r *http.Request) {
 
@@ -11937,6 +12040,72 @@ func (siw *ServerInterfaceWrapper) PutConsoleStaffRoles(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutConsoleStaffRoles(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetConsoleStaffSessions operation middleware
+func (siw *ServerInterfaceWrapper) GetConsoleStaffSessions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetConsoleStaffSessions(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostConsoleStaffSignOut operation middleware
+func (siw *ServerInterfaceWrapper) PostConsoleStaffSignOut(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostConsoleStaffSignOut(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12817,6 +12986,61 @@ func (siw *ServerInterfaceWrapper) PostMePassword(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostMePassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMeSessions operation middleware
+func (siw *ServerInterfaceWrapper) GetMeSessions(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMeSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMeSession operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMeSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMeSession(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15097,7 +15321,16 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/console/staff/{id}/reset-mfa", wrapper.PostConsoleStaffResetMfa)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/console/staff/{id}/reset-password", wrapper.PostConsoleStaffResetPassword)
+	})
+	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/console/staff/{id}/roles", wrapper.PutConsoleStaffRoles)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/console/staff/{id}/sessions", wrapper.GetConsoleStaffSessions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/console/staff/{id}/sign-out", wrapper.PostConsoleStaffSignOut)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/console/subscription-plans", wrapper.GetConsoleSubscriptionPlans)
@@ -15179,6 +15412,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/me/password", wrapper.PostMePassword)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/me/sessions", wrapper.GetMeSessions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/me/sessions/{id}", wrapper.DeleteMeSession)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/notifications", wrapper.GetNotifications)

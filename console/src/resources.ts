@@ -32,6 +32,8 @@ import {
   Eye,
   Banknote,
   Layers,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 
 export type NavItem = {
@@ -87,4 +89,8 @@ export const nav: NavItem[] = [
   { name: "staff", label: "Staff", route: "/staff", op: "GET /console/staff", icon: UserCog, group: "Admin" },
   { name: "settings", label: "Settings", route: "/settings", op: "GET /console/settings", icon: Settings, group: "Admin" },
   { name: "audit-log", label: "Audit log", route: "/audit-log", op: "GET /console/audit-log", icon: ScrollText, group: "Admin" },
+
+  // Every staff user can manage their own sign-in and read what each role may do.
+  { name: "account", label: "My account", route: "/account", op: "GET /console/dashboard", icon: KeyRound, group: "Account" },
+  { name: "roles", label: "Roles", route: "/roles", op: "GET /console/dashboard", icon: ShieldCheck, group: "Account" },
 ];
