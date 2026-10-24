@@ -198,6 +198,57 @@
 </article>
 {{end}}
 
+{{/* /terms */}}
+{{/* Keep the version in step with api.TermsVersion, which each acceptance records. */}}
+{{define "terms-content"}}
+<article class="mx-auto max-w-3xl px-4 pt-14 pb-10 prose-body text-slate-700">
+  <h1 class="display text-4xl text-slate-900 sm:text-6xl">Terms of service</h1>
+  <p class="text-sm text-slate-500">Version 2026-10. You accept these terms each time you book a service or start a household plan.</p>
+  <p class="text-lg">These terms are between you and Homend Residence. We find, vet and supervise the providers who do the work in your home, and we handle booking, payment and complaints.</p>
+
+  <h2 id="prices">Prices and VAT</h2>
+  <ul>
+    <li>The prices on this website, in your quote and on your invoice include VAT at the current rate. You pay exactly the total shown; nothing is added at checkout.</li>
+    <li>Totals are rounded to the nearest shilling, because M-Pesa moves whole shillings. Your invoice shows the rounding as its own line.</li>
+    <li>The price is set from our published rate card for your area when you book. If the work changes on the day (more rooms, extra hours), the provider asks the office, and you approve the change and its price in your account before it is added.</li>
+  </ul>
+
+  <h2 id="payment">Payment</h2>
+  <ul>
+    <li>For one-off services you pay by M-Pesa against the invoice in your account after the visit. Invoices are due within 7 days.</li>
+    <li>Pay only through your account or the M-Pesa prompt we send. Do not pay a provider in cash or to a personal number; we cannot protect payments made outside the platform.</li>
+  </ul>
+
+  <h2 id="cancellations">Cancellations and refunds</h2>
+  <ul>
+    <li>You can cancel a booking for free from your account until the provider is on the way. After that the booking can no longer be cancelled from your account; contact us and we will look at it with you.</li>
+    <li>If we cannot find a provider, or the provider does not turn up, we cancel the booking and you owe nothing.</li>
+    <li>If the work was not done as booked, raise a complaint from your account as soon as you can after the visit. Where a complaint is upheld we redo the work, credit you or refund you in part or in full. Refunds go back to the M-Pesa number that paid once our finance team approves them.</li>
+    <li>A low rating opens a complaint for review automatically, and the provider's pay for that job is held until it is resolved.</li>
+  </ul>
+
+  <h2 id="plans">Household plans</h2>
+  <ul>
+    <li>A plan is billed in advance for its period (monthly, quarterly or yearly) and becomes active once the first invoice is paid.</li>
+    <li>You can cancel a plan at any time from your account. A paid plan stays active until the end of the period you paid for and does not renew; a plan that was never paid ends straight away and its invoice is cancelled.</li>
+    <li>We do not refund part of a period that has started, except where the law requires it or a complaint is upheld.</li>
+  </ul>
+
+  <h2 id="home">In your home</h2>
+  <ul>
+    <li>Give accurate access details and tell us about anything that affects safety, such as pets or hazards. The provider checks in with your door code, and you confirm the visit in your account.</li>
+    <li>Providers are not allowed to take on extra work, change the price or take payment directly. Tell us if one asks.</li>
+    <li>Treat providers with respect. We may decline or end service where a provider's safety is at risk.</li>
+  </ul>
+
+  <h2 id="data">Your data</h2>
+  <p>How we use your personal data is set out in our <a href="/privacy" class="font-medium text-brand-700">privacy notice</a>.</p>
+
+  <h2 id="contact">Questions</h2>
+  <p><a href="/contact" class="font-medium text-brand-700">Contact us</a> about anything in these terms. Nothing here limits your rights under Kenya's Consumer Protection Act, 2012.</p>
+</article>
+{{end}}
+
 {{/* /contact */}}
 {{define "contact-content"}}
 <section class="mx-auto grid max-w-6xl gap-10 px-4 py-10 md:grid-cols-2">

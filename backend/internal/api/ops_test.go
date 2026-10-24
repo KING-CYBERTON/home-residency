@@ -78,16 +78,16 @@ func TestJobsVariationsAndSync(t *testing.T) {
 	}
 	h.expect(409, "provider", "POST", "/provider/jobs/"+assignID+"/variations", map[string]any{"description": "Too late for this"})
 
-	// the approved change is on the invoice: 2500 service + 2500 variation
+	// the approved change is on the invoice: 2500 service + 2500 variation, VAT included
 	inv := h.expect(200, "client", "GET", "/client/invoices", nil)["data"].([]any)[0].(map[string]any)
-	if inv["subtotal_minor"] != 500000.0 {
+	if inv["total_minor"] != 500000.0 || inv["vat_minor"] != 68966.0 || inv["subtotal_minor"] != 431034.0 {
 		t.Fatalf("invoice: %v", inv)
 	}
 
-	// ---- earnings carry the change: the provider earns 2000 + 2000
+	// ---- earnings carry the change: the provider earns 2000 + 2000 of the 5000 less its VAT
 	h.expect(201, "client", "POST", "/client/requests/"+reqID+"/rating", map[string]any{"stars": 5})
 	earn := h.expect(200, "provider", "GET", "/provider/earnings", nil)["data"].([]any)
-	if len(earn) != 1 || earn[0].(map[string]any)["net_minor"] != 400000.0 || earn[0].(map[string]any)["gross_minor"] != 500000.0 {
+	if len(earn) != 1 || earn[0].(map[string]any)["net_minor"] != 400000.0 || earn[0].(map[string]any)["gross_minor"] != 431034.0 {
 		t.Fatalf("earnings: %v", earn)
 	}
 	if got := h.expect(200, "provider", "GET", "/provider/earnings?status=held", nil)["data"].([]any); len(got) != 0 {

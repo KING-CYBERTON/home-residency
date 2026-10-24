@@ -125,6 +125,8 @@ type quoteDTO struct {
 	Quantity             float64   `json:"quantity"`
 	UnitPriceMinor       int64     `json:"unit_price_minor"`
 	PlacementFeeMinor    int64     `json:"placement_fee_minor"`
+	ServiceMinor         int64     `json:"service_minor"`
+	RoundingMinor        int64     `json:"rounding_minor"`
 	SubtotalMinor        int64     `json:"subtotal_minor"`
 	VATMinor             int64     `json:"vat_minor"`
 	TotalMinor           int64     `json:"total_minor"`

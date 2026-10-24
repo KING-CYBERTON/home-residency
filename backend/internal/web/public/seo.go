@@ -60,14 +60,14 @@ func (p *Site) website() map[string]any {
 }
 
 // serviceLD describes a category (optionally in one area) as a Service with an OfferCatalog of the
-// rate-card prices. Prices are shown before VAT, matching the page.
+// rate-card prices. Prices include VAT, matching the page.
 func (p *Site) serviceLD(cat api.Category, area *api.ServiceArea, all []api.ServiceArea, offers []Offer, path string) map[string]any {
 	items := []map[string]any{}
 	for _, o := range offers {
 		item := map[string]any{"@type": "Offer", "itemOffered": map[string]any{"@type": "Service", "name": o.Name}}
 		if o.Price != nil {
 			item["priceSpecification"] = map[string]any{"@type": "UnitPriceSpecification", "price": fmt.Sprintf("%.2f", float64(o.Price.ClientPriceMinor)/100),
-				"priceCurrency": o.Price.Currency, "unitText": o.UnitLabel, "valueAddedTaxIncluded": false}
+				"priceCurrency": o.Price.Currency, "unitText": o.UnitLabel, "valueAddedTaxIncluded": true}
 		}
 		items = append(items, item)
 	}
@@ -150,6 +150,7 @@ func (p *Site) sitemapPaths(c catalogue) []sitemapURL {
 	}
 	add("/contact", "0.8", "estate")
 	add("/privacy", "0.2")
+	add("/terms", "0.2")
 	add("/credits", "0.1")
 	return out
 }

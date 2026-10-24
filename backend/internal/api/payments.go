@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/KING-CYBERTON/home-residency/backend/internal/domain"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 )
 
@@ -78,20 +79,18 @@ func (s *Server) createRequestInvoice(ctx context.Context, q db, requestID uuid.
 	var clientID uuid.UUID
 	var svcName string
 	var qty float64
-	var unit, placement, total int64
+	var unit, placement int64
 	if err := q.QueryRow(ctx, `
-		SELECT r.client_id, sv.name, r.quantity::float8, r.client_price_minor, r.placement_fee_minor, r.total_minor
+		SELECT r.client_id, sv.name, r.quantity::float8, r.client_price_minor, r.placement_fee_minor
 		FROM service_requests r JOIN services sv ON sv.id = r.service_id WHERE r.id = $1`, requestID).
-		Scan(&clientID, &svcName, &qty, &unit, &placement, &total); err != nil {
+		Scan(&clientID, &svcName, &qty, &unit, &placement); err != nil {
 		return uuid.Nil, mapErr(err)
 	}
-	base := int64(math.Round(float64(unit)*qty)) + placement
-	vat := total - base
-	lines := []invoiceLine{{"service", svcName, qty, unit, int64(math.Round(float64(unit) * qty)), nil}}
+	work := int64(math.Round(float64(unit) * qty))
+	lines := []invoiceLine{{"service", svcName, qty, unit, work, nil}}
 	if placement > 0 {
 		lines = append(lines, invoiceLine{"placement_fee", "Placement fee", 1, placement, placement, nil})
 	}
-	pct := s.setting(ctx, q, "vat.rate_pct", 16)
 	rows, err := q.Query(ctx, `SELECT id, description, client_delta_minor FROM variations WHERE request_id = $1 AND status = 'approved' ORDER BY created_at`, requestID)
 	if err != nil {
 		return uuid.Nil, err
@@ -106,19 +105,30 @@ func (s *Server) createRequestInvoice(ctx context.Context, q db, requestID uuid.
 		}
 		vid := id
 		lines = append(lines, invoiceLine{"variation", desc, 1, delta, delta, &vid})
-		base += delta
-		vat += int64(math.Round(float64(delta) * pct / 100))
+		work += delta
 	}
 	rows.Close()
-	return s.insertInvoice(ctx, q, clientID, &requestID, nil, lines, base, vat)
+	return s.insertInvoice(ctx, q, clientID, &requestID, nil, lines, work)
 }
 
-func (s *Server) insertInvoice(ctx context.Context, q db, clientID uuid.UUID, requestID, subscriptionID *uuid.UUID, lines []invoiceLine, subtotal, vat int64) (uuid.UUID, error) {
+// insertInvoice issues an invoice for VAT-inclusive lines. workMinor is the part of them that is the
+// provider's work (service and variations); the rest belongs to the platform. The total is rounded to
+// a whole shilling with a rounding line, and the VAT included in it is recorded.
+func (s *Server) insertInvoice(ctx context.Context, q db, clientID uuid.UUID, requestID, subscriptionID *uuid.UUID, lines []invoiceLine, workMinor int64) (uuid.UUID, error) {
+	var sum int64
+	for _, l := range lines {
+		sum += l.amount
+	}
+	pct := s.setting(ctx, q, "vat.rate_pct", 16)
+	price := domain.PriceOf(sum, 0, pct)
+	if price.RoundingMinor != 0 {
+		lines = append(lines, invoiceLine{"rounding", "Rounding to the nearest shilling", 1, price.RoundingMinor, price.RoundingMinor, nil})
+	}
 	var id uuid.UUID
 	if err := q.QueryRow(ctx, `
-		INSERT INTO invoices (client_id, request_id, subscription_id, status, subtotal_minor, vat_minor, total_minor, issued_at, due_at)
-		VALUES ($1,$2,$3,'issued',$4,$5,$6, now(), now() + interval '7 days') RETURNING id`,
-		clientID, requestID, subscriptionID, subtotal, vat, subtotal+vat).Scan(&id); err != nil {
+		INSERT INTO invoices (client_id, request_id, subscription_id, status, subtotal_minor, vat_minor, total_minor, vat_rate_pct, work_net_minor, issued_at, due_at)
+		VALUES ($1,$2,$3,'issued',$4,$5,$6,$7,$8, now(), now() + interval '7 days') RETURNING id`,
+		clientID, requestID, subscriptionID, price.SubtotalMinor, price.VATMinor, price.TotalMinor, pct, domain.NetOfVAT(workMinor, pct)).Scan(&id); err != nil {
 		return uuid.Nil, err
 	}
 	for _, l := range lines {
@@ -128,7 +138,7 @@ func (s *Server) insertInvoice(ctx context.Context, q db, clientID uuid.UUID, re
 			return uuid.Nil, err
 		}
 	}
-	if err := notify(ctx, q, clientID, "invoice.issued", "Invoice "+"issued", "Your invoice of "+fmtMoney(subtotal+vat)+" is ready to pay.", map[string]any{"invoice_id": id}); err != nil {
+	if err := notify(ctx, q, clientID, "invoice.issued", "Invoice "+"issued", "Your invoice of "+fmtMoney(price.TotalMinor)+" is ready to pay.", map[string]any{"invoice_id": id}); err != nil {
 		return uuid.Nil, err
 	}
 	return id, nil
@@ -186,16 +196,14 @@ func (s *Server) applyPayment(ctx context.Context, q db, paymentID uuid.UUID) er
 func (s *Server) onInvoicePaid(ctx context.Context, q db, invoiceID uuid.UUID) error {
 	var clientID uuid.UUID
 	var requestID, subscriptionID *uuid.UUID
-	var vat int64
-	if err := q.QueryRow(ctx, `SELECT client_id, request_id, subscription_id, vat_minor FROM invoices WHERE id = $1`, invoiceID).Scan(&clientID, &requestID, &subscriptionID, &vat); err != nil {
+	var vat, total, workNet int64
+	if err := q.QueryRow(ctx, `SELECT client_id, request_id, subscription_id, vat_minor, total_minor, work_net_minor FROM invoices WHERE id = $1`, invoiceID).
+		Scan(&clientID, &requestID, &subscriptionID, &vat, &total, &workNet); err != nil {
 		return err
 	}
-	// Lines that are not provider work belong to the platform; service and variation lines are split
-	// per earning when the job is closed.
-	var platform int64
-	if err := q.QueryRow(ctx, `SELECT COALESCE(sum(amount_minor),0) FROM invoice_lines WHERE invoice_id = $1 AND kind NOT IN ('service','variation')`, invoiceID).Scan(&platform); err != nil {
-		return err
-	}
+	// All the VAT is due now. The provider's work, without its VAT, is split per earning when the job
+	// is closed (work_net_minor, the same figure the earning uses); everything else is platform revenue.
+	platform := total - vat - workNet
 	if err := postJournal(ctx, q, "invoice.settle:"+invoiceID.String(), ledgerRef{client: &clientID, invoice: &invoiceID},
 		ledgerLine{"client_funds", platform + vat}, ledgerLine{"platform_revenue", -platform}, ledgerLine{"vat_payable", -vat}); err != nil {
 		return err

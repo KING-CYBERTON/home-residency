@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"math"
 	"net/http"
 	"time"
 
@@ -165,6 +164,9 @@ func (s *Server) PostClientSubscription(w http.ResponseWriter, r *http.Request, 
 		cid := auth.MustPrincipal(ctx).UserID
 		var subID, invoiceID uuid.UUID
 		err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
+			if err := acceptTerms(ctx, tx, r, cid, in.AcceptTerms); err != nil {
+				return err
+			}
 			var name, period string
 			var price int64
 			if err := tx.QueryRow(ctx, `SELECT name, price_minor, billing_period FROM subscription_plans WHERE id = $1 AND is_active`, uuid.UUID(in.PlanId)).Scan(&name, &price, &period); err != nil {
@@ -184,9 +186,8 @@ func (s *Server) PostClientSubscription(w http.ResponseWriter, r *http.Request, 
 				VALUES ($1,$2,'past_due',$3,$4) RETURNING id`, cid, uuid.UUID(in.PlanId), start, end).Scan(&subID); err != nil {
 				return err
 			}
-			vat := int64(math.Round(float64(price) * s.setting(ctx, tx, "vat.rate_pct", 16) / 100))
 			invoiceID, err = s.insertInvoice(ctx, tx, cid, nil, &subID,
-				[]invoiceLine{{"subscription", name + " subscription (" + period + ")", 1, price, price, nil}}, price, vat)
+				[]invoiceLine{{"subscription", name + " subscription (" + period + ")", 1, price, price, nil}}, 0)
 			if err != nil {
 				return err
 			}

@@ -24,7 +24,7 @@ export function RateCardPage() {
     <>
       <PageHeader
         title="Rate card"
-        description="Prices are versioned: publishing a new price closes the current one, and validity windows never overlap. Commission is the client price less provider pay."
+        description="Prices are versioned: publishing a new price closes the current one, and validity windows never overlap. Client prices include VAT; commission is the client price less provider pay, before taking out VAT."
         actions={
           <Allowed when={canPublish}>
             <FormDialog
@@ -34,7 +34,7 @@ export function RateCardPage() {
               fields={[
                 { name: "service_id", label: "Service", type: "select", options: services, required: true },
                 { name: "service_area_id", label: "Area", type: "select", options: areas, help: "Leave empty for every area." },
-                { name: "client_price_minor", label: "Client price (KES, before VAT)", help: "VAT is added on top when the client is quoted and invoiced.", type: "money", required: true },
+                { name: "client_price_minor", label: "Client price (KES, VAT included)", help: "What the client pays. VAT is included, not added on top.", type: "money", required: true },
                 { name: "provider_pay_minor", label: "Provider pay (KES)", type: "money", required: true },
                 { name: "placement_fee_minor", label: "Placement fee (KES)", type: "money" },
                 { name: "valid_from", label: "Valid from", type: "datetime", required: true },
@@ -64,7 +64,7 @@ export function RateCardPage() {
         columns={[
           { header: "Service", cell: (r) => serviceName(r.service_id) },
           { header: "Area", cell: (r) => (r.service_area_id ? areaName(r.service_area_id) : "All areas") },
-          { header: "Client price", cell: (r) => money(r.client_price_minor), className: "text-right tabular-nums" },
+          { header: "Client price (incl. VAT)", cell: (r) => money(r.client_price_minor), className: "text-right tabular-nums" },
           { header: "Provider pay", cell: (r) => money(r.provider_pay_minor), className: "text-right tabular-nums" },
           {
             header: "Commission",

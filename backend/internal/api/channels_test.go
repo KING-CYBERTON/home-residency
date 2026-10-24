@@ -31,7 +31,7 @@ func (h *harness) offered(w *world, triage string, later ...time.Duration) (reqI
 		start = later[0]
 	}
 	h.t.Helper()
-	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
+	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": w.svcID, "address_id": w.addrID,
 		"requested_start": time.Now().Add(start).UTC().Format(time.RFC3339)})
 	reqID = r["id"].(string)
 	h.expect(200, triage, "POST", "/console/requests/"+reqID+"/claim", nil)

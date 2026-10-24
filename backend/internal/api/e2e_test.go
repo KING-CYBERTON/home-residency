@@ -301,15 +301,23 @@ func TestEndToEnd(t *testing.T) {
 			t.Fatalf("addresses: %v", l)
 		}
 		q := h.expect(200, "client", "POST", "/client/quotes", map[string]any{"service_id": svcID, "address_id": addrID})
-		if q["subtotal_minor"] != 250000.0 || q["vat_minor"] != 40000.0 || q["total_minor"] != 290000.0 || q["service_area_supported"] != true {
+		if q["total_minor"] != 250000.0 || q["vat_minor"] != 34483.0 || q["subtotal_minor"] != 215517.0 || q["rounding_minor"] != 0.0 || q["service_area_supported"] != true {
 			t.Fatalf("quote: %v", q)
 		}
 		h.expect(422, "client", "POST", "/client/quotes", map[string]any{"service_id": svcID, "address_id": addrID, "quantity": 0})
 
-		body := map[string]any{"service_id": svcID, "address_id": addrID, "requested_start": start.Format(time.RFC3339), "client_notes": "Please bring own mop"}
+		body := map[string]any{"service_id": svcID, "address_id": addrID, "requested_start": start.Format(time.RFC3339), "client_notes": "Please bring own mop", "accept_terms": false}
+		// the terms must be accepted, and the acceptance is kept with its version
+		h.expect(422, "client", "POST", "/client/requests", body)
+		body["accept_terms"] = true
 		r := h.expect(201, "client", "POST", "/client/requests", body, "Idempotency-Key", "book-1")
+		var termsVersion string
+		must(h.pool.QueryRow(ctx, `SELECT notice_version FROM consents WHERE purpose = 'terms_of_service' AND granted`).Scan(&termsVersion))
+		if termsVersion != api.TermsVersion {
+			t.Fatalf("terms consent: %q", termsVersion)
+		}
 		reqID = r["id"].(string)
-		if r["status"] != "submitted" || r["total_minor"] != 290000.0 || !strings.HasPrefix(r["reference"].(string), "REQ-") {
+		if r["status"] != "submitted" || r["total_minor"] != 250000.0 || !strings.HasPrefix(r["reference"].(string), "REQ-") {
 			t.Fatalf("request: %v", r)
 		}
 		// the same key replays the stored response instead of creating a second request
@@ -319,7 +327,7 @@ func TestEndToEnd(t *testing.T) {
 		}
 		body["client_notes"] = "different"
 		h.expect(422, "client", "POST", "/client/requests", body, "Idempotency-Key", "book-1")
-		h.expect(422, "client", "POST", "/client/requests", map[string]any{"service_id": svcID, "address_id": addrID, "requested_start": "2020-01-01T10:00:00Z"})
+		h.expect(422, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": svcID, "address_id": addrID, "requested_start": "2020-01-01T10:00:00Z"})
 		code, raw := h.call("client", "GET", "/client/requests?status=submitted", nil)
 		if code != 200 || !bytes.Contains(raw, []byte(reqID)) {
 			t.Fatalf("list: %d %s", code, raw)
@@ -460,7 +468,7 @@ func TestEndToEnd(t *testing.T) {
 
 	t.Run("cancel and withdraw", func(t *testing.T) {
 		// second booking: cancelled by the client while the offer is out
-		r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339)})
+		r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339)})
 		id2 := r["id"].(string)
 		h.expect(200, "triage", "POST", "/console/requests/"+id2+"/claim", nil)
 		a := h.expect(201, "triage", "POST", "/console/requests/"+id2+"/assignments", map[string]any{"provider_id": providerID, "selection_reason": "Next in line"})
@@ -473,7 +481,7 @@ func TestEndToEnd(t *testing.T) {
 		h.expect(409, "client", "POST", "/client/requests/"+id2+"/cancel", map[string]any{"reason": "again"})
 
 		// third: provider declines, request returns to triage
-		r3 := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(72 * time.Hour).UTC().Format(time.RFC3339)})
+		r3 := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(72 * time.Hour).UTC().Format(time.RFC3339)})
 		id3 := r3["id"].(string)
 		a3 := h.expect(201, "triage", "POST", "/console/requests/"+id3+"/assignments", map[string]any{"provider_id": providerID, "selection_reason": "Available"})
 		code, _ := h.call("provider", "POST", "/provider/offers/"+a3["id"].(string)+"/decline", map[string]any{"reason": "Not available"})
@@ -486,7 +494,7 @@ func TestEndToEnd(t *testing.T) {
 		h.expect(200, "triage", "POST", "/console/requests/"+id3+"/mark-unfilled", map[string]any{"reason": "No one available that day"})
 
 		// expired offers answer 410 and send the request back to triage
-		r4 := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(96 * time.Hour).UTC().Format(time.RFC3339)})
+		r4 := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(96 * time.Hour).UTC().Format(time.RFC3339)})
 		a4 := h.expect(201, "triage", "POST", "/console/requests/"+r4["id"].(string)+"/assignments", map[string]any{"provider_id": providerID, "selection_reason": "Available", "offer_expires_in_minutes": 5})
 		h.sql(`UPDATE assignments SET offer_expires_at = now() - interval '1 minute' WHERE id = $1`, a4["id"])
 		h.expect(410, "provider", "POST", "/provider/offers/"+a4["id"].(string)+"/accept", nil)
@@ -496,7 +504,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	t.Run("gate details are held back until the day", func(t *testing.T) {
-		r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(30 * time.Hour).UTC().Format(time.RFC3339)})
+		r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": svcID, "address_id": addrID, "requested_start": time.Now().Add(30 * time.Hour).UTC().Format(time.RFC3339)})
 		a := h.expect(201, "triage", "POST", "/console/requests/"+r["id"].(string)+"/assignments", map[string]any{"provider_id": providerID, "selection_reason": "Regular"})
 		job := h.expect(200, "provider", "POST", "/provider/offers/"+a["id"].(string)+"/accept", nil)
 		if job["address"].(map[string]any)["access_details"] != nil {

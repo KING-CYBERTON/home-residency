@@ -21,6 +21,7 @@ let household: Person & { addressId: string };
 async function book(startInMinutes: number) {
   const svc = await service();
   return call<{ id: string; reference: string }>(household.token, "POST", "/client/requests", {
+    accept_terms: true,
     service_id: svc.id, address_id: household.addressId, requested_start: new Date(Date.now() + startInMinutes * 60_000).toISOString(),
   });
 }

@@ -116,9 +116,9 @@ export function InvoicePage() {
           <DetailList
             className="sm:grid-cols-1"
             items={[
-              ["Subtotal", money(i.subtotal_minor)],
-              ["VAT", money(i.vat_minor)],
               ["Total", <span className="font-semibold">{money(i.total_minor)}</span>],
+              ["Includes VAT", money(i.vat_minor)],
+              ["Net of VAT", money(i.subtotal_minor)],
               ["Paid", money(i.paid_minor)],
               ["Issued", dateTime(i.issued_at)],
               ["Due", dateTime(i.due_at)],

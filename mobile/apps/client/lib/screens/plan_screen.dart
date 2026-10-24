@@ -96,6 +96,11 @@ class PlanScreen extends StatelessWidget {
                             Padding(padding: const EdgeInsets.only(top: 6), child: Text(p.description!)),
                           if (!active) ...[
                             const SizedBox(height: 12),
+                            const Text(
+                              'By choosing a plan you agree to the terms of service, including the plan terms, on our website.',
+                              style: TextStyle(color: Brand.slate500, fontSize: 13),
+                            ),
+                            const SizedBox(height: 8),
                             BusyButton(
                               label: 'Choose ${p.name}',
                               onPressed: () async {

@@ -34,14 +34,14 @@ func TestPaymentsFlow(t *testing.T) {
 	h.expect(422, "client", "POST", "/client/invoices/"+invID+"/pay", map[string]any{"phone": "0712345678"})
 	pay := h.expect(202, "client", "POST", "/client/invoices/"+invID+"/pay", map[string]any{"phone": "+254712345678"}, "Idempotency-Key", "pay-1")
 	payID := pay["id"].(string)
-	if pay["status"] != "pending" || pay["amount_minor"] != 290000.0 {
+	if pay["status"] != "pending" || pay["amount_minor"] != 250000.0 {
 		t.Fatalf("payment: %v", pay)
 	}
 	if again := h.expect(202, "client", "POST", "/client/invoices/"+invID+"/pay", map[string]any{"phone": "+254712345678"}, "Idempotency-Key", "pay-1"); again["id"] != payID {
 		t.Fatal("idempotent replay created another payment")
 	}
 	h.expect(409, "client", "POST", "/client/invoices/"+invID+"/pay", map[string]any{"phone": "+254712345678"})
-	if len(h.mpesa.STKs) != 1 || h.mpesa.STKs[0].AmountKES != 2900 || h.mpesa.STKs[0].MSISDN != "254712345678" {
+	if len(h.mpesa.STKs) != 1 || h.mpesa.STKs[0].AmountKES != 2500 || h.mpesa.STKs[0].MSISDN != "254712345678" {
 		t.Fatalf("stk push: %+v", h.mpesa.STKs)
 	}
 	var checkout string
@@ -51,7 +51,7 @@ func TestPaymentsFlow(t *testing.T) {
 
 	// the callback must carry the shared secret once one is configured
 	h.app.Cfg.WebhookToken = "s3cret"
-	h.expect(403, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout, 0, 2900, "QJK3ABC123"))
+	h.expect(403, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout, 0, 2500, "QJK3ABC123"))
 	h.app.Cfg.WebhookToken = ""
 
 	// customer cancels the first prompt, then pays on the second
@@ -62,12 +62,12 @@ func TestPaymentsFlow(t *testing.T) {
 	pay2 := h.expect(202, "client", "POST", "/client/invoices/"+invID+"/pay", map[string]any{"phone": "+254712345678"})
 	var checkout2 string
 	_ = h.pool.QueryRow(ctx, `SELECT mpesa_checkout_request_id FROM payments WHERE id = $1`, pay2["id"]).Scan(&checkout2)
-	h.expect(200, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout2, 0, 2900, "QJK3ABC123"))
-	h.expect(200, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout2, 0, 2900, "QJK3ABC123")) // Safaricom retries
+	h.expect(200, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout2, 0, 2500, "QJK3ABC123"))
+	h.expect(200, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout2, 0, 2500, "QJK3ABC123")) // Safaricom retries
 	if got := h.expect(200, "client", "GET", "/client/payments/"+pay2["id"].(string), nil); got["status"] != "succeeded" || got["mpesa_receipt_number"] != "QJK3ABC123" {
 		t.Fatalf("paid: %v", got)
 	}
-	if got := h.expect(200, "client", "GET", "/client/invoices/"+invID, nil); got["status"] != "paid" || got["paid_minor"] != 290000.0 {
+	if got := h.expect(200, "client", "GET", "/client/invoices/"+invID, nil); got["status"] != "paid" || got["paid_minor"] != 250000.0 {
 		t.Fatalf("invoice after payment: %v", got)
 	}
 	h.expect(409, "client", "POST", "/client/invoices/"+invID+"/pay", map[string]any{"phone": "+254712345678"})
@@ -140,7 +140,7 @@ func TestPaymentsFlow(t *testing.T) {
 	h.sql(`INSERT INTO subscription_plans (code, name, price_minor, billing_period, is_active) VALUES ('basic','Basic',100000,'monthly',true)`)
 	var planID string
 	_ = h.pool.QueryRow(ctx, `SELECT id FROM subscription_plans WHERE code = 'basic'`).Scan(&planID)
-	sub := h.expect(201, "client", "POST", "/client/subscription", map[string]any{"plan_id": planID})
+	sub := h.expect(201, "client", "POST", "/client/subscription", map[string]any{"accept_terms": true, "plan_id": planID})
 	if sub["status"] != "past_due" {
 		t.Fatalf("new subscription: %v", sub)
 	}
@@ -180,4 +180,52 @@ func (h *harness) expectLedgerBalanced(ctx context.Context) {
 	if sum != 0 || unbalanced != 0 {
 		h.t.Fatalf("ledger out of balance: total %d, %d unbalanced journals", sum, unbalanced)
 	}
+}
+
+// The QA case: a KES 1,158.84 price is invoiced as KES 1,159 with a rounding line, VAT is the part
+// of that total it already includes, and the M-Pesa prompt asks for exactly the invoice total.
+func TestInvoiceRoundsToWholeShillings(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	w := h.newWorld()
+	h.sql(`UPDATE rate_card_entries SET client_price_minor = 115884, provider_pay_minor = 80000 WHERE service_id = $1`, w.svcID)
+	h.staff("triage", "triage@homend.test", "triage_officer")
+	h.runJob(w, "triage")
+	inv := h.expect(200, "client", "GET", "/client/invoices", nil)["data"].([]any)[0].(map[string]any)
+	invID := inv["id"].(string)
+	if inv["total_minor"] != 115900.0 || inv["vat_minor"] != 15986.0 || inv["subtotal_minor"] != 99914.0 {
+		t.Fatalf("invoice: %v", inv)
+	}
+	full := h.expect(200, "client", "GET", "/client/invoices/"+invID, nil)
+	var sum float64
+	var rounding map[string]any
+	for _, l := range full["lines"].([]any) {
+		l := l.(map[string]any)
+		sum += l["amount_minor"].(float64)
+		if l["kind"] == "rounding" {
+			rounding = l
+		}
+	}
+	if rounding == nil || rounding["amount_minor"] != 16.0 || sum != 115900.0 {
+		t.Fatalf("lines should add up to the total with a 16-cent rounding line: %v", full["lines"])
+	}
+
+	pay := h.expect(202, "client", "POST", "/client/invoices/"+invID+"/pay", map[string]any{"phone": "+254712345678"})
+	if len(h.mpesa.STKs) != 1 || h.mpesa.STKs[0].AmountKES != 1159 {
+		t.Fatalf("stk push: %+v", h.mpesa.STKs)
+	}
+	var checkout string
+	if err := h.pool.QueryRow(ctx, `SELECT mpesa_checkout_request_id FROM payments WHERE id = $1`, pay["id"]).Scan(&checkout); err != nil {
+		t.Fatal(err)
+	}
+	h.expect(200, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout, 0, 1159, "QJK3RND001"))
+	if got := h.expect(200, "client", "GET", "/client/invoices/"+invID, nil); got["status"] != "paid" || got["paid_minor"] != 115900.0 {
+		t.Fatalf("invoice after payment: %v", got)
+	}
+	var vat int64
+	_ = h.pool.QueryRow(ctx, `SELECT COALESCE(-sum(amount_minor),0) FROM ledger_entries WHERE account = 'vat_payable'`).Scan(&vat)
+	if vat != 15986 {
+		t.Fatalf("VAT payable: %d", vat)
+	}
+	h.expectLedgerBalanced(ctx)
 }

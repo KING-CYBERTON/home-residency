@@ -34,7 +34,7 @@ class FakeBackend {
     'reference': 'REQ-2026-000001',
     'status': 'submitted',
     'service': deepClean,
-    'total_minor': 69600,
+    'total_minor': 60000,
     'requested_start': soon.toIso8601String(),
     'submitted_at': DateTime.now().toUtc().toIso8601String(),
     'address': {'id': 'a1', 'label': 'Home', 'estate': 'Kilimani Gardens', 'house_number': 'B4', 'is_default': true},
@@ -95,9 +95,11 @@ class FakeBackend {
           'quantity': 1,
           'unit_price_minor': 60000,
           'placement_fee_minor': 0,
-          'subtotal_minor': 60000,
-          'vat_minor': 9600,
-          'total_minor': 69600,
+          'service_minor': 60000,
+          'rounding_minor': 0,
+          'subtotal_minor': 51724,
+          'vat_minor': 8276,
+          'total_minor': 60000,
           'service_area_supported': true,
         };
       case 'POST /client/requests':
@@ -172,8 +174,13 @@ void main() {
     expect(find.text('Deep clean'), findsOneWidget);
     expect(find.text('KES 600 / hour'), findsOneWidget);
     expect(backend.calls, contains('POST /client/quotes'));
-    expect(find.text('KES 696'), findsOneWidget);
+    expect(find.text('KES 600'), findsNWidgets(2)); // service and total: the price includes VAT
+    expect(find.text('Includes VAT'), findsOneWidget);
 
+    await tester.ensureVisible(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Book now'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Book now'));
@@ -183,6 +190,7 @@ void main() {
     final sent = jsonDecode(backend.created.single.body) as Map;
     expect(sent['service_id'], 's1');
     expect(sent['address_id'], 'a1');
+    expect(sent['accept_terms'], true);
     expect(backend.created.single.headers['Idempotency-Key'], isNotEmpty);
     expect(find.textContaining('Booked. Your reference is REQ-2026-000001'), findsOneWidget);
   });

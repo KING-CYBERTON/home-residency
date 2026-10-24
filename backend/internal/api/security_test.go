@@ -55,7 +55,7 @@ func TestSTKCallbackAmountMismatchIsNotBooked(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.expect(200, "", "POST", "/webhooks/mpesa/stk", stkCallback(checkout, 0, 1, "QJK3LOW001"))
-	if got := h.expect(200, "client", "GET", "/client/payments/"+pay["id"].(string), nil); got["status"] != "failed" || got["amount_minor"] != 290000.0 {
+	if got := h.expect(200, "client", "GET", "/client/payments/"+pay["id"].(string), nil); got["status"] != "failed" || got["amount_minor"] != 250000.0 {
 		t.Fatalf("mismatched callback was booked: %v", got)
 	}
 	if got := h.expect(200, "client", "GET", "/client/invoices/"+invID, nil); got["paid_minor"] != 0.0 {

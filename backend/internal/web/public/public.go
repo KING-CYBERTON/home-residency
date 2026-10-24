@@ -29,7 +29,7 @@ var templates embed.FS
 // within this window.
 const cacheFor = 5 * time.Minute
 
-var pageNames = []string{"home", "services", "category", "areas", "area", "pricing", "how-it-works", "privacy", "faq", "book", "contact", "credits"}
+var pageNames = []string{"home", "services", "category", "areas", "area", "pricing", "how-it-works", "privacy", "terms", "faq", "book", "contact", "credits"}
 
 type Site struct {
 	srv   *api.Server
@@ -71,6 +71,8 @@ func (p *Site) Routes(r chi.Router) {
 		"Every Homend Residence provider is vetted, trained and supervised. See how we check providers, match them to your request and handle complaints."))
 	r.Get("/privacy", p.static("privacy", "Privacy", "",
 		"How Homend Residence collects, protects and uses personal data under Kenya's Data Protection Act, 2019."))
+	r.Get("/terms", p.static("terms", "Terms of service", "",
+		"The terms for booking Homend Residence services and household plans: prices and VAT, payment, cancellations, refunds and complaints."))
 	r.Get("/credits", p.static("credits", "Photo credits", "",
 		"The photographers whose work appears on the Homend Residence website."))
 	r.Get("/faq", p.faq)

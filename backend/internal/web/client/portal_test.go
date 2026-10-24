@@ -390,10 +390,14 @@ func TestHouseholdJourney(t *testing.T) {
 
 	// Live quote, then book.
 	_, frag, _ := b.post("/account/book/quote", url.Values{"service_id": {svc}, "address_id": {addr}, "quantity": {"1"}}, true)
-	must(t, frag, "KES 2,500", "KES 400", "KES 2,900")
+	must(t, frag, "KES 2,500", "Includes VAT of KES 344.83", "You pay exactly this")
 	start := time.Now().Add(45 * time.Minute).In(time.FixedZone("EAT", 3*3600)).Format("2006-01-02T15:04")
 	key := uuid.NewString()
 	bookForm := url.Values{"category": {"cleaning"}, "service_id": {svc}, "address_id": {addr}, "quantity": {"1"}, "start": {start}, "notes": {"Two bedrooms"}, "key": {key}}
+	// Without the terms ticked the form comes back, with what was typed kept.
+	_, page, _ = b.post("/account/book", bookForm, false)
+	must(t, page, "Accept the terms of service to continue", "Two bedrooms", `href="/terms"`)
+	bookForm.Set("terms", "yes")
 	_, page, at = b.post("/account/book", bookForm, false)
 	if !strings.HasPrefix(at, "/account/requests/") {
 		t.Fatalf("after booking landed on %s\n%s", at, page)
@@ -440,13 +444,13 @@ func TestHouseholdJourney(t *testing.T) {
 
 	// Pay the invoice by M-Pesa: the prompt goes out, the panel polls, the callback settles it.
 	page, _ = b.get("/account/invoices")
-	must(t, page, "KES 2,900", "To pay")
+	must(t, page, "KES 2,500", "To pay")
 	inv := e.scan(`SELECT id FROM invoices WHERE request_id = $1`, reqID)
 	page, _ = b.get("/account/invoices/" + inv)
-	must(t, page, "Pay KES 2,900 with M-Pesa", "0700 000 001")
+	must(t, page, "Pay KES 2,500 with M-Pesa", "0700 000 001")
 	_, frag, _ = b.post("/account/invoices/"+inv+"/pay", url.Values{"phone": {"0712 345 678"}, "key": {uuid.NewString()}}, true)
 	must(t, frag, "Check your phone", `hx-trigger="every 3s"`)
-	if len(e.mpesa.STKs) != 1 || e.mpesa.STKs[0].MSISDN != "254712345678" || e.mpesa.STKs[0].AmountKES != 2900 {
+	if len(e.mpesa.STKs) != 1 || e.mpesa.STKs[0].MSISDN != "254712345678" || e.mpesa.STKs[0].AmountKES != 2500 {
 		t.Fatalf("stk: %+v", e.mpesa.STKs)
 	}
 	payID := e.scan(`SELECT id FROM payments WHERE invoice_id = $1`, inv)
@@ -454,12 +458,12 @@ func TestHouseholdJourney(t *testing.T) {
 	e.api("", "POST", "/webhooks/mpesa/stk", map[string]any{"Body": map[string]any{"stkCallback": map[string]any{
 		"MerchantRequestID": "m1", "CheckoutRequestID": checkout, "ResultCode": 0, "ResultDesc": "ok",
 		"CallbackMetadata": map[string]any{"Item": []any{
-			map[string]any{"Name": "Amount", "Value": 2900}, map[string]any{"Name": "MpesaReceiptNumber", "Value": "QJK3ABC123"},
+			map[string]any{"Name": "Amount", "Value": 2500}, map[string]any{"Name": "MpesaReceiptNumber", "Value": "QJK3ABC123"},
 			map[string]any{"Name": "PhoneNumber", "Value": 254712345678}}}}}})
 	req, _ := http.NewRequest("GET", e.srv.URL+"/account/payments/"+payID, nil)
 	req.Header.Set("HX-Request", "true")
 	_, frag, _ = b.do(req)
-	must(t, frag, "Paid KES 2,900", "QJK3ABC123")
+	must(t, frag, "Paid KES 2,500", "QJK3ABC123")
 	page, _ = b.get("/account/invoices/" + inv)
 	must(t, page, "Paid")
 
@@ -547,7 +551,7 @@ func TestIDVerificationGate(t *testing.T) {
 	page, _ := b.get("/account/book?service=nanny-day&area=lavington")
 	must(t, page, "Nanny (day)", "Every weekday", `value="`+svc+`" required checked`)
 	start := time.Now().Add(26 * time.Hour).In(time.FixedZone("EAT", 3*3600)).Format("2006-01-02T15:04")
-	_, page, at := b.post("/account/book", url.Values{"category": {"childcare"}, "service_id": {svc}, "address_id": {addr}, "quantity": {"1"},
+	_, page, at := b.post("/account/book", url.Values{"terms": {"yes"}, "category": {"childcare"}, "service_id": {svc}, "address_id": {addr}, "quantity": {"1"},
 		"start": {start}, "recurrence": {"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"}, "key": {uuid.NewString()}}, false)
 	if at != "/account/profile" {
 		t.Fatalf("unverified childcare booking landed on %s\n%s", at, page)

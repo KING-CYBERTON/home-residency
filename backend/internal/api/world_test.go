@@ -41,7 +41,7 @@ func (h *harness) newWorld() *world {
 // accepted books and assigns a job and has the provider accept it, leaving one visit scheduled.
 func (h *harness) accepted(w *world, triage string) (reqID, assignID, visitID string) {
 	h.t.Helper()
-	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
+	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": w.svcID, "address_id": w.addrID,
 		"requested_start": time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339)})
 	reqID = r["id"].(string)
 	h.expect(200, triage, "POST", "/console/requests/"+reqID+"/claim", nil)

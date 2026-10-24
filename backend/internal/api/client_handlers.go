@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -251,7 +252,7 @@ func (s *Server) PostClientQuotes(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, quoteDTO{
 		ServiceID: p.service.ID, RateCardEntryID: p.rate.ID, Quantity: p.qty, UnitPriceMinor: p.rate.ClientPriceMinor,
-		PlacementFeeMinor: p.rate.PlacementFeeMinor, SubtotalMinor: p.price.SubtotalMinor, VATMinor: p.price.VATMinor,
+		PlacementFeeMinor: p.rate.PlacementFeeMinor, ServiceMinor: p.price.ServiceMinor, RoundingMinor: p.price.RoundingMinor, SubtotalMinor: p.price.SubtotalMinor, VATMinor: p.price.VATMinor,
 		TotalMinor: p.price.TotalMinor, Currency: p.rate.Currency, ServiceAreaSupported: s.areaSupported(ctx, s.DB, p.address.ServiceAreaID),
 	})
 }
@@ -275,6 +276,9 @@ func (s *Server) PostClientRequests(w http.ResponseWriter, r *http.Request, para
 		}
 		var id uuid.UUID
 		err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
+			if err := acceptTerms(ctx, tx, r, cid, in.AcceptTerms); err != nil {
+				return err
+			}
 			p, err := s.priceFor(ctx, tx, cid, in.ServiceId, in.AddressId, in.Quantity)
 			if err != nil {
 				return err
@@ -584,6 +588,18 @@ func (s *Server) PostClientRequestsRating(w http.ResponseWriter, r *http.Request
 		}
 		gross += varClient
 		providerPay += varProvider
+		// Client prices include VAT, which is not the provider's or the platform's to keep: the earning
+		// splits the work without its VAT. The invoice recorded that figure when it was issued, so the
+		// ledger split made when it is paid matches; before an invoice exists, use today's rate.
+		var workNet *int64
+		if err := tx.QueryRow(ctx, `SELECT work_net_minor FROM invoices WHERE request_id = $1 AND status <> 'void' ORDER BY created_at LIMIT 1`, id).Scan(&workNet); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if workNet != nil {
+			gross = *workNet
+		} else {
+			gross = domain.NetOfVAT(gross, s.setting(ctx, tx, "vat.rate_pct", 16))
+		}
 		held := domain.OpensComplaint(in.Stars, s.setting(ctx, tx, "rating.complaint_threshold", 3))
 		earnStatus, holdReason := "pending", (*string)(nil)
 		if held {
