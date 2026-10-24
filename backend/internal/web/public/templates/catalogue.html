@@ -2,10 +2,10 @@
 {{define "price"}}{{if .Price}}<span class="font-semibold text-slate-900">{{money .Price.ClientPriceMinor .Price.Currency}}</span> <span class="text-sm text-slate-500">{{.UnitLabel}}</span>{{if gt .Price.PlacementFeeMinor 0}}<span class="block text-xs text-slate-500">plus a one-off placement fee of {{money .Price.PlacementFeeMinor .Price.Currency}}</span>{{end}}{{else}}<span class="text-sm text-slate-500">Price on request</span>{{end}}{{end}}
 
 {{define "trust-strip"}}
-<ul class="grid gap-4 sm:grid-cols-3">
-  <li class="card"><p class="font-semibold text-slate-900">Vetted and trained</p><p class="mt-1 text-sm text-slate-600">ID, Certificate of Good Conduct and two referees checked, plus an interview and training before anyone is sent to you.</p></li>
-  <li class="card"><p class="font-semibold text-slate-900">Fixed prices</p><p class="mt-1 text-sm text-slate-600">You pay the published rate card. Any change to the job is agreed in the app first.</p></li>
-  <li class="card"><p class="font-semibold text-slate-900">Managed by our team</p><p class="mt-1 text-sm text-slate-600">We pick the provider, follow up every visit and act on every complaint.</p></li>
+<ul class="grid gap-px overflow-hidden border border-slate-200 bg-slate-200 sm:grid-cols-3" data-reveal>
+  <li class="bg-white p-6" data-reveal-item><p class="font-display text-2xl font-medium text-slate-900">Vetted and trained</p><p class="mt-1 text-sm text-slate-600">ID, Certificate of Good Conduct and two referees checked, plus an interview and training before anyone is sent to you.</p></li>
+  <li class="bg-white p-6" data-reveal-item><p class="font-display text-2xl font-medium text-slate-900">Fixed prices</p><p class="mt-1 text-sm text-slate-600">You pay the published rate card. Any change to the job is agreed in the app first.</p></li>
+  <li class="bg-white p-6" data-reveal-item><p class="font-display text-2xl font-medium text-slate-900">Managed by our team</p><p class="mt-1 text-sm text-slate-600">We pick the provider, follow up every visit and act on every complaint.</p></li>
 </ul>
 {{end}}
 
@@ -24,19 +24,25 @@
 
 {{/* /services */}}
 {{define "services-content"}}
-<section class="mx-auto max-w-6xl px-4 py-10">
-  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Home services</h1>
+<section class="mx-auto max-w-6xl px-4 pt-14 pb-10">
+  <p class="eyebrow">What we do</p>
+  <h1 class="display mt-3 text-4xl text-slate-900 sm:text-6xl">Home services in Nairobi</h1>
   <p class="mt-3 max-w-2xl text-slate-600">Every service is delivered by a provider we have vetted and trained, at the price shown. Choose a service to see what is included.</p>
   {{range .Data.Groups}}
-  <div class="mt-10">
+  <div class="mt-12 grid gap-6 border-t border-slate-200 pt-10 md:grid-cols-[16rem_1fr]" data-reveal>
+    <a href="/services/{{.Category.Slug}}" class="group hidden md:block" tabindex="-1" aria-hidden="true">
+      <div class="photo-frame aspect-[4/3]">{{$c := .Category}}{{with photo (servicePhoto $c.Slug)}}{{.Img "" "(min-width: 768px) 256px, 100vw" "" false}}{{else}}<div class="flex h-full items-center justify-center bg-brand-50 text-brand-700 group-hover:bg-brand-100">{{serviceIcon $c.Slug}}</div>{{end}}</div>
+    </a>
+    <div>
     <div class="flex items-baseline justify-between gap-4">
-      <h2 class="text-xl font-bold text-slate-900"><a href="/services/{{.Category.Slug}}" class="hover:text-brand-700">{{.Category.Name}}</a></h2>
-      <a href="/services/{{.Category.Slug}}" class="shrink-0 text-sm font-medium text-brand-700">Details</a>
+      <h2 class="text-3xl text-slate-900"><a href="/services/{{.Category.Slug}}" class="hover:text-brand-700">{{.Category.Name}}</a></h2>
+      <a href="/services/{{.Category.Slug}}" class="nav-link shrink-0">Details &rarr;</a>
     </div>
     {{with .Category.Description}}<p class="mt-1 text-slate-600">{{.}}</p>{{end}}
     <ul class="mt-4 grid gap-3 sm:grid-cols-2">
       {{range .Offers}}<li class="card flex items-start justify-between gap-4"><span class="font-medium">{{.Name}}</span><span class="text-right">{{template "price" .}}</span></li>{{end}}
     </ul>
+    </div>
   </div>
   {{else}}
   <p class="mt-10 text-slate-600">Services are being set up. <a href="/contact" class="font-medium text-brand-700">Tell us what you need</a> and we will call you.</p>
@@ -48,12 +54,13 @@
 {{define "category-content"}}
 {{$cat := .Data.Category}}{{$area := .Data.Area}}
 <section class="bg-brand-50">
-  <div class="mx-auto max-w-6xl px-4 py-10">
-    <nav aria-label="Breadcrumb" class="text-sm text-slate-600">
+  <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 md:grid-cols-[3fr_2fr]">
+  <div>
+    <nav aria-label="Breadcrumb" class="text-xs font-medium tracking-[0.14em] text-slate-600 uppercase">
       <a href="/services" class="hover:text-brand-700">Services</a> /
       {{if $area}}<a href="/services/{{$cat.Slug}}" class="hover:text-brand-700">{{$cat.Name}}</a> / <span>{{$area.Name}}</span>{{else}}<span>{{$cat.Name}}</span>{{end}}
     </nav>
-    <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{{.Title}}</h1>
+    <h1 class="display mt-5 text-4xl text-slate-900 sm:text-6xl">{{.Title}}</h1>
     {{with $cat.Description}}<p class="mt-3 max-w-2xl text-lg text-slate-700">{{.}}</p>{{end}}
     <div class="mt-6 flex flex-wrap gap-3">
       <a href="{{.Data.BookURL}}" class="btn-primary">Book {{$cat.Name}}</a>
@@ -61,14 +68,18 @@
     </div>
     {{if eq $cat.Engagement "live_in"}}<p class="mt-4 text-sm text-slate-600">Live-in placements need an identity check for the household before we confirm a worker.</p>{{end}}
   </div>
+  {{with photo (servicePhoto $cat.Slug)}}<div class="photo-frame aspect-[4/3] md:aspect-[4/5]">{{.Img (print $cat.Name " in a Nairobi home") "(min-width: 768px) 420px, 100vw" "" true}}</div>
+  {{else}}<div class="hidden aspect-[4/5] items-center justify-center bg-brand-100 text-brand-700 md:flex">{{serviceIcon $cat.Slug}}</div>{{end}}
+  </div>
 </section>
 
-<section class="mx-auto max-w-6xl px-4 py-10">
-  <h2 class="text-2xl font-bold text-slate-900">Prices{{if $area}} in {{$area.Name}}{{end}}</h2>
+<section class="mx-auto max-w-6xl px-4 py-14" data-reveal>
+  <p class="eyebrow">Rate card</p>
+  <h2 class="display mt-3 text-4xl text-slate-900">Prices{{if $area}} in {{$area.Name}}{{end}}</h2>
   <p class="mt-1 text-sm text-slate-500">Rate-card prices before VAT ({{.Data.VAT}}%). You pay exactly this; no haggling.</p>
   <div class="mt-6 grid gap-4 md:grid-cols-2">
     {{range .Data.Offers}}
-    <article class="card">
+    <article class="card" data-reveal-item>
       <div class="flex items-start justify-between gap-4">
         <h3 class="text-lg font-semibold text-slate-900">{{.Name}}</h3>
         <p class="text-right">{{template "price" .}}</p>
@@ -105,11 +116,11 @@
 
 {{/* /areas */}}
 {{define "areas-content"}}
-<section class="mx-auto max-w-6xl px-4 py-10">
-  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Areas we serve</h1>
+<section class="mx-auto max-w-6xl px-4 pt-14 pb-10">
+  <h1 class="display text-4xl text-slate-900 sm:text-6xl">Areas we serve</h1>
   <p class="mt-3 max-w-2xl text-slate-600">We send providers who live and work close to you, so they arrive on time. We are adding areas as we grow.</p>
   <ul class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    {{range .Data.Areas}}<li><a href="/areas/{{.Slug}}" class="card block hover:border-brand-600"><span class="font-semibold text-slate-900">{{.Name}}</span><span class="block text-sm text-slate-500">{{.County}}</span></a></li>
+    {{range .Data.Areas}}<li><a href="/areas/{{.Slug}}" class="card block transition-colors duration-300 hover:border-brand-600 hover:bg-brand-50"><span class="font-semibold text-slate-900">{{.Name}}</span><span class="block text-sm text-slate-500">{{.County}}</span></a></li>
     {{else}}<li class="text-slate-600">We are about to launch. <a href="/contact" class="font-medium text-brand-700">Leave your details</a> to hear when we reach you.</li>{{end}}
   </ul>
   <p class="mt-8 text-sm text-slate-600">Not on the list? <a href="/contact" class="font-medium text-brand-700">Tell us where you are</a>.</p>
@@ -121,10 +132,10 @@
 {{$area := .Data.Area}}
 <section class="mx-auto max-w-6xl px-4 py-10">
   <nav aria-label="Breadcrumb" class="text-sm text-slate-600"><a href="/areas" class="hover:text-brand-700">Areas</a> / <span>{{$area.Name}}</span></nav>
-  <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">Home services in {{$area.Name}}</h1>
+  <h1 class="display mt-5 text-4xl text-slate-900 sm:text-6xl">Home services in {{$area.Name}}</h1>
   <p class="mt-3 max-w-2xl text-slate-600">Vetted providers who work in {{$area.Name}}, {{$area.County}}. Choose a service to see local prices.</p>
   <ul class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    {{range .Data.Categories}}<li><a href="/services/{{.Slug}}/{{$area.Slug}}" class="card block hover:border-brand-600"><span class="font-semibold text-slate-900">{{.Name}} in {{$area.Name}}</span>{{with .Description}}<span class="mt-1 block text-sm text-slate-600">{{.}}</span>{{end}}</a></li>{{end}}
+    {{range .Data.Categories}}<li><a href="/services/{{.Slug}}/{{$area.Slug}}" class="card block transition-colors duration-300 hover:border-brand-600 hover:bg-brand-50"><span class="font-semibold text-slate-900">{{.Name}} in {{$area.Name}}</span>{{with .Description}}<span class="mt-1 block text-sm text-slate-600">{{.}}</span>{{end}}</a></li>{{end}}
   </ul>
 </section>
 <section class="mx-auto max-w-6xl px-4">{{template "trust-strip"}}</section>
@@ -132,8 +143,8 @@
 
 {{/* /pricing */}}
 {{define "pricing-content"}}
-<section class="mx-auto max-w-6xl px-4 py-10">
-  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Prices</h1>
+<section class="mx-auto max-w-6xl px-4 pt-14 pb-10">
+  <h1 class="display text-4xl text-slate-900 sm:text-6xl">Prices</h1>
   <p class="mt-3 max-w-2xl text-slate-600">Every booking is charged at the published rate card. Some areas have their own prices; choose yours to see them.</p>
   <form action="/pricing" method="get" class="mt-6 flex flex-wrap items-end gap-3" hx-get="/pricing" hx-target="#rate-card" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true">
     <label class="w-full sm:w-auto"><span class="field-label">Your area</span>
@@ -182,7 +193,7 @@
 {{/* /book */}}
 {{define "book-content"}}
 <section class="mx-auto max-w-4xl px-4 py-10">
-  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Book a service</h1>
+  <h1 class="display text-4xl text-slate-900 sm:text-5xl">Book a service</h1>
   <p class="mt-3 text-slate-600">Pick a service. You'll sign in with your phone number, then choose the date, time and address. Our team confirms a vetted provider for you.</p>
   {{range .Data.Groups}}{{if .Items}}
   <h2 class="mt-10 text-xl font-bold text-slate-900">{{.Category.Name}}</h2>
@@ -203,7 +214,7 @@
 {{/* /faq */}}
 {{define "faq-content"}}
 <section class="mx-auto max-w-3xl px-4 py-10">
-  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Questions and answers</h1>
+  <h1 class="display text-4xl text-slate-900 sm:text-5xl">Questions and answers</h1>
   <div class="mt-8">{{template "faq-list" .Data.FAQs}}</div>
   {{if not .Data.FAQs}}<p class="mt-4 text-slate-600">We're writing these now.</p>{{end}}
   <p class="mt-8 text-slate-600">Can't find your answer? <a href="/contact" class="font-medium text-brand-700">Ask us</a>.</p>
