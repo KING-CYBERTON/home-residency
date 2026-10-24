@@ -25,7 +25,14 @@ SCOPE = "https://www.googleapis.com/auth/androidpublisher"
 
 def check(resp):
     if resp.status_code >= 300:
-        sys.exit(f"::error::{resp.request.method} {resp.url} -> {resp.status_code}: {resp.text}")
+        # One line: GitHub keeps only the first line of an ::error:: annotation, and Google's reason
+        # (permission missing, API not enabled, app not found) is in the JSON body after it.
+        try:
+            reason = resp.json().get("error", {}).get("message") or resp.text
+        except (ValueError, AttributeError):
+            reason = resp.text
+        reason = " ".join(reason.split())
+        sys.exit(f"::error::{resp.request.method} {resp.url} -> {resp.status_code}: {reason}")
     return resp.json() if resp.content else {}
 
 

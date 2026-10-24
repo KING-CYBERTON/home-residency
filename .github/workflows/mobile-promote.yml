@@ -95,3 +95,4 @@ jobs:
         run: |
           python -m pip install --quiet google-auth==2.38.0 requests==2.32.3
           python mobile/scripts/play.py promote "$PACKAGE" --rollout "$ROLLOUT" --status "$STATUS" ${VERSION_CODE:+--version-code "$VERSION_CODE"} | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"
