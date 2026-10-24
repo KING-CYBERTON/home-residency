@@ -1,7 +1,9 @@
 package web
 
 import (
+	"compress/gzip"
 	"html/template"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -41,6 +43,71 @@ func TestAssetAndStatic(t *testing.T) {
 	s.StaticHandler().ServeHTTP(rec, httptest.NewRequest("GET", "/static/css/", nil))
 	if rec.Code != 404 {
 		t.Fatalf("directory listing should 404, got %d", rec.Code)
+	}
+}
+
+func TestStaticGzip(t *testing.T) {
+	s := newSite(t)
+	u := s.Asset("js/htmx.min.js")
+	req := httptest.NewRequest("GET", u, nil)
+	req.Header.Set("Accept-Encoding", "br, gzip;q=0.8")
+	rec := httptest.NewRecorder()
+	s.StaticHandler().ServeHTTP(rec, req)
+	if rec.Header().Get("Content-Encoding") != "gzip" || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/javascript") {
+		t.Fatalf("headers %v", rec.Header())
+	}
+	zr, err := gzip.NewReader(rec.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(zr)
+	if !strings.Contains(string(b), "htmx") {
+		t.Fatal("gzipped body does not decode to the file")
+	}
+
+	req = httptest.NewRequest("GET", u, nil)
+	req.Header.Set("Accept-Encoding", "gzip;q=0")
+	rec = httptest.NewRecorder()
+	s.StaticHandler().ServeHTTP(rec, req)
+	if rec.Header().Get("Content-Encoding") != "" || !strings.Contains(rec.Body.String(), "htmx") {
+		t.Fatal("gzip;q=0 must get the plain file")
+	}
+}
+
+func TestPhotos(t *testing.T) {
+	s := newSite(t)
+	hero := s.Photo("hero")
+	if hero == nil || hero.Narrow == nil || hero.AVIF == "" || hero.WebP == "" || hero.Alt == "" {
+		t.Fatalf("hero photo not indexed: %+v", hero)
+	}
+	html := string(hero.Img("100vw", "x", true))
+	for _, want := range []string{`<picture>`, `type="image/avif"`, `type="image/webp"`, `media="(max-width: 767px)"`, `fetchpriority="high"`, `alt="` + hero.Alt + `"`, `.jpg?v=`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("hero markup lacks %s:\n%s", want, html)
+		}
+	}
+	if lazy := string(s.Photo("laundry").Img("100px", "", false)); !strings.Contains(lazy, `loading="lazy"`) {
+		t.Errorf("non-hero photos load lazily: %s", lazy)
+	}
+	for _, c := range s.PhotoCredits() {
+		if s.Photo(c.Name) == nil || c.Photographer == "" || !strings.HasPrefix(c.Profile, "https://unsplash.com/@") || c.Alt == "" {
+			t.Errorf("credit %+v: missing photo or fields", c)
+		}
+		if !strings.HasSuffix(c.ProfileURL(), "?utm_source=homend_residence&utm_medium=referral") {
+			t.Errorf("profile link %q lacks the referral", c.ProfileURL())
+		}
+	}
+	for name := range s.photos {
+		if strings.HasSuffix(name, ".narrow") {
+			continue
+		}
+		found := false
+		for _, c := range s.PhotoCredits() {
+			found = found || c.Name == name
+		}
+		if !found {
+			t.Errorf("photo %q has no entry in credits.json", name)
+		}
 	}
 }
 

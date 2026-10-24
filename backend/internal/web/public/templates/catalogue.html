@@ -31,7 +31,7 @@
   {{range .Data.Groups}}
   <div class="mt-12 grid gap-6 border-t border-slate-200 pt-10 md:grid-cols-[16rem_1fr]" data-reveal>
     <a href="/services/{{.Category.Slug}}" class="group hidden md:block" tabindex="-1" aria-hidden="true">
-      <div class="photo-frame aspect-[4/3]">{{$c := .Category}}{{with photo (servicePhoto $c.Slug)}}{{.Img "" "(min-width: 768px) 256px, 100vw" "" false}}{{else}}<div class="flex h-full items-center justify-center bg-brand-50 text-brand-700 group-hover:bg-brand-100">{{serviceIcon $c.Slug}}</div>{{end}}</div>
+      <div class="photo-frame aspect-[4/3]">{{$c := .Category}}{{with photo (servicePhoto $c.Slug)}}{{.Img "(min-width: 768px) 256px, 100vw" "" false}}{{else}}<div class="flex h-full items-center justify-center bg-brand-50 text-brand-700 group-hover:bg-brand-100">{{serviceIcon $c.Slug}}</div>{{end}}</div>
     </a>
     <div>
     <div class="flex items-baseline justify-between gap-4">
@@ -68,7 +68,7 @@
     </div>
     {{if eq $cat.Engagement "live_in"}}<p class="mt-4 text-sm text-slate-600">Live-in placements need an identity check for the household before we confirm a worker.</p>{{end}}
   </div>
-  {{with photo (servicePhoto $cat.Slug)}}<div class="photo-frame aspect-[4/3] md:aspect-[4/5]">{{.Img (print $cat.Name " in a Nairobi home") "(min-width: 768px) 420px, 100vw" "" true}}</div>
+  {{with photo (servicePhoto $cat.Slug)}}<div class="photo-frame aspect-[4/3] md:aspect-[4/5]">{{.Img "(min-width: 768px) 420px, 100vw" "" true}}</div>
   {{else}}<div class="hidden aspect-[4/5] items-center justify-center bg-brand-100 text-brand-700 md:flex">{{serviceIcon $cat.Slug}}</div>{{end}}
   </div>
 </section>
@@ -79,15 +79,18 @@
   <p class="mt-1 text-sm text-slate-500">Rate-card prices before VAT ({{.Data.VAT}}%). You pay exactly this; no haggling.</p>
   <div class="mt-6 grid gap-4 md:grid-cols-2">
     {{range .Data.Offers}}
-    <article class="card" data-reveal-item>
-      <div class="flex items-start justify-between gap-4">
+    <article class="card flex gap-4 sm:gap-5" data-reveal-item>
+      <div class="photo-frame aspect-square w-16 shrink-0 self-start sm:w-28">{{with photo (offerPhoto .Slug)}}{{.Img "112px" "" false}}{{else}}<div class="flex h-full items-center justify-center text-brand-700 [&_svg]:h-12 [&_svg]:w-12">{{serviceIcon $cat.Slug}}</div>{{end}}</div>
+      <div class="min-w-0 flex-1">
+      <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <h3 class="text-lg font-semibold text-slate-900">{{.Name}}</h3>
-        <p class="text-right">{{template "price" .}}</p>
+        <p class="sm:text-right">{{template "price" .}}</p>
       </div>
       {{with .Description}}<p class="mt-2 text-slate-600">{{.}}</p>{{end}}
       {{if .ScopeItems}}<p class="mt-4 text-sm font-medium text-slate-800">What's included</p>
       <ul class="mt-2 space-y-1 text-sm text-slate-600">{{range .ScopeItems}}<li class="flex gap-2"><span aria-hidden="true" class="text-brand-700">&#10003;</span>{{.}}</li>{{end}}</ul>{{end}}
       {{with .DefaultDurationMinutes}}<p class="mt-3 text-xs text-slate-500">Usually takes about {{.}} minutes.</p>{{end}}
+      </div>
     </article>
     {{else}}
     <p class="text-slate-600">Prices for this service are being finalised. <a href="/contact?category={{$cat.Slug}}" class="font-medium text-brand-700">Ask us for a quote</a>.</p>

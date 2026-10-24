@@ -29,7 +29,7 @@ var templates embed.FS
 // within this window.
 const cacheFor = 5 * time.Minute
 
-var pageNames = []string{"home", "services", "category", "areas", "area", "pricing", "how-it-works", "privacy", "faq", "book", "contact"}
+var pageNames = []string{"home", "services", "category", "areas", "area", "pricing", "how-it-works", "privacy", "faq", "book", "contact", "credits"}
 
 type Site struct {
 	srv   *api.Server
@@ -71,6 +71,8 @@ func (p *Site) Routes(r chi.Router) {
 		"Every Homend Residence provider is vetted, trained and supervised. See how we check providers, match them to your request and handle complaints."))
 	r.Get("/privacy", p.static("privacy", "Privacy", "",
 		"How Homend Residence collects, protects and uses personal data under Kenya's Data Protection Act, 2019."))
+	r.Get("/credits", p.static("credits", "Photo credits", "",
+		"The photographers whose work appears on the Homend Residence website."))
 	r.Get("/faq", p.faq)
 	r.Get("/book", p.book)
 	r.Get("/contact", p.contact)
@@ -199,9 +201,8 @@ func (p *Site) home(w http.ResponseWriter, r *http.Request) {
 		Path:        "/",
 		Section:     "home",
 		Image:       p.site.Photo("hero"),
-		ImageAlt:    heroAlt,
 		JSONLD:      []any{p.organization(c.Areas, c.Categories), p.website()},
-		Data:        map[string]any{"Categories": cards, "Areas": c.Areas, "FAQs": general, "HeroAlt": heroAlt},
+		Data:        map[string]any{"Categories": cards, "Areas": c.Areas, "FAQs": general},
 	}, "home")
 }
 
@@ -301,7 +302,7 @@ func (p *Site) categoryPage(w http.ResponseWriter, r *http.Request, catSlug, are
 	}
 	p.render(w, r, &web.Page{
 		Title: title, Description: desc, Path: path, Section: "services", JSONLD: ld,
-		Image: p.site.Photo(servicePhoto(cat.Slug)), ImageAlt: cat.Name + " by " + web.SiteName,
+		Image: p.site.Photo(servicePhoto(cat.Slug)),
 		Data: map[string]any{"Category": cat, "Area": area, "Areas": c.Areas, "Offers": offers, "FAQs": faqs, "VAT": vat,
 			"BookURL": bookURL(cat.Slug, "", areaSlug)},
 	}, "category")

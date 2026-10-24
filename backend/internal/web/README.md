@@ -49,10 +49,18 @@ Use `.display`, `.eyebrow`, `.btn-primary`, `.btn-secondary`, `.btn-light` and `
 the recurring pieces. Mark a section `data-reveal` (and its children `data-reveal-item`) to fade it
 in on scroll; `static/js/site.js` does that and the home header, and the page works without it.
 
-Photos live in `static/img/photos/` as `<name>-<width>x<height>.webp`, one file per size; `photo
-"name"` in a template returns it (or nil, so pages fall back to a drawn panel) and `.Img` writes a
-responsive, lazily loaded `<img>`. The public site uses `hero`, `why`, `providers` and
-`service-<category slug>`, which also become each page's social preview and image sitemap entry.
+Photos live in `static/img/photos/` as `<name>-<width>x<height>.{avif,webp,jpg}`, one file per
+size and format (make them with `scripts/photo.py`); a `<name>.narrow` set is the crop phones get.
+`photo "name"` in a template returns it (or nil, so pages fall back to a line drawing) and `.Img`
+writes a responsive `<picture>` with AVIF and WebP sources and a JPEG fallback, lazily loaded
+unless it is the page's hero. Every photo needs an entry in `static/img/photos/credits.json`
+(alt text, photographer, source, licence): the alt text comes from there and `/credits` lists it.
+The public site uses `hero`, `providers`, `estate` and `service-<category slug>`, plus the
+per-service photos in `public/photos.go`; they also become each page's social preview and image
+sitemap entry.
+
+Text files under `static/` (CSS, JavaScript, SVG) are gzipped once at startup and sent compressed
+to browsers that accept it.
 
 Edit `styles/app.css` (Tailwind v4, brand colours under `@theme`) or use classes in any template
 under `internal/web/`, then run `make css` in `backend/` and commit `static/css/app.css`. CI fails
