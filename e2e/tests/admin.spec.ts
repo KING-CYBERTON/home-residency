@@ -328,3 +328,27 @@ test("checklists: a change to a current checklist shows what changed, and the ol
   await expect(theirs).toContainText("Earlier versions: v1 (replaced)");
   await expect(theirs).toContainText("Not asked for, though Standard: In-person interview");
 });
+
+test("dashboard: a two-person duty that only one person can do is flagged", async () => {
+  // This stack has a second approver, finance officer and complaints manager, so nothing is blocked.
+  const live = await call<{ segregation_warnings: unknown[] }>(await staffToken("ops"), "GET", "/console/dashboard");
+  expect(live.segregation_warnings).toEqual([]);
+  await goConsole(admin, "/");
+  await expect(admin.getByText("Some work needs a second person")).toHaveCount(0);
+
+  // With one approver the API names the duty; the dashboard shows what it says and where to fix it.
+  await admin.route("**/console/dashboard", async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    body.segregation_warnings = [{ duty: "provider_approval", label: "Provider approvals", people: 1, roles: ["vetting_officer", "approver"],
+      message: "Only one active staff member holds the roles for this, so it cannot be completed. Give a second person the vetting officer or approver role." }];
+    await route.fulfill({ response: res, json: body });
+  });
+  await admin.reload();
+  const banner = admin.getByRole("alert").filter({ hasText: "Some work needs a second person" });
+  await expect(banner).toContainText("Provider approvals");
+  await expect(banner).toContainText("Give a second person the vetting officer or approver role");
+  await banner.getByRole("link", { name: "Manage staff" }).click();
+  await expect(admin).toHaveURL(/\/staff$/);
+  await admin.unroute("**/console/dashboard");
+});

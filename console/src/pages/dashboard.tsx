@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router";
 
 import { Card } from "@/components/ui/card";
@@ -6,8 +7,9 @@ import { ErrorState, PageHeader } from "@/components/page";
 import { canCall, useMe } from "@/lib/access";
 import { cn } from "@/lib/utils";
 
+type Summary = NonNullable<ReturnType<typeof useDashboard>["data"]>;
 type Tile = {
-  key: keyof NonNullable<ReturnType<typeof useDashboard>["data"]>;
+  key: { [K in keyof Summary]-?: Summary[K] extends number | undefined ? K : never }[keyof Summary];
   label: string;
   to: string;
   op: string;
@@ -39,6 +41,25 @@ export function DashboardPage() {
   return (
     <>
       <PageHeader title={`Good ${greeting()}, ${me?.full_name?.split(" ")[0] ?? ""}`} description="Work waiting across the queues you can see." />
+      {!!data?.segregation_warnings.length && (
+        <div role="alert" className="mb-4 space-y-2 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950/40">
+          <p className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="size-4" /> Some work needs a second person
+          </p>
+          <ul className="list-disc space-y-1 pl-6">
+            {data.segregation_warnings.map((w) => (
+              <li key={w.duty}>
+                <span className="font-medium">{w.label}:</span> {w.message}
+              </li>
+            ))}
+          </ul>
+          {canCall(me?.roles, "POST /console/staff") && (
+            <Link to="/staff" className="text-primary inline-block font-medium hover:underline">
+              Manage staff
+            </Link>
+          )}
+        </div>
+      )}
       {error ? (
         <ErrorState error={error} />
       ) : (

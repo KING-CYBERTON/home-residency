@@ -175,10 +175,11 @@ const (
 
 // Defines values for ConsentInputPurpose.
 const (
-	HealthData    ConsentInputPurpose = "health_data"
-	Marketing     ConsentInputPurpose = "marketing"
-	PrivacyNotice ConsentInputPurpose = "privacy_notice"
-	VettingChecks ConsentInputPurpose = "vetting_checks"
+	HealthData     ConsentInputPurpose = "health_data"
+	Marketing      ConsentInputPurpose = "marketing"
+	PrivacyNotice  ConsentInputPurpose = "privacy_notice"
+	TermsOfService ConsentInputPurpose = "terms_of_service"
+	VettingChecks  ConsentInputPurpose = "vetting_checks"
 )
 
 // Defines values for DisciplinaryKind.
@@ -283,6 +284,7 @@ const (
 	InvoiceLineKindDeposit      InvoiceLineKind = "deposit"
 	InvoiceLineKindDiscount     InvoiceLineKind = "discount"
 	InvoiceLineKindPlacementFee InvoiceLineKind = "placement_fee"
+	InvoiceLineKindRounding     InvoiceLineKind = "rounding"
 	InvoiceLineKindService      InvoiceLineKind = "service"
 	InvoiceLineKindSubscription InvoiceLineKind = "subscription"
 	InvoiceLineKindVariation    InvoiceLineKind = "variation"
@@ -488,6 +490,13 @@ const (
 	RequestStatusSubmitted            RequestStatus = "submitted"
 	RequestStatusTriaging             RequestStatus = "triaging"
 	RequestStatusUnfilled             RequestStatus = "unfilled"
+)
+
+// Defines values for SegregationWarningDuty.
+const (
+	ComplaintDecisions SegregationWarningDuty = "complaint_decisions"
+	PayoutsAndRefunds  SegregationWarningDuty = "payouts_and_refunds"
+	ProviderApproval   SegregationWarningDuty = "provider_approval"
 )
 
 // Defines values for SpotCheckMethod.
@@ -1353,8 +1362,11 @@ type DashboardSummary struct {
 	OpenExceptions             *int `json:"open_exceptions,omitempty"`
 	OpenSafeguardingComplaints *int `json:"open_safeguarding_complaints,omitempty"`
 	PayoutsAwaitingApproval    *int `json:"payouts_awaiting_approval,omitempty"`
-	TodaysVisits               *int `json:"todays_visits,omitempty"`
-	TriageQueue                *int `json:"triage_queue,omitempty"`
+
+	// SegregationWarnings Two-person duties that cannot be completed because fewer than two active staff members hold the roles for them.
+	SegregationWarnings []SegregationWarning `json:"segregation_warnings"`
+	TodaysVisits        *int                 `json:"todays_visits,omitempty"`
+	TriageQueue         *int                 `json:"triage_queue,omitempty"`
 }
 
 // DeclineInput defines model for DeclineInput.
@@ -2191,22 +2203,28 @@ type Quote struct {
 	Currency *string `json:"currency,omitempty"`
 
 	// PlacementFeeMinor KES minor units (cents)
-	PlacementFeeMinor    *int64              `json:"placement_fee_minor,omitempty"`
-	Quantity             *float32            `json:"quantity,omitempty"`
-	RateCardEntryId      openapi_types.UUID  `json:"rate_card_entry_id"`
+	PlacementFeeMinor *int64             `json:"placement_fee_minor,omitempty"`
+	Quantity          *float32           `json:"quantity,omitempty"`
+	RateCardEntryId   openapi_types.UUID `json:"rate_card_entry_id"`
+
+	// RoundingMinor Adjustment that brings the total to a whole shilling. KES minor units (cents)
+	RoundingMinor        *int64              `json:"rounding_minor,omitempty"`
 	ServiceAreaSupported bool                `json:"service_area_supported"`
 	ServiceId            *openapi_types.UUID `json:"service_id,omitempty"`
 
-	// SubtotalMinor KES minor units (cents)
+	// ServiceMinor Unit price × quantity, VAT included. KES minor units (cents)
+	ServiceMinor *int64 `json:"service_minor,omitempty"`
+
+	// SubtotalMinor The total net of VAT. KES minor units (cents)
 	SubtotalMinor *int64 `json:"subtotal_minor,omitempty"`
 
-	// TotalMinor KES minor units (cents)
+	// TotalMinor What the client pays, VAT included, in whole shillings. KES minor units (cents)
 	TotalMinor int64 `json:"total_minor"`
 
 	// UnitPriceMinor KES minor units (cents)
 	UnitPriceMinor *int64 `json:"unit_price_minor,omitempty"`
 
-	// VatMinor KES minor units (cents)
+	// VatMinor VAT included in the total. KES minor units (cents)
 	VatMinor *int64 `json:"vat_minor,omitempty"`
 }
 
@@ -2378,6 +2396,22 @@ type RolesInput struct {
 	Roles []StaffRole `json:"roles"`
 }
 
+// SegregationWarning defines model for SegregationWarning.
+type SegregationWarning struct {
+	Duty    SegregationWarningDuty `json:"duty"`
+	Label   string                 `json:"label"`
+	Message string                 `json:"message"`
+
+	// People Active staff members who can act on either side of the duty
+	People int `json:"people"`
+
+	// Roles Roles to give a second person
+	Roles []string `json:"roles"`
+}
+
+// SegregationWarningDuty defines model for SegregationWarning.Duty.
+type SegregationWarningDuty string
+
 // Service defines model for Service.
 type Service struct {
 	CategoryId             openapi_types.UUID `json:"category_id"`
@@ -2472,6 +2506,8 @@ type ServiceRequest struct {
 
 // ServiceRequestCreate defines model for ServiceRequestCreate.
 type ServiceRequestCreate struct {
+	// AcceptTerms The client accepts the terms of service (/terms), including the cancellation and refund terms. Must be true.
+	AcceptTerms bool               `json:"accept_terms"`
 	AddressId   openapi_types.UUID `json:"address_id"`
 	ClientNotes *string            `json:"client_notes,omitempty"`
 	Quantity    *float32           `json:"quantity,omitempty"`
@@ -2710,8 +2746,10 @@ type SubscriptionStatus string
 
 // SubscriptionCreate Creates the subscription and its first invoice, then starts an STK push to pay_phone if given.
 type SubscriptionCreate struct {
-	PayPhone *string            `json:"pay_phone,omitempty"`
-	PlanId   openapi_types.UUID `json:"plan_id"`
+	// AcceptTerms The client accepts the terms of service (/terms), including the subscription terms. Must be true.
+	AcceptTerms bool               `json:"accept_terms"`
+	PayPhone    *string            `json:"pay_phone,omitempty"`
+	PlanId      openapi_types.UUID `json:"plan_id"`
 }
 
 // SubscriptionPlan defines model for SubscriptionPlan.

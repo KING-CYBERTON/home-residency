@@ -70,10 +70,11 @@ test("catalogue: an admin adds a category, service, price, course and checklist"
   await expect(gardening).toContainText("Made current by you");
 });
 
-test("public site: the new service is listed with its price before VAT", async () => {
+test("public site: the new service is listed at the price the client pays, VAT included", async () => {
   await clientPage.goto(SITE + "/services/gardening");
   await expect(clientPage.locator("main")).toContainText("Garden tidy");
   await expect(clientPage.locator("main")).toContainText("3,000");
+  await expect(clientPage.locator("main")).toContainText("include VAT (16%)");
 });
 
 test("recruitment: a provider signs up by SMS code and applies", async () => {
@@ -289,12 +290,19 @@ test("booking: a new household follows a Book link, registers, adds an address a
   await expect(c.locator("[data-geo]")).toContainText("Location saved");
   await c.getByRole("button", { name: "Save address" }).click();
 
-  // Back on the booking it started from, with a live quote: KES 3,000 + 16% VAT.
+  // Back on the booking it started from, with a live quote: the KES 3,000 listed, VAT included.
   await expect(c).toHaveURL(/\/account\/book/);
   await c.getByLabel(/Garden tidy/).check();
-  await expect(c.locator("#quote")).toContainText("3,480");
+  await expect(c.locator("#quote")).toContainText("Total");
+  await expect(c.locator("#quote")).toContainText("KES 3,000");
+  await expect(c.locator("#quote")).toContainText("Includes VAT of KES 413.79");
   await c.fill("input[name=start]", nairobi(60 * 24 * 2));
   await c.fill("textarea[name=notes]", "Front and back garden");
+  // The terms must be ticked: the browser stops the form until they are.
+  await c.getByRole("button", { name: "Book now" }).click();
+  await expect(c).toHaveURL(/\/account\/book/);
+  await expect(c.getByRole("link", { name: "terms of service" })).toHaveAttribute("href", "/terms");
+  await c.getByLabel(/I agree to the terms of service/).check();
   await c.getByRole("button", { name: "Book now" }).click();
   await expect(c.locator("main")).toContainText("Booked. Your reference is");
   requestRef = (await c.locator("main").innerText()).match(/REQ-\d{4}-\d+/)![0];
@@ -387,7 +395,8 @@ test("payment: M-Pesa STK; a callback for the wrong amount is refused, the right
   await c.locator('a[href*="/account/invoices/"]').first().click();
   // The list shows the same amount, so wait for the invoice's own URL before reading its id.
   await c.waitForURL(/\/account\/invoices\/[^/?#]+$/);
-  await expect(c.locator("main")).toContainText("KES 3,480");
+  await expect(c.locator("main")).toContainText("KES 3,000");
+  await expect(c.locator("main")).toContainText("Includes VAT");
   const invoiceId = c.url().split("/").pop()!;
 
   await c.getByRole("button", { name: "Send M-Pesa prompt" }).click();
@@ -398,7 +407,7 @@ test("payment: M-Pesa STK; a callback for the wrong amount is refused, the right
   await c.reload();
   await c.getByRole("button", { name: "Send M-Pesa prompt" }).click();
   await expect(c.locator("#pay")).toContainText("Check your phone");
-  await stkCallback(await latestCheckout(invoiceId), 3480, "E2EPAID001");
+  await stkCallback(await latestCheckout(invoiceId), 3000, "E2EPAID001");
   await expect(c.locator("main")).toContainText("Paid", { timeout: 20_000 });
 });
 

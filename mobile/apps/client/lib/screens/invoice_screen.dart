@@ -86,9 +86,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
               children: [
                 for (final l in inv.lines) KeyValue(l.description, kes(l.amountMinor)),
                 const Divider(height: 24),
-                KeyValue('Subtotal', kes(inv.subtotalMinor)),
-                KeyValue('VAT', kes(inv.vatMinor)),
                 KeyValue('Total', kes(inv.totalMinor), bold: true),
+                if (inv.vatMinor > 0) KeyValue('Includes VAT', kes(inv.vatMinor)),
                 if (inv.paidMinor > 0 && inv.paidMinor < inv.totalMinor) ...[
                   KeyValue('Paid', kes(inv.paidMinor)),
                   KeyValue('Left to pay', kes(inv.dueMinor), bold: true),

@@ -26,6 +26,15 @@ test.afterAll(() => {
   expect(problems, "script errors or server errors").toEqual([]);
 });
 
+test("terms of service: linked from every page's footer, with cancellations, plans and VAT", async () => {
+  await visitor.goto(SITE + "/services");
+  await visitor.getByRole("contentinfo").getByRole("link", { name: "Terms of service" }).click();
+  await expect(visitor).toHaveURL(SITE + "/terms");
+  await expect(visitor.getByRole("heading", { level: 1 })).toHaveText("Terms of service");
+  for (const id of ["prices", "payment", "cancellations", "plans"]) await expect(visitor.locator(`#${id}`)).toBeVisible();
+  await expect(visitor.locator("main")).toContainText("include VAT");
+});
+
 test("home page leads to booking, services and recruitment", async () => {
   await visitor.goto(SITE + "/");
   await expect(visitor.locator("h1")).toContainText("Trusted help at home");
@@ -139,6 +148,7 @@ test("household plans: a plan made in the console is bought in the portal by M-P
   const card = page.locator("form").filter({ hasText: name });
   await expect(card).toContainText("KES 6,000");
   await card.locator("input[name=phone]").fill(c.phone.local);
+  await card.getByLabel(/I agree to the terms of service/).check();
   await card.getByRole("button", { name: `Start ${name}` }).click();
   await expect(page.locator("body")).toContainText("Approve the M-Pesa prompt");
   await expect(page.locator("main")).toContainText(`Your plan: ${name}`);

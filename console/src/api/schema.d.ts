@@ -4163,7 +4163,7 @@ export interface components {
         };
         ConsentInput: {
             /** @enum {string} */
-            purpose: "privacy_notice" | "vetting_checks" | "health_data" | "marketing";
+            purpose: "privacy_notice" | "vetting_checks" | "health_data" | "marketing" | "terms_of_service";
             notice_version: string;
             granted: boolean;
         };
@@ -4640,17 +4640,27 @@ export interface components {
             placement_fee_minor?: number;
             /**
              * Format: int64
-             * @description KES minor units (cents)
+             * @description Unit price × quantity, VAT included. KES minor units (cents)
+             */
+            service_minor?: number;
+            /**
+             * Format: int64
+             * @description Adjustment that brings the total to a whole shilling. KES minor units (cents)
+             */
+            rounding_minor?: number;
+            /**
+             * Format: int64
+             * @description The total net of VAT. KES minor units (cents)
              */
             subtotal_minor?: number;
             /**
              * Format: int64
-             * @description KES minor units (cents)
+             * @description VAT included in the total. KES minor units (cents)
              */
             vat_minor?: number;
             /**
              * Format: int64
-             * @description KES minor units (cents)
+             * @description What the client pays, VAT included, in whole shillings. KES minor units (cents)
              */
             total_minor: number;
             currency?: string;
@@ -4674,6 +4684,8 @@ export interface components {
             client_notes?: string;
             /** Format: uuid */
             replaces_request_id?: string;
+            /** @description The client accepts the terms of service (/terms), including the cancellation and refund terms. Must be true. */
+            accept_terms: boolean;
         };
         ServiceRequest: {
             /** Format: uuid */
@@ -5555,7 +5567,7 @@ export interface components {
             /** Format: uuid */
             id?: string;
             /** @enum {string} */
-            kind: "service" | "placement_fee" | "variation" | "subscription" | "deposit" | "discount" | "adjustment";
+            kind: "service" | "placement_fee" | "variation" | "subscription" | "deposit" | "discount" | "adjustment" | "rounding";
             description: string;
             quantity?: number;
             /**
@@ -5747,6 +5759,8 @@ export interface components {
             plan_id: string;
             /** @example +254712345678 */
             pay_phone?: string;
+            /** @description The client accepts the terms of service (/terms), including the subscription terms. Must be true. */
+            accept_terms: boolean;
         };
         /** @description Safeguarding and loss complaints suspend the provider immediately pending review. */
         ComplaintCreate: {
@@ -6092,6 +6106,18 @@ export interface components {
             todays_visits?: number;
             /** @description Website enquiries nobody has contacted yet */
             new_leads?: number;
+            /** @description Two-person duties that cannot be completed because fewer than two active staff members hold the roles for them. */
+            segregation_warnings: components["schemas"]["SegregationWarning"][];
+        };
+        SegregationWarning: {
+            /** @enum {string} */
+            duty: "provider_approval" | "payouts_and_refunds" | "complaint_decisions";
+            label: string;
+            message: string;
+            /** @description Active staff members who can act on either side of the duty */
+            people: number;
+            /** @description Roles to give a second person */
+            roles: string[];
         };
         Notification: {
             /** Format: uuid */

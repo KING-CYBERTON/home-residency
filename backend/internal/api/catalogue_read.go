@@ -144,7 +144,7 @@ func (s *Server) CreateLead(ctx context.Context, l Lead) (uuid.UUID, any, error)
 	return id, created, mapErr(err)
 }
 
-// PublicVATPct is the VAT rate added on top of rate-card prices.
+// PublicVATPct is the VAT rate included in rate-card prices.
 func (s *Server) PublicVATPct(ctx context.Context) float64 {
 	return s.setting(ctx, s.DB, "vat.rate_pct", 16)
 }

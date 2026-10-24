@@ -163,6 +163,24 @@ func paginate[T any](rows []T, limit int, key func(T) (time.Time, uuid.UUID)) pa
 	return p
 }
 
+// TermsVersion names the terms of service published at /terms (web/public/templates/pages.html shows
+// it too). Change both whenever the terms change, so each acceptance records the wording agreed to.
+const TermsVersion = "2026-10"
+
+// acceptTerms checks that the client ticked the terms on a booking or plan and records it, once per
+// version, as a consent with the address it came from.
+func acceptTerms(ctx context.Context, q db, r *http.Request, userID uuid.UUID, accepted bool) error {
+	if !accepted {
+		return httpx.Invalid("Accept the terms of service to continue").With("accept_terms", "required")
+	}
+	_, err := q.Exec(ctx, `
+		INSERT INTO consents (user_id, purpose, notice_version, granted, ip_address)
+		SELECT $1, 'terms_of_service', $2, true, NULLIF($3,'')::inet
+		WHERE NOT EXISTS (SELECT 1 FROM consents WHERE user_id = $1 AND purpose = 'terms_of_service' AND notice_version = $2 AND granted)`,
+		userID, TermsVersion, clientIP(r))
+	return err
+}
+
 func clientIP(r *http.Request) string {
 	// Behind the ALB the last X-Forwarded-For entry is the address the load balancer saw.
 	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {

@@ -57,6 +57,7 @@ class _BookFormState extends State<_BookForm> {
 
   Quote? _quote;
   String? _quoteError;
+  bool _terms = false;
   Timer? _debounce;
 
   /// One key per booking attempt: a retry after a dropped connection cannot book twice.
@@ -185,6 +186,7 @@ class _BookFormState extends State<_BookForm> {
         quantity: _quantity,
         requestedStart: _start,
         clientNotes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+        acceptTerms: _terms,
       ),
       idempotencyKey: _idempotencyKey,
     );
@@ -294,11 +296,12 @@ class _BookFormState extends State<_BookForm> {
           Panel(
             child: Column(
               children: [
-                KeyValue('Service', kes(q.subtotalMinor - q.placementFeeMinor)),
+                KeyValue('Service', kes(q.serviceMinor)),
                 if (q.placementFeeMinor > 0) KeyValue('Placement fee', kes(q.placementFeeMinor)),
-                KeyValue('VAT', kes(q.vatMinor)),
+                if (q.roundingMinor != 0) KeyValue('Rounding', kes(q.roundingMinor)),
                 const Divider(),
                 KeyValue('Total', kes(q.totalMinor), bold: true),
+                if (q.vatMinor > 0) KeyValue('Includes VAT', kes(q.vatMinor)),
                 if (!q.serviceAreaSupported)
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
@@ -310,9 +313,17 @@ class _BookFormState extends State<_BookForm> {
         else if (_quoteError != null)
           Text(_quoteError!, style: const TextStyle(color: Brand.red700)),
         const SizedBox(height: 16),
+        CheckboxListTile(
+          value: _terms,
+          onChanged: (v) => setState(() => _terms = v ?? false),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: const Text('I agree to the terms of service, including the cancellation and refund terms'),
+          subtitle: const Text('Read them under Terms of service on our website'),
+        ),
         BusyButton(
           label: 'Book now',
-          onPressed: needsId || (_quote != null && !_quote!.serviceAreaSupported) ? null : _submit,
+          onPressed: !_terms || needsId || (_quote != null && !_quote!.serviceAreaSupported) ? null : _submit,
         ),
         const SizedBox(height: 8),
         const Text(

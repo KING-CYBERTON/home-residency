@@ -46,6 +46,7 @@ export async function client(name: string, area = "kilimani"): Promise<Person & 
 export async function acceptedJob(ops: string, c: Person & { addressId: string }, p: Person, startInMinutes = 30) {
   const svc = await service();
   const req = await call<{ id: string; reference: string }>(c.token, "POST", "/client/requests", {
+    accept_terms: true,
     service_id: svc.id, address_id: c.addressId, requested_start: new Date(Date.now() + startInMinutes * 60_000).toISOString(),
   });
   await call(ops, "POST", `/console/requests/${req.id}/claim`);

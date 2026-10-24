@@ -13,7 +13,7 @@ func TestAccessDetailsFollowRescheduledVisit(t *testing.T) {
 	h.staff("triage", "triage@homend.test", "triage_officer")
 	h.expect(200, "client", "PATCH", "/client/addresses/"+w.addrID, map[string]any{"access_details": "Gate code 4321"})
 
-	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
+	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": w.svcID, "address_id": w.addrID,
 		"requested_start": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339)})
 	reqID := r["id"].(string)
 	h.expect(200, "triage", "POST", "/console/requests/"+reqID+"/claim", nil)

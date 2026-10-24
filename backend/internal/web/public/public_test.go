@@ -130,7 +130,7 @@ func TestPublicPages(t *testing.T) {
 	ts, _ := newSite(t)
 
 	for _, path := range []string{"/", "/services", "/services/cleaning", "/services/cleaning/kilimani", "/areas", "/areas/karen",
-		"/pricing", "/how-it-works", "/faq", "/book", "/contact", "/privacy", "/credits"} {
+		"/pricing", "/how-it-works", "/faq", "/book", "/contact", "/privacy", "/terms", "/credits"} {
 		code, h, body := get(t, ts, path)
 		if code != 200 {
 			t.Errorf("%s: status %d", path, code)
@@ -142,11 +142,13 @@ func TestPublicPages(t *testing.T) {
 		mustContain(t, path, body, `<link rel="canonical" href="https://homend.test`+path+`">`, `<meta name="description"`, "</html>")
 	}
 
-	_, _, body := get(t, ts, "/credits")
+	_, _, body := get(t, ts, "/terms")
+	mustContain(t, "terms", body, `id="cancellations"`, `id="plans"`, "include VAT", "nearest shilling")
+	_, _, body = get(t, ts, "/credits")
 	mustContain(t, "credits", body, `Photo by <a href="https://unsplash.com/@jimmydean?utm_source=homend_residence&amp;utm_medium=referral"`,
 		`on <a href="https://unsplash.com/?utm_source=homend_residence&amp;utm_medium=referral"`)
 	_, _, body = get(t, ts, "/")
-	mustContain(t, "home", body, `alt="A family relaxing together on the sofa at home"`, `href="/credits"`)
+	mustContain(t, "home", body, `alt="A family relaxing together on the sofa at home"`, `href="/credits"`, `href="/terms"`)
 
 	_, _, body = get(t, ts, "/services/cleaning")
 	mustContain(t, "category", body, "Vetted cleaning in Nairobi", "KES 2,500", "per visit", "Kitchen", "Do I need to supply cleaning products?",

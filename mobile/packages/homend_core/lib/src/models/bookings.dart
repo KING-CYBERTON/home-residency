@@ -99,6 +99,8 @@ class Quote {
     this.placementFeeMinor = 0,
     this.subtotalMinor = 0,
     this.vatMinor = 0,
+    this.serviceMinor = 0,
+    this.roundingMinor = 0,
   });
 
   factory Quote.fromJson(Json j) => Quote(
@@ -110,6 +112,8 @@ class Quote {
     placementFeeMinor: j.intOr('placement_fee_minor'),
     subtotalMinor: j.intOr('subtotal_minor'),
     vatMinor: j.intOr('vat_minor'),
+    serviceMinor: j.intOr('service_minor'),
+    roundingMinor: j.intOr('rounding_minor'),
   );
 
   final String rateCardEntryId;
@@ -120,6 +124,12 @@ class Quote {
   final int placementFeeMinor;
   final int subtotalMinor;
   final int vatMinor;
+
+  /// Unit price × quantity, VAT included.
+  final int serviceMinor;
+
+  /// What brings the total to a whole shilling.
+  final int roundingMinor;
 }
 
 /// What a client sees of a provider. Never carries contact details.
@@ -285,6 +295,7 @@ class ServiceRequestCreate {
     this.requestedEnd,
     this.recurrenceRule,
     this.clientNotes,
+    this.acceptTerms = false,
   });
 
   final String serviceId;
@@ -295,6 +306,9 @@ class ServiceRequestCreate {
   final String? recurrenceRule;
   final String? clientNotes;
 
+  /// The client ticked the terms of service; the API refuses a booking without it.
+  final bool acceptTerms;
+
   Json toJson() => compact({
     'service_id': serviceId,
     'address_id': addressId,
@@ -303,6 +317,7 @@ class ServiceRequestCreate {
     'requested_end': requestedEnd == null ? null : isoDateTime(requestedEnd!),
     'recurrence_rule': recurrenceRule,
     'client_notes': clientNotes,
+    'accept_terms': acceptTerms,
   });
 }
 

@@ -291,12 +291,13 @@ class HomendApi {
     }
   }
 
+  /// Starts a plan. The caller has shown the client the terms of service, which the API requires.
   Future<Subscription> subscribe(String planId, {String? payPhone, required String idempotencyKey}) async =>
       Subscription.fromJson(
         _j(
           await _c.post(
             '/client/subscription',
-            body: compact({'plan_id': planId, 'pay_phone': payPhone}),
+            body: compact({'plan_id': planId, 'pay_phone': payPhone, 'accept_terms': true}),
             idempotencyKey: idempotencyKey,
           ),
         ),

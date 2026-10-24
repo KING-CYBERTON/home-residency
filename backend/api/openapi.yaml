@@ -9027,6 +9027,7 @@ components:
           - vetting_checks
           - health_data
           - marketing
+          - terms_of_service
         notice_version:
           type: string
         granted:
@@ -10002,18 +10003,26 @@ components:
           type: integer
           format: int64
           description: KES minor units (cents)
+        service_minor:
+          type: integer
+          format: int64
+          description: Unit price × quantity, VAT included. KES minor units (cents)
+        rounding_minor:
+          type: integer
+          format: int64
+          description: Adjustment that brings the total to a whole shilling. KES minor units (cents)
         subtotal_minor:
           type: integer
           format: int64
-          description: KES minor units (cents)
+          description: The total net of VAT. KES minor units (cents)
         vat_minor:
           type: integer
           format: int64
-          description: KES minor units (cents)
+          description: VAT included in the total. KES minor units (cents)
         total_minor:
           type: integer
           format: int64
-          description: KES minor units (cents)
+          description: What the client pays, VAT included, in whole shillings. KES minor units (cents)
         currency:
           type: string
         service_area_supported:
@@ -10048,10 +10057,14 @@ components:
         replaces_request_id:
           type: string
           format: uuid
+        accept_terms:
+          type: boolean
+          description: The client accepts the terms of service (/terms), including the cancellation and refund terms. Must be true.
       required:
       - service_id
       - address_id
       - requested_start
+      - accept_terms
     ServiceRequest:
       type: object
       properties:
@@ -11850,6 +11863,7 @@ components:
           - deposit
           - discount
           - adjustment
+          - rounding
         description:
           type: string
         quantity:
@@ -12181,8 +12195,12 @@ components:
           type: string
           pattern: ^\+[1-9][0-9]{7,14}$
           example: '+254712345678'
+        accept_terms:
+          type: boolean
+          description: The client accepts the terms of service (/terms), including the subscription terms. Must be true.
       required:
       - plan_id
+      - accept_terms
       description: Creates the subscription and its first invoice, then starts an STK push to pay_phone if given.
     ComplaintCreate:
       type: object
@@ -12945,6 +12963,40 @@ components:
         new_leads:
           type: integer
           description: Website enquiries nobody has contacted yet
+        segregation_warnings:
+          type: array
+          description: Two-person duties that cannot be completed because fewer than two active staff members hold the roles for them.
+          items:
+            $ref: '#/components/schemas/SegregationWarning'
+      required:
+      - segregation_warnings
+    SegregationWarning:
+      type: object
+      properties:
+        duty:
+          type: string
+          enum:
+          - provider_approval
+          - payouts_and_refunds
+          - complaint_decisions
+        label:
+          type: string
+        message:
+          type: string
+        people:
+          type: integer
+          description: Active staff members who can act on either side of the duty
+        roles:
+          type: array
+          items:
+            type: string
+          description: Roles to give a second person
+      required:
+      - duty
+      - label
+      - message
+      - people
+      - roles
     Notification:
       type: object
       properties:

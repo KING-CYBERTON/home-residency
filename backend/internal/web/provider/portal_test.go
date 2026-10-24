@@ -378,7 +378,7 @@ func TestJobOfferCheckInOfflineAndPay(t *testing.T) {
 		"estate": "Kilimani Gardens", "access_details": "Gate code 4455, flat B2"})["id"].(string)
 	triage := e.staff("triage@example.com", "triage_officer")
 	book := func(later time.Duration) (assignID string) {
-		r := e.api(clientTok, "POST", "/client/requests", map[string]any{"service_id": svcID, "address_id": addr,
+		r := e.api(clientTok, "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": svcID, "address_id": addr,
 			"requested_start": time.Now().Add(30*time.Minute + later).UTC().Format(time.RFC3339)})
 		reqID := r["id"].(string)
 		e.api(triage, "POST", "/console/requests/"+reqID+"/claim", nil)

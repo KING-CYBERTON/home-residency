@@ -73,6 +73,7 @@ type bookData struct {
 	Recurrence string
 	Key        string
 	Area       string // slug or id from a public "Book" link; picks a matching address
+	Terms      bool   // the terms box was ticked; kept ticked when the form comes back with an error
 }
 
 type categoryDetail struct {
@@ -224,6 +225,7 @@ func (p *Portal) bookSubmit(w http.ResponseWriter, r *http.Request) {
 	d := &bookData{
 		ServiceID: r.PostFormValue("service_id"), AddressID: r.PostFormValue("address_id"), Quantity: r.PostFormValue("quantity"),
 		Start: r.PostFormValue("start"), Notes: r.PostFormValue("notes"), Recurrence: r.PostFormValue("recurrence"), Key: r.PostFormValue("key"),
+		Terms: r.PostFormValue("terms") != "",
 	}
 	fail := func(msg string) {
 		if err := p.bookData(r, d, r.PostFormValue("category")); err != nil {
@@ -248,7 +250,7 @@ func (p *Portal) bookSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in := gen.ServiceRequestCreate{ServiceId: svc, AddressId: addr, Quantity: formQuantity(r), RequestedStart: start,
-		ClientNotes: optString(d.Notes), RecurrenceRule: optString(d.Recurrence)}
+		ClientNotes: optString(d.Notes), RecurrenceRule: optString(d.Recurrence), AcceptTerms: d.Terms}
 	key := gen.IdempotencyKey(d.Key)
 	var created gen.ServiceRequest
 	if err := p.call(r, in, &created, func(w http.ResponseWriter, r *http.Request) {

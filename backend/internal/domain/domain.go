@@ -11,17 +11,50 @@ import (
 
 // ---- pricing
 
+// Rate-card prices include VAT: the price a household sees is the price it pays (KRA and consumer
+// law expect displayed prices to be final). VAT is the share of that price, never added on top.
+// M-Pesa only moves whole shillings, so every total is rounded to a shilling when it is priced and
+// the difference is kept as its own rounding amount, so invoices, payments and the ledger agree.
+
 type Price struct {
-	SubtotalMinor int64
-	VATMinor      int64
-	TotalMinor    int64
+	ServiceMinor  int64 // unit price × quantity, VAT included, to the cent
+	RoundingMinor int64 // added to reach a whole shilling (-50..+49 cents)
+	TotalMinor    int64 // what the household pays: service + placement fee + rounding
+	VATMinor      int64 // the VAT included in TotalMinor
+	SubtotalMinor int64 // TotalMinor without its VAT
 }
 
-// ComputePrice prices quantity units from the rate card. Amounts are integer cents, rounded half up.
+// ComputePrice prices quantity units from the rate card. Amounts are integer cents.
 func ComputePrice(unitMinor int64, quantity float64, placementFeeMinor int64, vatPct float64) Price {
-	sub := int64(math.Round(float64(unitMinor)*quantity)) + placementFeeMinor
-	vat := int64(math.Round(float64(sub) * vatPct / 100))
-	return Price{SubtotalMinor: sub, VATMinor: vat, TotalMinor: sub + vat}
+	service := int64(math.Round(float64(unitMinor) * quantity))
+	return PriceOf(service, placementFeeMinor, vatPct)
+}
+
+// PriceOf totals VAT-inclusive amounts (service, then any others), rounds to a whole shilling and
+// works out the VAT included.
+func PriceOf(serviceMinor, otherMinor int64, vatPct float64) Price {
+	gross := serviceMinor + otherMinor
+	total := RoundShilling(gross)
+	vat := VATIncluded(total, vatPct)
+	return Price{ServiceMinor: serviceMinor, RoundingMinor: total - gross, TotalMinor: total, VATMinor: vat, SubtotalMinor: total - vat}
+}
+
+// RoundShilling rounds cents to the nearest whole shilling, halves away from zero.
+func RoundShilling(minor int64) int64 {
+	return int64(math.Round(float64(minor)/100)) * 100
+}
+
+// VATIncluded is the VAT inside a VAT-inclusive amount: amount × rate / (100 + rate), to the cent.
+func VATIncluded(grossMinor int64, vatPct float64) int64 {
+	if vatPct <= 0 {
+		return 0
+	}
+	return int64(math.Round(float64(grossMinor) * vatPct / (100 + vatPct)))
+}
+
+// NetOfVAT is a VAT-inclusive amount without its VAT.
+func NetOfVAT(grossMinor int64, vatPct float64) int64 {
+	return grossMinor - VATIncluded(grossMinor, vatPct)
 }
 
 // ---- geography

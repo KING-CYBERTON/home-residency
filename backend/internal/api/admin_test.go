@@ -230,3 +230,39 @@ func TestAdminAndCatalogue(t *testing.T) {
 	h.expect(200, "reporting", "GET", "/console/reports/demand?category_id="+cat["id"].(string)+"&service_area_id="+area["id"].(string), nil)
 	h.expect(422, "reporting", "GET", "/console/reports/demand?from=2026-12-31&to=2026-01-01", nil)
 }
+
+// With one admin, nothing that needs two people can be finished, and the dashboard says so; each
+// warning clears once a second person holds the role.
+func TestDashboardWarnsWhenOnePersonHoldsTwoPersonDuties(t *testing.T) {
+	h := newHarness(t)
+	h.staff("admin", "admin@homend.test", "admin")
+	duties := func() map[string]string {
+		out := map[string]string{}
+		for _, w := range h.expect(200, "admin", "GET", "/console/dashboard", nil)["segregation_warnings"].([]any) {
+			w := w.(map[string]any)
+			out[w["duty"].(string)] = w["message"].(string)
+		}
+		return out
+	}
+	got := duties()
+	if len(got) != 3 || !strings.Contains(got["provider_approval"], "Only one active staff member") || !strings.Contains(got["provider_approval"], "vetting officer or approver") {
+		t.Fatalf("one admin: %v", got)
+	}
+	h.staff("approver", "approver@homend.test", "approver")
+	h.staff("fin", "fin@homend.test", "finance")
+	got = duties()
+	if _, ok := got["provider_approval"]; ok {
+		t.Fatalf("an approver beside the admin is enough: %v", got)
+	}
+	if _, ok := got["payouts_and_refunds"]; ok {
+		t.Fatalf("a finance officer beside the admin is enough: %v", got)
+	}
+	if _, ok := got["complaint_decisions"]; !ok {
+		t.Fatalf("complaints still need a second person: %v", got)
+	}
+	// A suspended member does not count.
+	h.sql(`UPDATE users SET status = 'suspended' WHERE email = 'fin@homend.test'`)
+	if _, ok := duties()["payouts_and_refunds"]; !ok {
+		t.Fatal("a suspended finance officer should not count")
+	}
+}

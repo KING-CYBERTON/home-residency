@@ -47,6 +47,10 @@
        the browser's validation on every change. */}}
   <div id="quote" aria-live="polite" hx-post="{{$.Base}}/book/quote" hx-include="#book" hx-trigger="load, change from:#book delay:150ms" hx-swap="innerHTML"></div>
 
+  <label class="flex items-start gap-2 text-sm text-slate-700">
+    <input type="checkbox" name="terms" value="yes" required {{if .Terms}}checked{{end}} class="mt-1">
+    <span>I agree to the <a href="/terms" target="_blank" class="font-medium text-brand-700 underline">terms of service</a>, including the <a href="/terms#cancellations" target="_blank" class="font-medium text-brand-700 underline">cancellation and refund terms</a>.</span>
+  </label>
   <button class="w-full rounded-lg bg-brand-700 px-4 py-3 font-medium text-white hover:bg-brand-800">Book now</button>
   <p class="text-center text-xs text-slate-500">You pay by M-Pesa after the visit. You can cancel for free until a provider is on the way.</p>
 </form>
@@ -101,10 +105,11 @@
   <p role="alert" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{{.Error}}</p>
 {{else if .Data}}{{with .Data}}
   <dl class="rounded-xl border border-slate-200 bg-white p-4 text-sm">
-    <div class="flex justify-between"><dt class="text-slate-600">Service</dt><dd>{{kes (minus .SubtotalMinor .PlacementFeeMinor)}}</dd></div>
+    <div class="flex justify-between"><dt class="text-slate-600">Service</dt><dd>{{kes .ServiceMinor}}</dd></div>
     {{if gt (deref64 .PlacementFeeMinor) 0}}<div class="flex justify-between"><dt class="text-slate-600">Placement fee</dt><dd>{{kes .PlacementFeeMinor}}</dd></div>{{end}}
-    <div class="flex justify-between"><dt class="text-slate-600">VAT</dt><dd>{{kes .VatMinor}}</dd></div>
+    {{if ne (deref64 .RoundingMinor) 0}}<div class="flex justify-between"><dt class="text-slate-600">Rounding to the nearest shilling</dt><dd>{{kes .RoundingMinor}}</dd></div>{{end}}
     <div class="mt-2 flex justify-between border-t border-slate-200 pt-2 text-base font-semibold"><dt>Total</dt><dd>{{kes .TotalMinor}}</dd></div>
+    {{if gt (deref64 .VatMinor) 0}}<p class="mt-1 text-right text-xs text-slate-500">Includes VAT of {{kes .VatMinor}}. You pay exactly this.</p>{{end}}
     {{if not .ServiceAreaSupported}}<p class="mt-2 text-amber-800">We are not fully live in your area yet. We will confirm if we can find a provider.</p>{{end}}
   </dl>
 {{end}}{{end}}

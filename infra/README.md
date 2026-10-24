@@ -66,6 +66,20 @@ You need AWS credentials for an admin in the target account, Terraform 1.10 or n
 
 After the first deploy, create the first staff user by running the task definition once with the command `create-staff -email … -name … -roles admin` (ECS console → Run task, or `aws ecs run-task` with a command override) and read the password and TOTP secret from the task's log.
 
+### A second person for two-person duties
+
+The database refuses some steps when one person would do both halves: the vetting officer cannot approve the same application, the finance officer who prepares a payout batch or refund cannot approve it, and a complaint's investigator cannot decide it. An admin holds every role but is still one person, so with only the first admin none of these can be finished. The console dashboard lists each duty that is blocked this way.
+
+Once the first admin is in, open **Staff** in the console and add at least:
+
+| Who | Roles | Unblocks |
+| --- | --- | --- |
+| A second manager | `approver` | Provider approvals (the admin vets, they approve) and checklist approvals |
+| A finance officer | `finance` | Payout batches and refunds (one prepares, the other approves) |
+| A complaints lead | `complaints_manager` | Complaint decisions (the admin or a supervisor investigates, they decide) |
+
+On staging these can be test accounts held by the QA team (for example `approver+staging@…`). Do not seed them with fixed passwords: each one is created from the Staff page, which shows the one-time password and authenticator setup once.
+
 ## Who changes what
 
 - **Terraform** owns configuration: environment variables, secrets, CPU and memory, roles, networking. Changing them registers a new task definition revision; it goes live with the next deploy, which copies the latest revision and swaps in the new image.

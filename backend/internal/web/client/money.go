@@ -157,7 +157,7 @@ func (p *Portal) subscribe(w http.ResponseWriter, r *http.Request) {
 		p.showPlans(w, r, "Choose a plan.")
 		return
 	}
-	in := gen.SubscriptionCreate{PlanId: plan}
+	in := gen.SubscriptionCreate{PlanId: plan, AcceptTerms: r.PostFormValue("terms") != ""}
 	if ph := strings.TrimSpace(r.PostFormValue("phone")); ph != "" {
 		e := phoneE164(ph)
 		in.PayPhone = &e

@@ -6,13 +6,48 @@ import (
 )
 
 func TestComputePrice(t *testing.T) {
+	// 2 × KES 2,500 plus a KES 500 placement fee: KES 5,500, VAT included, nothing added on top.
 	p := ComputePrice(250000, 2, 50000, 16)
-	if p.SubtotalMinor != 550000 || p.VATMinor != 88000 || p.TotalMinor != 638000 {
+	if p.TotalMinor != 550000 || p.ServiceMinor != 500000 || p.RoundingMinor != 0 {
 		t.Fatalf("got %+v", p)
 	}
-	// fractional quantity rounds half up to the cent
-	if got := ComputePrice(333, 1.5, 0, 0).SubtotalMinor; got != 500 {
-		t.Fatalf("got %d", got)
+	// 5,500 × 16/116 = 758.62
+	if p.VATMinor != 75862 || p.SubtotalMinor != 474138 || p.SubtotalMinor+p.VATMinor != p.TotalMinor {
+		t.Fatalf("VAT: got %+v", p)
+	}
+	// The QA case: a KES 999 price is KES 999, not 999 + 159.84.
+	if p := ComputePrice(99900, 1, 0, 16); p.TotalMinor != 99900 || p.VATMinor != 13779 {
+		t.Fatalf("999: got %+v", p)
+	}
+	// A fractional quantity is priced to the cent, then the total rounds to a whole shilling.
+	p = ComputePrice(33350, 1.5, 0, 16) // 500.25
+	if p.ServiceMinor != 50025 || p.TotalMinor != 50000 || p.RoundingMinor != -25 {
+		t.Fatalf("rounding down: got %+v", p)
+	}
+	p = ComputePrice(33367, 1.5, 0, 16) // 500.505 -> 500.51
+	if p.TotalMinor != 50100 || p.RoundingMinor != 49 {
+		t.Fatalf("rounding up: got %+v", p)
+	}
+	// No VAT configured: the total is all subtotal.
+	if p := ComputePrice(10000, 1, 0, 0); p.VATMinor != 0 || p.SubtotalMinor != 10000 {
+		t.Fatalf("zero VAT: got %+v", p)
+	}
+}
+
+func TestShillingsAndVAT(t *testing.T) {
+	for _, c := range []struct{ in, want int64 }{{0, 0}, {49, 0}, {50, 100}, {115884, 115900}, {115849, 115800}, {-50, -100}} {
+		if got := RoundShilling(c.in); got != c.want {
+			t.Errorf("RoundShilling(%d) = %d, want %d", c.in, got, c.want)
+		}
+	}
+	// Every whole-shilling total splits exactly into net + VAT.
+	for total := int64(100); total <= 1000000; total += 100 {
+		if NetOfVAT(total, 16)+VATIncluded(total, 16) != total {
+			t.Fatalf("split of %d does not add up", total)
+		}
+	}
+	if VATIncluded(232000, 16) != 32000 || NetOfVAT(232000, 16) != 200000 {
+		t.Fatal("2,320 should be 2,000 + 320 VAT")
 	}
 }
 

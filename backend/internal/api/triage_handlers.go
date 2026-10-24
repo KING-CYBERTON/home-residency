@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -513,17 +514,18 @@ func (s *Server) PostConsoleRequestsMarkUnfilled(w http.ResponseWriter, r *http.
 
 func (s *Server) GetConsoleDashboard(w http.ResponseWriter, r *http.Request) {
 	var d struct {
-		TriageQueue                  int `json:"triage_queue"`
-		AwaitingProvider             int `json:"awaiting_provider"`
-		ApplicationsAwaitingVetting  int `json:"applications_awaiting_vetting"`
-		ApplicationsAwaitingApproval int `json:"applications_awaiting_approval"`
-		OpenComplaints               int `json:"open_complaints"`
-		OpenSafeguardingComplaints   int `json:"open_safeguarding_complaints"`
-		OpenExceptions               int `json:"open_exceptions"`
-		DocumentsExpiring30d         int `json:"documents_expiring_30d"`
-		PayoutsAwaitingApproval      int `json:"payouts_awaiting_approval"`
-		TodaysVisits                 int `json:"todays_visits"`
-		NewLeads                     int `json:"new_leads"`
+		TriageQueue                  int                  `json:"triage_queue"`
+		AwaitingProvider             int                  `json:"awaiting_provider"`
+		ApplicationsAwaitingVetting  int                  `json:"applications_awaiting_vetting"`
+		ApplicationsAwaitingApproval int                  `json:"applications_awaiting_approval"`
+		OpenComplaints               int                  `json:"open_complaints"`
+		OpenSafeguardingComplaints   int                  `json:"open_safeguarding_complaints"`
+		OpenExceptions               int                  `json:"open_exceptions"`
+		DocumentsExpiring30d         int                  `json:"documents_expiring_30d"`
+		PayoutsAwaitingApproval      int                  `json:"payouts_awaiting_approval"`
+		TodaysVisits                 int                  `json:"todays_visits"`
+		NewLeads                     int                  `json:"new_leads"`
+		SegregationWarnings          []segregationWarning `json:"segregation_warnings"`
 	}
 	err := s.DB.QueryRow(r.Context(), `
 		SELECT
@@ -544,5 +546,63 @@ func (s *Server) GetConsoleDashboard(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, err)
 		return
 	}
+	if d.SegregationWarnings, err = s.segregationWarnings(r.Context()); err != nil {
+		httpx.Fail(w, r, err)
+		return
+	}
 	httpx.JSON(w, http.StatusOK, d)
+}
+
+type segregationWarning struct {
+	Duty    string   `json:"duty"`
+	Label   string   `json:"label"`
+	Message string   `json:"message"`
+	People  int      `json:"people"`
+	Roles   []string `json:"roles"`
+}
+
+// twoPersonDuties are the steps the database refuses to let one person do alone: who prepares or
+// investigates (makers) and who signs off (checkers). Admins hold every role.
+var twoPersonDuties = []struct {
+	duty, label, why string
+	makers, checkers []string
+}{
+	{"provider_approval", "Provider approvals", "an application's vetting officer cannot also approve it",
+		[]string{"vetting_officer"}, []string{"approver"}},
+	{"payouts_and_refunds", "Payouts and refunds", "the finance officer who prepares a payout batch or refund cannot also approve it",
+		[]string{"finance"}, []string{"finance"}},
+	{"complaint_decisions", "Complaint decisions", "a complaint's investigator cannot also decide it",
+		[]string{"supervisor", "complaints_manager"}, []string{"complaints_manager"}},
+}
+
+// segregationWarnings lists the two-person duties no pair of active staff can complete: there must
+// be a maker and a different checker.
+func (s *Server) segregationWarnings(ctx context.Context) ([]segregationWarning, error) {
+	out := []segregationWarning{}
+	for _, d := range twoPersonDuties {
+		var makers, checkers, people int
+		if err := s.DB.QueryRow(ctx, `
+			WITH staff AS (
+			  SELECT DISTINCT u.id, (r.role::text = ANY($1) OR r.role = 'admin') AS maker, (r.role::text = ANY($2) OR r.role = 'admin') AS checker
+			  FROM users u JOIN staff_roles r ON r.user_id = u.id
+			  WHERE u.kind = 'staff' AND u.status = 'active')
+			SELECT count(DISTINCT id) FILTER (WHERE maker), count(DISTINCT id) FILTER (WHERE checker), count(DISTINCT id) FILTER (WHERE maker OR checker)
+			FROM staff`, d.makers, d.checkers).Scan(&makers, &checkers, &people); err != nil {
+			return nil, err
+		}
+		if makers > 0 && checkers > 0 && people >= 2 {
+			continue
+		}
+		roles := append([]string{}, d.checkers...)
+		if d.makers[0] != d.checkers[0] {
+			roles = append(d.makers[:1:1], roles...)
+		}
+		who := "Nobody active holds the roles"
+		if people == 1 {
+			who = "Only one active staff member holds the roles"
+		}
+		out = append(out, segregationWarning{Duty: d.duty, Label: d.label, People: people, Roles: roles,
+			Message: fmt.Sprintf("%s for this, and %s, so it cannot be completed. Give a second person the %s role.", who, d.why, strings.ReplaceAll(strings.Join(roles, " or "), "_", " "))})
+	}
+	return out, nil
 }

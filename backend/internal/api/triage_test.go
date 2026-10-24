@@ -21,7 +21,7 @@ func TestTriageExtrasAndHouseholds(t *testing.T) {
 	h.sql(`INSERT INTO provider_categories (provider_id, category_id, status) VALUES ($1,$2,'active')`, p2, w.catID)
 
 	// ---- shortlist: share, choose, assign
-	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
+	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": w.svcID, "address_id": w.addrID,
 		"requested_start": time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339)})
 	reqID := r["id"].(string)
 	h.expect(200, "triage", "POST", "/console/requests/"+reqID+"/claim", nil)
@@ -64,7 +64,7 @@ func TestTriageExtrasAndHouseholds(t *testing.T) {
 	h.expect(200, who, "POST", "/provider/offers/"+a["id"].(string)+"/accept", nil)
 
 	// ---- cancel by management
-	r2 := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
+	r2 := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": w.svcID, "address_id": w.addrID,
 		"requested_start": time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339)})
 	h.expect(422, "triage", "POST", "/console/requests/"+r2["id"].(string)+"/cancel", map[string]any{"reason": "Client phoned", "cancelled_by": "nobody"})
 	c := h.expect(200, "triage", "POST", "/console/requests/"+r2["id"].(string)+"/cancel", map[string]any{"reason": "Client phoned to cancel", "cancelled_by": "client", "waive_fee": true})
@@ -192,7 +192,7 @@ func TestShortlistDistanceFromHomeArea(t *testing.T) {
 	w := h.newWorld()
 	h.staff("triage", "triage@homend.test", "triage_officer")
 	h.sql(`UPDATE providers SET home_lat = NULL, home_lng = NULL, home_service_area_id = $2 WHERE user_id = $1`, w.providerID, w.areaID)
-	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"service_id": w.svcID, "address_id": w.addrID,
+	r := h.expect(201, "client", "POST", "/client/requests", map[string]any{"accept_terms": true, "service_id": w.svcID, "address_id": w.addrID,
 		"requested_start": time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339)})
 	reqID := r["id"].(string)
 	h.expect(200, "triage", "POST", "/console/requests/"+reqID+"/claim", nil)
