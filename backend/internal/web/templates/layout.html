@@ -5,21 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{block "title" .}}{{.Title}} | {{siteName}}{{end}}</title>
 {{with .Description}}<meta name="description" content="{{.}}">{{end}}
-{{if .NoIndex}}<meta name="robots" content="noindex, nofollow">{{else}}<link rel="canonical" href="{{.URL}}">{{end}}
+{{if .NoIndex}}<meta name="robots" content="noindex, nofollow">{{else}}<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="{{.URL}}">{{end}}
 <meta property="og:site_name" content="{{siteName}}">
 <meta property="og:title" content="{{.Title}}">
 {{with .Description}}<meta property="og:description" content="{{.}}">{{end}}
 <meta property="og:type" content="{{or .OGType "website"}}">
 <meta property="og:url" content="{{.URL}}">
-<meta property="og:image" content="{{absURL (asset "img/og.png")}}">
+{{with .Image}}<meta property="og:image" content="{{.Abs}}">
+<meta property="og:image:width" content="{{.Width}}">
+<meta property="og:image:height" content="{{.Height}}">
+{{else}}<meta property="og:image" content="{{absURL (asset "img/og.png")}}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+{{end}}<meta property="og:image:alt" content="{{or .ImageAlt (print siteName ": vetted home services in Nairobi")}}">
 <meta property="og:locale" content="en_KE">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{.Title}}">
+{{with .Description}}<meta name="twitter:description" content="{{.}}">{{end}}
 <meta name="theme-color" content="#0f766e">
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false}'>
 <link rel="icon" href="{{asset "img/favicon.svg"}}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{asset "img/icon-192.png"}}">
+<link rel="preload" href="/static/fonts/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/cormorant-garamond.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{asset "css/app.css"}}">
 <script src="{{asset "js/htmx.min.js"}}" defer></script>
+<script src="{{asset "js/site.js"}}" defer></script>
 {{range .JSONLD}}{{jsonld .}}
 {{end}}{{block "head" .}}{{end}}
 </head>
@@ -45,25 +57,25 @@
 </html>{{end}}
 
 {{define "public-header"}}
-<header class="border-b border-slate-200 bg-white">
+<header class="{{if eq .Section "home"}}header-over-hero{{else}}relative z-30 bg-white{{end}} border-b border-slate-200 transition-colors duration-300" data-header>
   <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-    <a href="/" class="flex items-center gap-2 font-bold text-slate-900">
-      <img src="{{asset "img/favicon.svg"}}" alt="" width="28" height="28">
-      <span>{{siteName}}</span>
+    <a href="/" class="flex min-h-11 items-center gap-2.5">
+      <img src="{{asset "img/favicon.svg"}}" alt="" width="30" height="30">
+      <span class="brand-name font-display text-2xl leading-none font-medium tracking-[-0.01em] text-slate-900">{{siteName}}</span>
     </a>
     <nav aria-label="Main" class="hidden items-center gap-6 text-sm font-medium md:flex">
       {{template "nav-links" .}}
     </nav>
     <div class="hidden items-center gap-3 md:flex">
-      <a href="{{clientPath}}" class="text-sm font-medium text-slate-700 hover:text-brand-700">Sign in</a>
+      <a href="{{clientPath}}" class="nav-link">Sign in</a>
       <a href="/book" class="btn-primary">Book a service</a>
     </div>
     <details class="relative md:hidden">
-      <summary class="cursor-pointer list-none rounded-md border border-slate-300 px-3 py-2 text-sm font-medium" aria-label="Menu">Menu</summary>
-      <nav aria-label="Main" class="absolute right-0 z-40 mt-2 flex w-64 flex-col gap-1 rounded-lg border border-slate-200 bg-white p-3 text-base shadow-lg">
+      <summary class="menu-button flex min-h-11 cursor-pointer list-none items-center rounded-sm border border-slate-300 px-4 text-[13px] font-medium tracking-[0.06em] text-slate-800 uppercase" aria-label="Menu">Menu</summary>
+      <nav aria-label="Main" class="absolute right-0 z-40 mt-2 flex w-64 flex-col gap-1 border border-slate-200 bg-white p-3">
         {{template "nav-links" .}}
         <hr class="my-2 border-slate-200">
-        <a href="{{clientPath}}" class="rounded px-2 py-2 hover:bg-slate-50">Sign in</a>
+        <a href="{{clientPath}}" class="nav-link">Sign in</a>
         <a href="/book" class="btn-primary mt-1 text-center">Book a service</a>
       </nav>
     </details>
@@ -80,38 +92,41 @@
 {{end}}
 
 {{define "public-footer"}}
-<footer class="mt-16 border-t border-slate-200 bg-slate-50 text-sm text-slate-600">
-  <div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 md:grid-cols-4">
+<footer class="mt-24 bg-slate-900 text-sm text-slate-300">
+  <div class="mx-auto grid max-w-6xl gap-10 px-4 pt-16 pb-12 sm:grid-cols-2 md:grid-cols-4">
     <div>
-      <p class="font-semibold text-slate-900">{{siteName}}</p>
-      <p class="mt-2">Vetted, trained and supervised home service providers in Nairobi. Every booking is managed by our team.</p>
+      <p class="text-xs font-medium tracking-[0.16em] text-white uppercase">{{siteName}}</p>
+      <p class="mt-3">Vetted, trained and supervised home service providers in Nairobi. Every booking is managed by our team.</p>
     </div>
     <div>
-      <p class="font-semibold text-slate-900">Households</p>
+      <p class="text-xs font-medium tracking-[0.16em] text-white uppercase">Households</p>
       <ul class="mt-2 space-y-1">
-        <li><a href="/services" class="hover:text-brand-700">Services</a></li>
-        <li><a href="/pricing" class="hover:text-brand-700">Pricing</a></li>
-        <li><a href="/book" class="hover:text-brand-700">Book a service</a></li>
-        <li><a href="{{clientPath}}" class="hover:text-brand-700">Sign in</a></li>
+        <li><a href="/services" class="inline-block py-1 hover:text-white hover:underline">Services</a></li>
+        <li><a href="/pricing" class="inline-block py-1 hover:text-white hover:underline">Pricing</a></li>
+        <li><a href="/book" class="inline-block py-1 hover:text-white hover:underline">Book a service</a></li>
+        <li><a href="{{clientPath}}" class="inline-block py-1 hover:text-white hover:underline">Sign in</a></li>
       </ul>
     </div>
     <div>
-      <p class="font-semibold text-slate-900">Providers</p>
+      <p class="text-xs font-medium tracking-[0.16em] text-white uppercase">Providers</p>
       <ul class="mt-2 space-y-1">
-        <li><a href="{{joinPath}}" class="hover:text-brand-700">Apply to work with us</a></li>
-        <li><a href="{{providerPath}}" class="hover:text-brand-700">Provider sign in</a></li>
+        <li><a href="{{joinPath}}" class="inline-block py-1 hover:text-white hover:underline">Apply to work with us</a></li>
+        <li><a href="{{providerPath}}" class="inline-block py-1 hover:text-white hover:underline">Provider sign in</a></li>
       </ul>
     </div>
     <div>
-      <p class="font-semibold text-slate-900">Company</p>
+      <p class="text-xs font-medium tracking-[0.16em] text-white uppercase">Company</p>
       <ul class="mt-2 space-y-1">
-        <li><a href="/how-it-works" class="hover:text-brand-700">How it works</a></li>
-        <li><a href="/faq" class="hover:text-brand-700">Questions</a></li>
-        <li><a href="/contact" class="hover:text-brand-700">Contact us</a></li>
-        <li><a href="/privacy" class="hover:text-brand-700">Privacy</a></li>
+        <li><a href="/how-it-works" class="inline-block py-1 hover:text-white hover:underline">How it works</a></li>
+        <li><a href="/faq" class="inline-block py-1 hover:text-white hover:underline">Questions</a></li>
+        <li><a href="/contact" class="inline-block py-1 hover:text-white hover:underline">Contact us</a></li>
+        <li><a href="/privacy" class="inline-block py-1 hover:text-white hover:underline">Privacy</a></li>
       </ul>
     </div>
   </div>
-  <p class="border-t border-slate-200 py-4 text-center text-xs">&copy; {{year}} {{siteName}}</p>
+  <div class="mx-auto max-w-6xl px-4">
+    <p class="font-display text-[clamp(2.75rem,9vw,7rem)] leading-[0.85] font-light tracking-[-0.04em] text-white uppercase" aria-hidden="true">{{siteName}}</p>
+    <p class="mt-6 border-t border-slate-700 py-5 text-xs tracking-[0.14em] uppercase">&copy; {{year}} {{siteName}} &middot; Nairobi, Kenya</p>
+  </div>
 </footer>
 {{end}}

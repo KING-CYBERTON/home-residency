@@ -38,13 +38,19 @@ func place(a api.ServiceArea) map[string]any {
 	return p
 }
 
-func (p *Site) organization(areas []api.ServiceArea) map[string]any {
+func (p *Site) organization(areas []api.ServiceArea, cats []api.Category) map[string]any {
+	services := make([]map[string]any, 0, len(cats))
+	for _, c := range cats {
+		services = append(services, map[string]any{"@type": "Offer", "itemOffered": map[string]any{
+			"@type": "Service", "name": c.Name, "url": p.site.AbsURL("/services/" + c.Slug)}})
+	}
 	return map[string]any{
 		"@context": "https://schema.org", "@type": "HomeAndConstructionBusiness", "@id": p.site.AbsURL("/#organization"),
 		"name": web.SiteName, "url": p.site.AbsURL("/"), "logo": p.site.AbsURL(p.site.Asset("img/icon-512.png")),
-		"image":      p.site.AbsURL(p.site.Asset("img/og.png")),
+		"image":      p.orgImages(),
 		"address":    map[string]any{"@type": "PostalAddress", "addressLocality": "Nairobi", "addressCountry": "KE"},
 		"areaServed": places(areas), "priceRange": "KES",
+		"hasOfferCatalog": map[string]any{"@type": "OfferCatalog", "name": "Home services", "itemListElement": services},
 	}
 }
 
@@ -74,6 +80,9 @@ func (p *Site) serviceLD(cat api.Category, area *api.ServiceArea, all []api.Serv
 	if cat.Description != nil {
 		ld["description"] = *cat.Description
 	}
+	if ph := p.site.Photo(servicePhoto(cat.Slug)); ph != nil {
+		ld["image"] = ph.Abs
+	}
 	if area != nil {
 		ld["areaServed"] = place(*area)
 	} else {
@@ -95,6 +104,7 @@ func faqPage(faqs []api.FAQ) map[string]any {
 type urlset struct {
 	XMLName xml.Name `xml:"urlset"`
 	NS      string   `xml:"xmlns,attr"`
+	ImageNS string   `xml:"xmlns:image,attr"`
 	URLs    []sitemapURL
 }
 
@@ -102,19 +112,34 @@ type sitemapURL struct {
 	XMLName  xml.Name `xml:"url"`
 	Loc      string   `xml:"loc"`
 	Priority string   `xml:"priority,omitempty"`
+	Images   []sitemapImage
+}
+
+// sitemapImage lists a page's photo for image search (Google's image sitemap extension).
+type sitemapImage struct {
+	XMLName xml.Name `xml:"image:image"`
+	Loc     string   `xml:"image:loc"`
 }
 
 // sitemapPaths lists every indexable page: the fixed pages, each active category, area, and
 // category-in-area landing page.
 func (p *Site) sitemapPaths(c catalogue) []sitemapURL {
 	var out []sitemapURL
-	add := func(path, prio string) { out = append(out, sitemapURL{Loc: p.site.AbsURL(path), Priority: prio}) }
-	add("/", "1.0")
+	add := func(path, prio string, photos ...string) {
+		u := sitemapURL{Loc: p.site.AbsURL(path), Priority: prio}
+		for _, name := range photos {
+			if ph := p.site.Photo(name); ph != nil {
+				u.Images = append(u.Images, sitemapImage{Loc: ph.Abs})
+			}
+		}
+		out = append(out, u)
+	}
+	add("/", "1.0", "hero", "why", "providers")
 	for _, path := range []string{"/services", "/areas", "/pricing", "/how-it-works", "/faq", "/book", "/contact", web.JoinPath} {
 		add(path, "0.8")
 	}
 	for _, cat := range c.Categories {
-		add("/services/"+cat.Slug, "0.9")
+		add("/services/"+cat.Slug, "0.9", servicePhoto(cat.Slug))
 		for _, a := range c.Areas {
 			add("/services/"+cat.Slug+"/"+a.Slug, "0.7")
 		}
@@ -132,7 +157,7 @@ func (p *Site) sitemap(w http.ResponseWriter, r *http.Request) {
 		p.fail(w, r, err)
 		return
 	}
-	b, err := xml.MarshalIndent(urlset{NS: "http://www.sitemaps.org/schemas/sitemap/0.9", URLs: p.sitemapPaths(c)}, "", "  ")
+	b, err := xml.MarshalIndent(urlset{NS: "http://www.sitemaps.org/schemas/sitemap/0.9", ImageNS: "http://www.google.com/schemas/sitemap-image/1.1", URLs: p.sitemapPaths(c)}, "", "  ")
 	if err != nil {
 		p.fail(w, r, err)
 		return

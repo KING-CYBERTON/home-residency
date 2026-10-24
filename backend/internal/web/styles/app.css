@@ -1,11 +1,32 @@
 /* Tailwind input for every server-rendered surface. Build with `make css` in backend/.
-   The output (static/css/app.css) is committed so the Go binary embeds it; CI checks it is current. */
+   The output (static/css/app.css) is committed so the Go binary embeds it; CI checks it is current.
+
+   Editorial look on the brand palette: a light serif for headings over a geometric sans, sharp
+   corners, flat surfaces with hairline borders, full-bleed photography and quiet motion. */
 @import "tailwindcss" source(none);
 @source "../";
 @source not "../static";
 
+/* Cormorant Garamond and DM Sans (SIL Open Font License), self-hosted: latin subset, one
+   variable file each. */
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url("/static/fonts/cormorant-garamond.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url("/static/fonts/dm-sans.woff2") format("woff2-variations");
+}
+
 @theme {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Cormorant Garamond", "Iowan Old Style", Georgia, "Times New Roman", serif;
   --color-brand-50: #f0fdfa;
   --color-brand-100: #ccfbf1;
   --color-brand-200: #99f6e4;
@@ -15,28 +36,110 @@
   --color-brand-800: #115e59;
   --color-brand-900: #134e4a;
   --color-accent-500: #f59e0b;
+
+  /* Sharp geometry: small radii on controls, square cards; flat, no drop shadows */
+  --radius-sm: 3px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --shadow-sm: 0 0 #0000;
+
+  --ease-out-soft: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-drift: drift 24s ease-in-out infinite alternate;
+
+  @keyframes marquee { to { transform: translateX(-50%); } }
+  @keyframes drift { from { transform: scale(1.04); } to { transform: scale(1.12) translate(-1%, -1%); } }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-brand-700 px-5 py-2.5 text-[13px] font-medium tracking-[0.06em] text-white uppercase transition-colors duration-300 hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:opacity-60;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-slate-300 bg-white px-5 py-2.5 text-[13px] font-medium tracking-[0.06em] text-slate-800 uppercase transition-colors duration-300 hover:border-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700;
   }
-  .nav-link { @apply rounded px-2 py-2 text-slate-700 hover:text-brand-700 md:px-0 md:py-0; }
-  .nav-link-active { @apply font-semibold text-brand-700; }
-  .card { @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm; }
+  /* Outlined button for dark and photo backgrounds */
+  .btn-light {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-white/70 px-5 py-2.5 text-[13px] font-medium tracking-[0.06em] text-white uppercase transition-colors duration-300 hover:bg-white hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white;
+  }
+  .nav-link {
+    @apply inline-flex min-h-11 items-center px-2 text-[13px] font-medium tracking-[0.06em] text-slate-700 uppercase underline-offset-[6px] transition-colors hover:text-brand-700 md:min-h-0 md:px-0;
+  }
+  .nav-link-active { @apply text-brand-700 underline decoration-accent-500 decoration-2; }
+  .eyebrow { @apply text-xs font-medium tracking-[0.16em] text-brand-700 uppercase; }
+  .display { @apply font-display font-light tracking-[-0.03em] uppercase; }
+  .card { @apply rounded-xl border border-slate-200 bg-white p-5; }
   .field-label { @apply block text-sm font-medium text-slate-800; }
   .field-input {
-    @apply mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200;
+    @apply mt-1 block min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200;
   }
   .field-error { @apply mt-1 text-sm text-red-700; }
   .prose-body p { @apply mt-4 leading-7; }
-  .prose-body h2 { @apply mt-10 text-xl font-bold text-slate-900; }
+  .prose-body h2 { @apply mt-10 text-2xl text-slate-900; }
   .prose-body ul { @apply mt-4 list-disc space-y-2 pl-6; }
+
+  /* A photo inside a frame that zooms gently when its link is hovered */
+  .photo-frame { @apply relative overflow-hidden bg-brand-50; }
+  .photo-frame > img, .photo-frame > picture > img { @apply h-full w-full object-cover transition-transform duration-700 ease-out-soft; }
+  .group:hover .photo-frame > img, .group:focus-visible .photo-frame > img { @apply scale-105; }
 }
+
+/* Unlayered, so these win over the templates' utilities (font-bold on a heading, for one).
+   Headings use the light serif; it runs small, so h1 and h2 scale their sizes up by redefining
+   the size variables Tailwind's text-* utilities read. */
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  --text-base: 1.375rem;
+  --text-base--line-height: 1.15;
+  --text-lg: 1.5rem;
+  --text-lg--line-height: 1.1;
+  --text-xl: 1.75rem;
+  --text-xl--line-height: 1.1;
+  --text-2xl: 2.125rem;
+  --text-2xl--line-height: 1.05;
+  --text-3xl: 2.625rem;
+  --text-3xl--line-height: 1;
+  --text-4xl: 3.25rem;
+  --text-4xl--line-height: 0.95;
+  --text-5xl: 4.25rem;
+  --text-5xl--line-height: 0.92;
+  --text-6xl: 5.5rem;
+  --text-6xl--line-height: 0.88;
+  --text-7xl: 6.75rem;
+  --text-7xl--line-height: 0.86;
+}
+h1.display, h2.display { font-weight: 300; letter-spacing: -0.035em; }
+/* A heading with no size of its own gets the smallest serif size that still reads well */
+h2:not(.text-xs, .text-sm, .text-base, .text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-6xl) { font-size: 1.375rem; line-height: 1.15; }
+/* Small uppercase section labels stay in the sans */
+:is(h1, h2):is(.text-sm, .text-xs) { font-family: var(--font-sans); letter-spacing: 0.12em; font-weight: 600; }
+
+/* Scroll reveal: site.js adds .reveal to sections below the fold and .is-visible as each one
+   scrolls in. Without JavaScript nothing is hidden. */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.9s var(--ease-out-soft), transform 0.9s var(--ease-out-soft); }
+.reveal.is-visible { opacity: 1; transform: none; }
+.reveal[data-reveal-item] { transition-delay: calc(var(--i, 0) * 90ms); }
+
+/* Header that sits on the home page's hero photo and turns solid once the page scrolls */
+.header-over-hero { position: absolute; inset-inline: 0; top: 0; z-index: 30; border-color: transparent; background: transparent; color: white; }
+.header-over-hero .nav-link, .header-over-hero .brand-name { color: white; }
+.header-over-hero .nav-link:hover { color: var(--color-brand-100); }
+.header-over-hero .menu-button { border-color: rgb(255 255 255 / 0.7); color: white; }
+.header-over-hero.is-stuck { position: fixed; background: white; color: var(--color-slate-900); border-color: var(--color-slate-200); }
+.header-over-hero.is-stuck .nav-link, .header-over-hero.is-stuck .brand-name { color: var(--color-slate-700); }
+.header-over-hero.is-stuck .brand-name { color: var(--color-slate-900); }
+.header-over-hero.is-stuck .menu-button { border-color: var(--color-slate-300); color: var(--color-slate-800); }
+.header-over-hero details[open] nav .nav-link { color: var(--color-slate-700); }
 
 /* HTMX request indicators (htmx is configured not to inject its own <style>, for the CSP). */
 .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+  .reveal { opacity: 1; transform: none; }
+}

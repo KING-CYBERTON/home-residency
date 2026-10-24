@@ -39,7 +39,7 @@ type Site struct {
 }
 
 func New(srv *api.Server, site *web.Site) (*Site, error) {
-	t, err := site.Templates(templates, "templates/*.html")
+	t, err := site.TemplatesWithFuncs(templateFuncs, templates, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -182,12 +182,26 @@ func (p *Site) home(w http.ResponseWriter, r *http.Request) {
 		}
 		cards = append(cards, card{Category: cat, From: lowestPrice(offers)})
 	}
+	faqs, err := p.srv.PublicFAQs(ctx, nil, "en")
+	if err != nil {
+		p.fail(w, r, err)
+		return
+	}
+	general := faqs[:0]
+	for _, f := range faqs {
+		if f.CategoryID == nil && len(general) < 4 {
+			general = append(general, f)
+		}
+	}
 	p.render(w, r, &web.Page{
 		Title:       "Vetted home services in Nairobi",
 		Description: "Book vetted, trained and supervised cleaners, domestic workers, caregivers, plumbers and electricians in Nairobi. Fixed prices, managed by our team.",
 		Path:        "/",
-		JSONLD:      []any{p.organization(c.Areas), p.website()},
-		Data:        map[string]any{"Categories": cards, "Areas": c.Areas},
+		Section:     "home",
+		Image:       p.site.Photo("hero"),
+		ImageAlt:    heroAlt,
+		JSONLD:      []any{p.organization(c.Areas, c.Categories), p.website()},
+		Data:        map[string]any{"Categories": cards, "Areas": c.Areas, "FAQs": general, "HeroAlt": heroAlt},
 	}, "home")
 }
 
@@ -287,6 +301,7 @@ func (p *Site) categoryPage(w http.ResponseWriter, r *http.Request, catSlug, are
 	}
 	p.render(w, r, &web.Page{
 		Title: title, Description: desc, Path: path, Section: "services", JSONLD: ld,
+		Image: p.site.Photo(servicePhoto(cat.Slug)), ImageAlt: cat.Name + " by " + web.SiteName,
 		Data: map[string]any{"Category": cat, "Area": area, "Areas": c.Areas, "Offers": offers, "FAQs": faqs, "VAT": vat,
 			"BookURL": bookURL(cat.Slug, "", areaSlug)},
 	}, "category")

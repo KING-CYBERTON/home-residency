@@ -6,10 +6,10 @@
   <p class="mt-1 text-sm text-slate-600">We only offer you jobs inside these hours.</p>
   <form method="post" action="/provider/availability" class="card mt-4 space-y-3">
     {{range .Days}}
-    <div class="grid grid-cols-[6rem_1fr_1fr] items-center gap-2">
+    <div class="grid grid-cols-[4rem_1fr_1fr] items-center gap-2">
       <label class="flex items-center gap-2 text-sm font-medium"><input type="checkbox" name="on_{{.Day}}"{{if .Start}} checked{{end}}> {{slice (weekday .Day) 0 3}}</label>
-      <input type="time" name="start_{{.Day}}" value="{{or .Start "08:00"}}" aria-label="{{weekday .Day}} start" class="rounded-md border border-slate-300 px-2 py-2">
-      <input type="time" name="end_{{.Day}}" value="{{or .End "17:00"}}" aria-label="{{weekday .Day}} end" class="rounded-md border border-slate-300 px-2 py-2">
+      <input type="time" name="start_{{.Day}}" value="{{or .Start "08:00"}}" aria-label="{{weekday .Day}} start" class="min-h-11 w-full min-w-0 rounded-md border border-slate-300 bg-white px-1.5 py-2 text-sm">
+      <input type="time" name="end_{{.Day}}" value="{{or .End "17:00"}}" aria-label="{{weekday .Day}} end" class="min-h-11 w-full min-w-0 rounded-md border border-slate-300 bg-white px-1.5 py-2 text-sm">
     </div>
     {{end}}
     <button type="submit" class="btn-primary w-full">Save hours</button>

@@ -62,6 +62,7 @@ type Site struct {
 	base    *template.Template
 	static  fs.FS
 	hashes  map[string]string // static path -> content hash, for cache-busting URLs
+	photos  map[string]*Photo
 }
 
 // Page is the data every full-page render receives. Templates read Data for their own content.
@@ -73,6 +74,8 @@ type Page struct {
 	Section     string // highlights the matching nav item
 	OGType      string // defaults to "website"
 	JSONLD      []any  // schema.org objects, written as application/ld+json
+	Image       *Photo // social preview image; defaults to img/og.png
+	ImageAlt    string
 	Data        any
 
 	Site *Site // set by Render
@@ -100,6 +103,7 @@ func New(o Options) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.indexPhotos()
 	s.base, err = template.New("base").Funcs(s.funcs()).ParseFS(files, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -183,6 +187,7 @@ func IsHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" 
 func (s *Site) funcs() template.FuncMap {
 	return template.FuncMap{
 		"asset":    s.Asset,
+		"photo":    s.Photo,
 		"absURL":   s.AbsURL,
 		"siteName": func() string { return SiteName },
 		"year":     func() int { return time.Now().Year() },

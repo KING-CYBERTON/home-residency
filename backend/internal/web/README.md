@@ -28,7 +28,10 @@ Template functions: `asset "css/app.css"` (cache-busted URL; also `site.Asset` i
 (integer cents to `KES 2,500`), `jsonld`, `deref`, `siteName`, `year`, `clientPath`, `providerPath`, `joinPath`.
 
 The layout already loads `css/app.css`, `js/htmx.min.js`, `img/favicon.svg`; icons for manifests are
-`img/icon-192.png` and `img/icon-512.png`. No web fonts: the system font stack keeps pages light.
+`img/icon-192.png` and `img/icon-512.png`. Two self-hosted variable fonts (`static/fonts/`, about 37 KB
+each, SIL Open Font License): DM Sans for text and Cormorant Garamond for headings. They stand in
+for Satoshi and TT Ramillas, which need licences; dropping licensed files into `static/fonts/`
+and changing the two `@font-face` rules in `styles/app.css` swaps them.
 
 ## Rules every route gets from `site.Middleware`
 
@@ -39,6 +42,17 @@ The layout already loads `css/app.css`, `js/htmx.min.js`, `img/favicon.svg`; ico
 - `Cache-Control: no-store` by default. Pages that look the same for everyone call `web.Cacheable`.
 
 ## Styles
+
+The look (light serif headings over a geometric sans, sharp corners, flat surfaces with hairline
+borders, full-bleed photography, quiet motion) lives in `styles/app.css` on the brand palette.
+Use `.display`, `.eyebrow`, `.btn-primary`, `.btn-secondary`, `.btn-light` and `.photo-frame` for
+the recurring pieces. Mark a section `data-reveal` (and its children `data-reveal-item`) to fade it
+in on scroll; `static/js/site.js` does that and the home header, and the page works without it.
+
+Photos live in `static/img/photos/` as `<name>-<width>x<height>.webp`, one file per size; `photo
+"name"` in a template returns it (or nil, so pages fall back to a drawn panel) and `.Img` writes a
+responsive, lazily loaded `<img>`. The public site uses `hero`, `why`, `providers` and
+`service-<category slug>`, which also become each page's social preview and image sitemap entry.
 
 Edit `styles/app.css` (Tailwind v4, brand colours under `@theme`) or use classes in any template
 under `internal/web/`, then run `make css` in `backend/` and commit `static/css/app.css`. CI fails
