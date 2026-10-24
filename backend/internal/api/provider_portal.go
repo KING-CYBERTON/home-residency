@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -148,7 +149,7 @@ const checklistItemObj = `jsonb_build_object('id', i.id, 'kind', i.kind, 'docume
 	'min_count', i.min_count, 'validity_months', i.validity_months, 'sort_order', i.sort_order)`
 
 const checklistJSON = `
-	SELECT jsonb_build_object('id', t.id, 'category_id', t.category_id, 'version', t.version, 'is_current', t.is_current, 'approved_by', t.approved_by,
+	SELECT jsonb_build_object('id', t.id, 'category_id', t.category_id, 'version', t.version, 'is_current', t.is_current, 'state', 'current', 'approved_by', t.approved_by,
 	  'created_at', t.created_at,
 	  'items', COALESCE((SELECT jsonb_agg(` + checklistItemObj + ` ORDER BY i.sort_order, i.label) FROM checklist_template_items i WHERE i.template_id = t.id), '[]'::jsonb))
 	FROM checklist_templates t`
@@ -209,6 +210,9 @@ func (s *Server) PostProviderApplications(w http.ResponseWriter, r *http.Request
 		answers := []byte("{}")
 		if in.Answers != nil {
 			answers, _ = json.Marshal(*in.Answers)
+			if err := s.fillProfileFromAnswers(ctx, tx, me, *in.Answers); err != nil {
+				return err
+			}
 		}
 		if err := tx.QueryRow(ctx, `INSERT INTO applications (provider_id, category_id, template_id, answers) VALUES ($1,$2,$3,$4) RETURNING id`,
 			me, uuid.UUID(in.CategoryId), tpl, answers).Scan(&id); err != nil {
@@ -224,6 +228,67 @@ func (s *Server) PostProviderApplications(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.respondApplication(w, r, id, false, http.StatusCreated)
+}
+
+// fillProfileFromAnswers checks the profile questions on an application (date_of_birth,
+// years_experience, home_service_area_id, languages) and copies them to the provider profile where
+// the profile has nothing yet, so the provider does not type them twice. Other answers are kept
+// on the application only.
+func (s *Server) fillProfileFromAnswers(ctx context.Context, tx pgx.Tx, me uuid.UUID, a map[string]any) error {
+	var dob *time.Time
+	if v, ok := a["date_of_birth"].(string); ok && v != "" {
+		d, err := time.Parse("2006-01-02", v)
+		if err != nil {
+			return httpx.Invalid("date_of_birth must be a date (YYYY-MM-DD)")
+		}
+		if d.AddDate(18, 0, 0).After(s.Now()) {
+			return httpx.Invalid("You must be at least 18 to apply")
+		}
+		if d.Before(s.Now().AddDate(-90, 0, 0)) {
+			return httpx.Invalid("Check your date of birth")
+		}
+		dob = &d
+	}
+	var years *int
+	switch v := a["years_experience"].(type) {
+	case float64:
+		n := int(v)
+		years = &n
+	case string:
+		if v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return httpx.Invalid("years_experience must be a whole number")
+			}
+			years = &n
+		}
+	}
+	if years != nil && (*years < 0 || *years > 60) {
+		return httpx.Invalid("years_experience must be between 0 and 60")
+	}
+	var area *uuid.UUID
+	if v, ok := a["home_service_area_id"].(string); ok && v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			return httpx.Invalid("home_service_area_id is not a service area")
+		}
+		area = &id
+	}
+	var langs []string
+	if v, ok := a["languages"].([]any); ok {
+		for _, l := range v {
+			if str, ok := l.(string); ok && strings.TrimSpace(str) != "" {
+				langs = append(langs, strings.TrimSpace(str))
+			}
+		}
+	}
+	_, err := tx.Exec(ctx, `UPDATE providers SET
+		date_of_birth = COALESCE(date_of_birth, $2),
+		years_experience = COALESCE(years_experience, $3),
+		home_service_area_id = COALESCE(home_service_area_id, $4),
+		languages = CASE WHEN $5::text[] IS NOT NULL AND languages = '{en}' THEN $5 ELSE languages END
+		WHERE user_id = $1`, me, dob, years, area, langs)
+	return mapErr(err)
 }
 
 func (s *Server) GetProviderApplications(w http.ResponseWriter, r *http.Request) {
@@ -479,8 +544,8 @@ func (s *Server) PostProviderApplicationsReferees(w http.ResponseWriter, r *http
 		httpx.Fail(w, r, httpx.Invalid("full_name, relationship and a phone in international format are required"))
 		return
 	}
-	if in.EmploymentFrom != nil && in.EmploymentTo != nil && in.EmploymentTo.Before(in.EmploymentFrom.Time) {
-		httpx.Fail(w, r, httpx.Invalid("employment_to is before employment_from"))
+	if err := s.checkReferee(in); err != nil {
+		httpx.Fail(w, r, err)
 		return
 	}
 	enc, err := s.Cipher.Encrypt([]byte(in.Phone))
@@ -502,6 +567,20 @@ func (s *Server) PostProviderApplicationsReferees(w http.ResponseWriter, r *http
 		if _, err := lockOwnApplication(ctx, tx, uuid.UUID(id), me, "draft", "incomplete", "deferred"); err != nil {
 			return err
 		}
+		var own *string
+		if err := tx.QueryRow(ctx, `SELECT phone_e164 FROM users WHERE id = $1`, me).Scan(&own); err != nil {
+			return err
+		}
+		if own != nil && *own == in.Phone {
+			return httpx.Invalid("A referee must be someone else: this is your own phone number")
+		}
+		var dup int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM referees WHERE application_id = $1 AND lower(full_name) = lower($2)`, uuid.UUID(id), strings.TrimSpace(in.FullName)).Scan(&dup); err != nil {
+			return err
+		}
+		if dup > 0 {
+			return httpx.Invalid("You have already added a referee with this name")
+		}
 		return tx.QueryRow(ctx, `INSERT INTO referees (application_id, full_name, relationship, phone_enc, employer_name, employment_from, employment_to)
 			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, uuid.UUID(id), strings.TrimSpace(in.FullName), strings.TrimSpace(in.Relationship), enc, trimPtr(in.EmployerName), from, to).Scan(&refID)
 	})
@@ -521,6 +600,38 @@ func (s *Server) PostProviderApplicationsReferees(w http.ResponseWriter, r *http
 		}
 	}
 	httpx.Fail(w, r, httpx.ErrNotFound)
+}
+
+// minEmployment is the shortest working relationship a referee can speak to.
+const minEmployment = 30 * 24 * time.Hour
+
+// checkReferee rejects referees that cannot vouch for the applicant: a first name only, or an
+// employment period that has not happened yet, runs backwards or is too short to judge someone.
+func (s *Server) checkReferee(in gen.RefereeInput) error {
+	if len(strings.Fields(in.FullName)) < 2 {
+		return httpx.Invalid("Give the referee's full name (first name and surname)")
+	}
+	today := s.Now()
+	var from, to *time.Time
+	if in.EmploymentFrom != nil {
+		from = &in.EmploymentFrom.Time
+	}
+	if in.EmploymentTo != nil {
+		to = &in.EmploymentTo.Time
+	}
+	switch {
+	case from != nil && from.After(today):
+		return httpx.Invalid("employment_from cannot be in the future")
+	case to != nil && to.After(today):
+		return httpx.Invalid("employment_to cannot be in the future; leave it empty if you still work there")
+	case from != nil && to != nil && !to.After(*from):
+		return httpx.Invalid("employment_to must be after employment_from")
+	case from != nil && to != nil && to.Sub(*from) < minEmployment:
+		return httpx.Invalid("The employment period must be at least a month")
+	case from == nil && to != nil:
+		return httpx.Invalid("Give the date the employment started")
+	}
+	return nil
 }
 
 func (s *Server) DeleteProviderApplicationsRefereesById(w http.ResponseWriter, r *http.Request, id gen.Id, refereeId gen.Id) {

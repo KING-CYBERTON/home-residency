@@ -16,6 +16,11 @@
       <input id="email" name="email" type="email" autocomplete="username" required value="{{.Email}}" class="field-input">
     </div>
     <div>
+      <label for="phone" class="field-label">Phone number</label>
+      <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="0712 345 678" value="{{.Phone}}" class="field-input">
+      <span class="mt-1 block text-xs text-slate-500">The vetting team calls you on this number.</span>
+    </div>
+    <div>
       <label for="password" class="field-label">Password (at least 8 characters)</label>
       <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" class="field-input">
     </div>

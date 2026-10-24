@@ -9,6 +9,7 @@ import { Pager } from "@/components/pager";
 import { useCursor } from "@/hooks/use-cursor";
 import { dateTime, humanize } from "@/lib/format";
 import { useParamState } from "@/lib/params";
+import { auditLabel } from "@/lib/audit";
 
 export function AuditLogPage() {
   const pager = useCursor();
@@ -36,7 +37,15 @@ export function AuditLogPage() {
         empty="No entries match these filters."
         columns={[
           { header: "When", cell: (e) => dateTime(e.occurred_at) },
-          { header: "Action", cell: (e) => <code className="text-xs">{e.action}</code> },
+          {
+            header: "Action",
+            cell: (e) => (
+              <div>
+                <div>{auditLabel(e.action)}</div>
+                <code className="text-muted-foreground text-xs">{e.action}</code>
+              </div>
+            ),
+          },
           { header: "Entity", cell: (e) => <span>{humanize(e.entity_type)} <code className="text-muted-foreground text-xs">{e.entity_id?.slice(0, 8)}</code></span> },
           { header: "Actor", cell: (e) => <span>{e.actor_kind ? humanize(e.actor_kind) : "System"} <code className="text-muted-foreground text-xs">{e.actor_id?.slice(0, 8)}</code></span> },
           { header: "Reason", cell: (e) => <span className="line-clamp-2 max-w-xs text-xs">{e.reason}</span> },

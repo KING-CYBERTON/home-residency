@@ -19,7 +19,8 @@ export function DocumentButton({ id, purpose, label = "View" }: { id: string; pu
     const tab = window.open("", "_blank");
     try {
       const { data } = await fetchClient.GET("/documents/{id}/download-url", {
-        params: { path: { id }, query: { purpose } },
+        // The purpose often names a person, so it goes in a header rather than the URL.
+        params: { path: { id }, header: { "X-Access-Purpose": encodeURIComponent(purpose) } },
       });
       if (!data?.url) throw new Error("The document link could not be created.");
       if (tab) {

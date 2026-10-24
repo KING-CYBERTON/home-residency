@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -33,6 +34,48 @@ type resource struct {
 	cols     []col
 	required []string
 	after    string // optional statement run after a write: $1 = id, $2 = actor
+	// check is an optional query run after a write ($1 = id). Each row it returns is a problem
+	// with the saved record, written for the person editing it; any row undoes the write.
+	check string
+}
+
+// slugOK is the shape of every slug: public pages are built from them.
+const slugOK = `^[a-z0-9]+(-[a-z0-9]+)*$`
+
+// flag is the column that switches the record off (is_active or is_published), if it has one.
+func (res resource) flag() string {
+	for _, c := range res.cols {
+		if c.name == "is_active" || c.name == "is_published" {
+			return c.name
+		}
+	}
+	return ""
+}
+
+func (s *Server) checkResource(ctx context.Context, tx pgx.Tx, res resource, id uuid.UUID) error {
+	if res.check == "" {
+		return nil
+	}
+	var problems []string
+	rows, err := tx.Query(ctx, res.check, id)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return err
+		}
+		problems = append(problems, p)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(problems) > 0 {
+		return httpx.Invalid(strings.Join(problems, " "))
+	}
+	return nil
 }
 
 func (c col) cast() string {
@@ -148,6 +191,9 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request, res reso
 				return err
 			}
 		}
+		if err := s.checkResource(ctx, tx, res, id); err != nil {
+			return err
+		}
 		return audit(ctx, tx, res.entity+".create", res.entity, id, nil, in, "")
 	})
 	if err != nil {
@@ -205,6 +251,9 @@ func (s *Server) updateResource(w http.ResponseWriter, r *http.Request, res reso
 				return err
 			}
 		}
+		if err := s.checkResource(ctx, tx, res, id); err != nil {
+			return err
+		}
 		return audit(ctx, tx, res.entity+".update", res.entity, id, before, in, "")
 	})
 	if err != nil {
@@ -225,6 +274,14 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, res reso
 		var before json.RawMessage
 		if err := tx.QueryRow(ctx, res.sel+` WHERE t.id = $1 FOR UPDATE OF t`, id).Scan(&before); err != nil {
 			return err
+		}
+		// Rows with an on/off flag are switched off, so bookings, applications and pages that refer
+		// to them keep their history; only rows without one are removed.
+		if flag := res.flag(); flag != "" {
+			if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE %s SET %s = false WHERE id = $1`, res.table, flag), id); err != nil {
+				return err
+			}
+			return audit(ctx, tx, res.entity+".deactivate", res.entity, id, before, map[string]any{flag: false}, "")
 		}
 		if _, err := tx.Exec(ctx, fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, res.table), id); err != nil {
 			return err
@@ -249,6 +306,9 @@ var (
 		sel:      `SELECT ` + stampless + ` FROM service_areas t`,
 		required: []string{"slug", "name"},
 		cols:     []col{{"slug", "text"}, {"name", "text"}, {"county", "text"}, {"is_active", "bool"}, {"centre_lat", "num"}, {"centre_lng", "num"}, {"radius_km", "num"}},
+		check: `SELECT 'The slug may only use lower-case letters, numbers and single hyphens, for example "kasarani".' FROM service_areas WHERE id = $1 AND slug !~ '` + slugOK + `'
+			UNION ALL SELECT 'Give a radius in km with the centre point, or the area cannot match addresses.' FROM service_areas WHERE id = $1 AND centre_lat IS NOT NULL AND (radius_km IS NULL OR radius_km <= 0)
+			UNION ALL SELECT 'Give both the latitude and the longitude of the centre.' FROM service_areas WHERE id = $1 AND (centre_lat IS NULL) <> (centre_lng IS NULL)`,
 	}
 	categoryRes = resource{
 		entity: "category", table: "service_categories", order: "t.sort_order, t.name",
@@ -256,6 +316,8 @@ var (
 		required: []string{"slug", "name", "engagement"},
 		cols: []col{{"slug", "text"}, {"name", "text"}, {"name_sw", "text"}, {"description", "text"}, {"engagement", "enum:engagement_type"},
 			{"vetting_tier", "enum:vetting_tier"}, {"requires_client_id_verification", "bool"}, {"sop_markdown", "text"}, {"is_active", "bool"}, {"sort_order", "int"}},
+		check: `SELECT 'The slug may only use lower-case letters, numbers and single hyphens, for example "house-cleaning".' FROM service_categories WHERE id = $1 AND slug !~ '` + slugOK + `'
+			UNION ALL SELECT 'The sort order cannot be negative.' FROM service_categories WHERE id = $1 AND sort_order < 0`,
 	}
 	serviceRes = resource{
 		entity: "service", table: "services", order: "t.sort_order, t.name",
@@ -266,6 +328,9 @@ var (
 		required: []string{"category_id", "slug", "name", "pricing_unit"},
 		cols: []col{{"category_id", "uuid"}, {"slug", "text"}, {"name", "text"}, {"description", "text"}, {"scope_items", "json"}, {"pricing_unit", "enum:pricing_unit"},
 			{"min_quantity", "num"}, {"max_quantity", "num"}, {"default_duration_minutes", "int"}, {"is_active", "bool"}, {"sort_order", "int"}},
+		check: `SELECT 'The slug may only use lower-case letters, numbers and single hyphens.' FROM services WHERE id = $1 AND slug !~ '` + slugOK + `'
+			UNION ALL SELECT 'Its category "' || c.name || '" is inactive, so the service could not be booked. Activate the category first, or save the service as inactive.'
+			  FROM services t JOIN service_categories c ON c.id = t.category_id WHERE t.id = $1 AND t.is_active AND NOT c.is_active`,
 	}
 	planRes = resource{
 		entity: "subscription_plan", table: "subscription_plans", order: "t.price_minor",
@@ -468,10 +533,20 @@ func (s *Server) PostConsoleRateCard(w http.ResponseWriter, r *http.Request) {
 
 // ---- onboarding checklists ----
 
+// tplChecklistJSON reads checklist versions with their items, who drafted and approved them, and
+// their state relative to the category's current version.
 const tplChecklistJSON = `
-	SELECT to_jsonb(t) || jsonb_build_object('items', COALESCE((
-	  SELECT jsonb_agg(to_jsonb(i) - 'template_id' ORDER BY i.sort_order, i.id) FROM checklist_template_items i WHERE i.template_id = t.id), '[]'::jsonb))
-	FROM checklist_templates t`
+	SELECT to_jsonb(t) || jsonb_build_object(
+	  'items', COALESCE((
+	    SELECT jsonb_agg(to_jsonb(i) - 'template_id' ORDER BY i.sort_order, i.id) FROM checklist_template_items i WHERE i.template_id = t.id), '[]'::jsonb),
+	  'created_by_name', cu.full_name,
+	  'approved_by_name', au.full_name,
+	  'state', CASE
+	    WHEN t.is_current THEN 'current'
+	    WHEN t.version > COALESCE((SELECT max(c.version) FROM checklist_templates c WHERE c.category_id = t.category_id AND c.is_current), 0) THEN 'awaiting_approval'
+	    WHEN t.approved_at IS NOT NULL THEN 'replaced'
+	    ELSE 'not_approved' END)
+	FROM checklist_templates t LEFT JOIN users cu ON cu.id = t.created_by LEFT JOIN users au ON au.id = t.approved_by`
 
 func (s *Server) GetConsoleChecklists(w http.ResponseWriter, r *http.Request, params gen.GetConsoleChecklistsParams) {
 	b := &qb{}
@@ -494,22 +569,20 @@ func (s *Server) PostConsoleChecklists(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, err)
 		return
 	}
-	if len(in.Items) == 0 {
-		httpx.Fail(w, r, httpx.Invalid("A checklist needs at least one item"))
+	if err := checkChecklistItems(in.Items); err != nil {
+		httpx.Fail(w, r, err)
 		return
 	}
 	ctx := r.Context()
 	var id uuid.UUID
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `INSERT INTO checklist_templates (category_id, version)
-			SELECT $1, COALESCE(max(version), 0) + 1 FROM checklist_templates WHERE category_id = $1 RETURNING id`, uuid.UUID(in.CategoryId)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO checklist_templates (category_id, version, created_by)
+			SELECT $1, COALESCE(max(version), 0) + 1, $2 FROM checklist_templates WHERE category_id = $1 RETURNING id`,
+			uuid.UUID(in.CategoryId), actorID(ctx)).Scan(&id); err != nil {
 			return err
 		}
 		for n, it := range in.Items {
-			if strings.TrimSpace(it.Label) == "" {
-				return httpx.Invalid("Every item needs a label")
-			}
-			order := n
+			order := n + 1
 			if it.SortOrder != nil {
 				order = *it.SortOrder
 			}
@@ -522,6 +595,22 @@ func (s *Server) PostConsoleChecklists(w http.ResponseWriter, r *http.Request) {
 				id, string(it.Kind), docType(it.DocumentType), strings.TrimSpace(it.Label), it.IsMandatory, minCount, it.ValidityMonths, order); err != nil {
 				return err
 			}
+		}
+		// A draft that changes nothing would only give the approver an empty review.
+		var same bool
+		if err := tx.QueryRow(ctx, `
+			WITH cur AS (SELECT i.kind, i.document_type, i.label, i.is_mandatory, i.min_count, i.validity_months, row_number() OVER (ORDER BY i.sort_order, i.id) AS n
+			               FROM checklist_template_items i JOIN checklist_templates t ON t.id = i.template_id
+			              WHERE t.category_id = $2 AND t.is_current),
+			     new AS (SELECT kind, document_type, label, is_mandatory, min_count, validity_months, row_number() OVER (ORDER BY sort_order, id) AS n
+			               FROM checklist_template_items WHERE template_id = $1)
+			SELECT EXISTS (SELECT 1 FROM cur) AND NOT EXISTS (
+			  (SELECT * FROM cur EXCEPT SELECT * FROM new) UNION ALL (SELECT * FROM new EXCEPT SELECT * FROM cur))`,
+			id, uuid.UUID(in.CategoryId)).Scan(&same); err != nil {
+			return err
+		}
+		if same {
+			return httpx.Invalid("This is the same as the current version. Change at least one requirement before saving a draft.")
 		}
 		return audit(ctx, tx, "checklist.draft", "checklist_template", id, nil, in, "")
 	})
@@ -548,10 +637,12 @@ func (s *Server) PostConsoleChecklistsPublish(w http.ResponseWriter, r *http.Req
 		if cur {
 			return httpx.Conflict("This version is already published")
 		}
-		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = false WHERE category_id = $1 AND is_current`, cat); err != nil {
+		// approved_at marks a version that has been current, including ones seeded without an approver.
+		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = false, approved_at = COALESCE(approved_at, created_at)
+			WHERE category_id = $1 AND is_current`, cat); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = true, approved_by = $2 WHERE id = $1`, uuid.UUID(id), actorID(ctx)); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = true, approved_by = $2, approved_at = now() WHERE id = $1`, uuid.UUID(id), actorID(ctx)); err != nil {
 			return err
 		}
 		return audit(ctx, tx, "checklist.publish", "checklist_template", uuid.UUID(id), nil, map[string]any{"category_id": cat}, "")
@@ -566,6 +657,44 @@ func (s *Server) PostConsoleChecklistsPublish(w http.ResponseWriter, r *http.Req
 		return
 	}
 	httpx.JSON(w, http.StatusOK, raw)
+}
+
+// checklistKinds are the known requirement types; expiring ones can lapse and be checked again.
+var checklistKinds = map[gen.ChecklistItemKind]bool{"document": true, "referee": true, "clearance": true, "interview": true,
+	"practical_assessment": true, "trade_licence": true, "medical": true, "training": true}
+var expiringKinds = map[gen.ChecklistItemKind]bool{"document": true, "clearance": true, "trade_licence": true, "medical": true, "training": true}
+
+// checkChecklistItems refuses an incomplete checklist, naming the item by its position so the
+// editor can point at the row.
+func checkChecklistItems(items []gen.ChecklistTemplateItem) error {
+	if len(items) == 0 {
+		return httpx.Invalid("A checklist needs at least one requirement.")
+	}
+	seen := map[string]int{}
+	for n, it := range items {
+		row := fmt.Sprintf("Requirement %d", n+1)
+		label := strings.TrimSpace(it.Label)
+		switch {
+		case label == "":
+			return httpx.Invalid(row + " needs a name.")
+		case !checklistKinds[it.Kind]:
+			return httpx.Invalid(fmt.Sprintf("%s (%s) has an unknown type.", row, label))
+		case it.Kind == "document" && docType(it.DocumentType) == "":
+			return httpx.Invalid(fmt.Sprintf("%s (%s) is a document upload: choose which document.", row, label))
+		case it.ValidityMonths != nil && (*it.ValidityMonths < 1 || *it.ValidityMonths > 120):
+			return httpx.Invalid(fmt.Sprintf("%s (%s): the expiry must be between 1 and 120 months.", row, label))
+		case it.ValidityMonths != nil && !expiringKinds[it.Kind]:
+			return httpx.Invalid(fmt.Sprintf("%s (%s): this type of requirement does not expire.", row, label))
+		case it.MinCount != nil && (*it.MinCount < 1 || *it.MinCount > 10):
+			return httpx.Invalid(fmt.Sprintf("%s (%s): the number needed must be between 1 and 10.", row, label))
+		}
+		key := strings.ToLower(label)
+		if first, dup := seen[key]; dup {
+			return httpx.Invalid(fmt.Sprintf("Requirements %d and %d are both called %q. Give each a different name.", first, n+1, label))
+		}
+		seen[key] = n + 1
+	}
+	return nil
 }
 
 func docType(d *gen.DocumentType) string {

@@ -4175,6 +4175,8 @@ export interface components {
             email: string;
             /** Format: password */
             password: string;
+            /** @description Required for providers. Stored unverified; one phone belongs to one account. */
+            phone?: string;
             consents?: components["schemas"]["ConsentInput"][];
         };
         PasswordLogin: {
@@ -4395,11 +4397,23 @@ export interface components {
             is_current: boolean;
             /** Format: uuid */
             approved_by?: string | null;
+            approved_by_name?: string | null;
+            /** Format: date-time */
+            approved_at?: string | null;
+            /** Format: uuid */
+            created_by?: string | null;
+            created_by_name?: string | null;
+            state: components["schemas"]["ChecklistState"];
             items: components["schemas"]["ChecklistTemplateItem"][];
             /** Format: date-time */
             created_at?: string;
         };
-        /** @description Creates a new draft version. Publish with /console/checklists/{id}/publish. */
+        /**
+         * @description current: new applications use it. awaiting_approval: a draft newer than the current version, waiting for an approver. replaced: an earlier current version. not_approved: a draft that a later version overtook before it was approved.
+         * @enum {string}
+         */
+        ChecklistState: "current" | "awaiting_approval" | "replaced" | "not_approved";
+        /** @description Creates a new draft version. Publish with /console/checklists/{id}/publish. Refused (422) when an item is incomplete (a document item without its document type, an empty label, a repeated label, an expiry outside 1 to 120 months, a count outside 1 to 10) or when the items are the same as the current version. */
         ChecklistTemplateInput: {
             /** Format: uuid */
             category_id: string;
@@ -6029,6 +6043,7 @@ export interface components {
             document_id: string;
             /** Format: uuid */
             accessed_by: string;
+            accessed_by_name?: string | null;
             purpose?: string;
             ip_address?: string | null;
             /** Format: date-time */
@@ -7114,10 +7129,16 @@ export interface operations {
     getDocumentsDownloadUrl: {
         parameters: {
             query?: {
-                /** @description Required for staff; written to the access log */
+                /**
+                 * @deprecated
+                 * @description Older clients; use the X-Access-Purpose header.
+                 */
                 purpose?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Required for staff; written to the access log. A header, so the purpose (which often names a person) stays out of URLs and request logs. Percent-encode it (encodeURIComponent). */
+                "X-Access-Purpose"?: string;
+            };
             path: {
                 id: components["parameters"]["id"];
             };
@@ -10387,6 +10408,7 @@ export interface operations {
                 mine?: boolean;
                 from?: string;
                 to?: string;
+                client_id?: string;
                 /** @description Free-text search */
                 q?: string;
                 /** @description Opaque cursor from meta.next_cursor */

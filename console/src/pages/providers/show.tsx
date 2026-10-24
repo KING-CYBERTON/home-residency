@@ -10,6 +10,7 @@ import { useAreaName, useAreaOptions, useCategoryName, useCategoryOptions } from
 import { DetailList, Empty, ErrorState, Loading, PageHeader, Section, TextBlock } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { useCan } from "@/lib/access";
+import { auditLabel, collapseRuns } from "@/lib/audit";
 import { date, dateTime, humanize, score } from "@/lib/format";
 
 import { DocumentsTable } from "../vetting/documents";
@@ -51,6 +52,11 @@ export function ProviderPage() {
   if (q.isLoading) return <Loading />;
   if (q.error || !q.data) return <ErrorState error={q.error} />;
   const p = q.data;
+  // Applications still in progress for a category the provider is not approved for yet.
+  const approvedCats = new Set((p.categories ?? []).map((c) => c.category_id));
+  const pending = (p.applications ?? []).filter(
+    (a) => !approvedCats.has(a.category_id) && !["approved", "rejected", "withdrawn", "draft"].includes(a.status),
+  );
   const courseOptions = (courses.data ?? []).filter((c) => c.is_active !== false).map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }));
   const approvedCategories = (p.categories ?? []).filter((c) => c.status === "approved" || c.status === "active");
 
@@ -217,9 +223,20 @@ export function ProviderPage() {
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <Empty>None yet.</Empty>
+              ) : null}
+              {pending.length > 0 && (
+                <ul className="mt-2 space-y-2 text-sm">
+                  {pending.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-2">
+                      <Link className="text-primary hover:underline" to={`/applications/${a.id}`}>
+                        {categoryName(a.category_id)} <span className="text-muted-foreground">(applied)</span>
+                      </Link>
+                      <StatusBadge value={a.status} />
+                    </li>
+                  ))}
+                </ul>
               )}
+              {!p.categories?.length && !pending.length && <Empty>None yet.</Empty>}
             </Section>
             <Section title="Contract">
               {p.contract ? (
@@ -337,16 +354,26 @@ export function ProviderPage() {
 
 export function Timeline({ entries, loading, error }: { entries: Schemas["AuditEntry"][] | undefined; loading?: boolean; error?: unknown }) {
   return (
-    <DataTable<Schemas["AuditEntry"]>
-      rows={entries}
+    <DataTable
+      rows={collapseRuns(entries)}
       loading={loading}
       error={error}
       rowKey={(e) => e.id}
       empty="Nothing recorded yet."
       columns={[
-        { header: "When", cell: (e) => dateTime(e.occurred_at) },
-        { header: "Action", cell: (e) => <span className="font-mono text-xs">{e.action}</span> },
-        { header: "Entity", cell: (e) => humanize(e.entity_type) },
+        {
+          header: "When",
+          cell: (e) => (e.repeats > 1 ? `${dateTime(e.earliest)} – ${dateTime(e.occurred_at)}` : dateTime(e.occurred_at)),
+        },
+        {
+          header: "What happened",
+          cell: (e) => (
+            <span title={e.action}>
+              {auditLabel(e.action)}
+              {e.repeats > 1 && <span className="text-muted-foreground"> ({e.repeats} times)</span>}
+            </span>
+          ),
+        },
         { header: "By", cell: (e) => (e.actor_kind ? humanize(e.actor_kind) : "System") },
         { header: "Reason", cell: (e) => <span className="line-clamp-2 max-w-sm text-xs">{e.reason}</span> },
       ]}

@@ -82,7 +82,7 @@ export function ClientPage() {
             {c.full_name} <StatusBadge value={c.status} />
           </span>
         }
-        description={[c.phone, c.email].filter(Boolean).join(" · ")}
+        description={[c.phone ?? "No phone number", c.email].filter(Boolean).join(" · ")}
         actions={
           <>
             <Allowed when={can.id && c.id_verification === "pending"}>
@@ -123,9 +123,17 @@ export function ClientPage() {
         <Section title="Account" className="lg:col-span-2">
           <DetailList
             items={[
-              ["ID verification", <StatusBadge value={c.id_verification} />],
+              [
+                "ID verification",
+                <span className="flex flex-wrap items-center gap-2">
+                  <StatusBadge value={c.id_verification} />
+                  {c.id_verification === "none" && (
+                    <span className="text-muted-foreground text-xs">No ID sent yet. The household uploads it from their account; then you can verify it here.</span>
+                  )}
+                </span>,
+              ],
               ["Joined", dateTime(c.created_at)],
-              ["Requests", can.requests ? <Link className="text-primary hover:underline" to={`/requests?q=${encodeURIComponent(c.phone ?? c.full_name)}`}>{c.request_count ?? 0}</Link> : (c.request_count ?? 0)],
+              ["Requests", c.request_count ?? 0],
               ["Complaints", c.complaint_count ?? 0],
               ["Subscription", c.subscription ? `${c.subscription.plan.name} (${c.subscription.status})` : "None"],
               ["Subscription price", c.subscription ? money(c.subscription.plan.price_minor) : "—"],
@@ -159,6 +167,34 @@ export function ClientPage() {
           )}
         </Section>
       </div>
+      {can.requests && <ClientRequests clientId={c.id} />}
     </>
+  );
+}
+
+function ClientRequests({ clientId }: { clientId: string }) {
+  const pager = useCursor();
+  const { data, isLoading, error } = $api.useQuery("get", "/console/requests", {
+    params: { query: { client_id: clientId, cursor: pager.cursor } },
+  });
+  return (
+    <Section className="mt-4" title="Requests">
+      <DataTable
+        rows={data?.data}
+        loading={isLoading}
+        error={error}
+        rowKey={(r) => r.id}
+        rowHref={(r) => `/requests/${r.id}`}
+        empty="This household has not made a request yet."
+        columns={[
+          { header: "Reference", cell: (r) => <span className="font-mono text-xs">{r.reference}</span> },
+          { header: "Status", cell: (r) => <StatusBadge value={r.status} /> },
+          { header: "Service", cell: (r) => r.service?.name ?? r.category?.name ?? "—" },
+          { header: "Start", cell: (r) => dateTime(r.requested_start) },
+          { header: "Total", cell: (r) => money(r.total_minor), className: "text-right tabular-nums" },
+        ]}
+      />
+      <Pager pager={pager} nextCursor={data?.meta.next_cursor} />
+    </Section>
   );
 }

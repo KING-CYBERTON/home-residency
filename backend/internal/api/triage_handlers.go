@@ -115,8 +115,9 @@ func (s *Server) GetConsoleRequests(w http.ResponseWriter, r *http.Request, p ge
 		  AND ($5::date IS NULL OR r.submitted_at >= $5) AND ($6::date IS NULL OR r.submitted_at < $6::date + 1)
 		  AND ($7::text IS NULL OR r.reference ILIKE $7)
 		  AND ($8::timestamptz IS NULL OR (r.submitted_at, r.id) > ($8, $9::uuid))
+		  AND ($11::uuid IS NULL OR r.client_id = $11)
 		ORDER BY r.submitted_at, r.id LIMIT $10`,
-		status, p.CategoryId, p.ServiceAreaId, officer, from, to, qtext, curT, curID, limit+1)
+		status, p.CategoryId, p.ServiceAreaId, officer, from, to, qtext, curT, curID, limit+1, p.ClientId)
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
