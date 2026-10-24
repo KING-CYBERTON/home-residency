@@ -58,8 +58,8 @@ export function ComplaintsPage() {
                 { name: "summary", label: "Summary", required: true },
                 { name: "details", label: "Details", type: "textarea" },
                 { name: "request_id", label: "Request ID" },
-                { name: "client_id", label: "Client ID" },
-                { name: "provider_id", label: "Provider ID" },
+                { name: "client_id", label: "Client", type: "person", person: "client" },
+                { name: "provider_id", label: "Provider", type: "person", person: "provider" },
               ]}
               initial={{ source: "management", request_id: f.request_id, client_id: f.client_id, provider_id: f.provider_id }}
               onSubmit={(body) => create.mutateAsync({ body })}

@@ -1,7 +1,11 @@
+import { XIcon } from "lucide-react";
+import { Link } from "react-router";
+
 import { $api, type Schemas } from "@/api/client";
 import { PaymentMethod, PaymentStatus, RefundStatus, EarningStatus } from "@/api/enums.gen";
 import { DataTable } from "@/components/data-table";
-import { EnumFilter, FilterBar, TextFilter } from "@/components/filters";
+import { PersonFilter } from "@/components/person-filter";
+import { EnumFilter, FilterBar, FilterField, TextFilter } from "@/components/filters";
 import { Allowed, FormDialog } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page";
 import { Pager } from "@/components/pager";
@@ -34,7 +38,7 @@ export function ManualPaymentDialog({ invoiceId, balance }: { invoiceId?: string
 
 export function PaymentsPage() {
   const pager = useCursor();
-  const [f, set] = useParamState(["status", "method", "from", "to"], pager.reset);
+  const [f, set] = useParamState(["status", "method", "from", "to", "client_id", "invoice_id"], pager.reset);
   const requery = $api.useMutation("post", "/console/payments/{id}/requery");
   const can = { manual: useCan("POST /console/payments/manual"), requery: useCan("POST /console/payments/{id}/requery") };
   const { data, isLoading, error } = $api.useQuery("get", "/console/payments", {
@@ -42,6 +46,8 @@ export function PaymentsPage() {
       query: {
         status: f.status as Schemas["PaymentStatus"] | undefined,
         method: f.method as Schemas["PaymentMethod"] | undefined,
+        client_id: f.client_id,
+        invoice_id: f.invoice_id,
         from: f.from,
         to: f.to,
         cursor: pager.cursor,
@@ -58,6 +64,17 @@ export function PaymentsPage() {
       <FilterBar>
         <EnumFilter label="Status" value={f.status} options={PaymentStatus} onChange={(v) => set("status", v)} />
         <EnumFilter label="Method" value={f.method} options={PaymentMethod} onChange={(v) => set("method", v)} />
+        <PersonFilter label="Client" kind="client" value={f.client_id} onChange={(v) => set("client_id", v)} />
+        {f.invoice_id && (
+          <FilterField label="Invoice">
+            <span className="border-input flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
+              {data?.data[0]?.invoice_reference ?? "One invoice"}
+              <button type="button" className="text-muted-foreground hover:text-foreground ml-auto" aria-label="Clear invoice" onClick={() => set("invoice_id", undefined)}>
+                <XIcon className="size-4" />
+              </button>
+            </span>
+          </FilterField>
+        )}
         <TextFilter label="From" type="date" value={f.from} onChange={(v) => set("from", v)} />
         <TextFilter label="To" type="date" value={f.to} onChange={(v) => set("to", v)} />
       </FilterBar>
@@ -69,6 +86,25 @@ export function PaymentsPage() {
         empty="No payments match these filters."
         columns={[
           { header: "Initiated", cell: (p) => dateTime(p.initiated_at) },
+          {
+            header: "Invoice",
+            cell: (p) => (
+              <Link className="text-primary font-mono text-xs hover:underline" to={`/invoices/${p.invoice_id}`}>
+                {p.invoice_reference ?? "Open"}
+              </Link>
+            ),
+          },
+          {
+            header: "Client",
+            cell: (p) =>
+              p.client_id ? (
+                <Link className="text-primary hover:underline" to={`/clients/${p.client_id}`}>
+                  {p.client_name ?? "Open"}
+                </Link>
+              ) : (
+                "—"
+              ),
+          },
           { header: "Method", cell: (p) => <StatusBadge value={p.method} /> },
           { header: "Status", cell: (p) => <StatusBadge value={p.status} /> },
           { header: "Amount", cell: (p) => money(p.amount_minor), className: "text-right tabular-nums" },
@@ -205,7 +241,7 @@ export function EarningsPage() {
       <PageHeader title="Provider earnings" description="Net = gross − commission − withholding. Held earnings are left out of payout batches." />
       <FilterBar>
         <EnumFilter label="Status" value={f.status} options={EarningStatus} onChange={(v) => set("status", v)} />
-        <TextFilter label="Provider ID" value={f.provider_id} onChange={(v) => set("provider_id", v)} />
+        <PersonFilter label="Provider" kind="provider" value={f.provider_id} onChange={(v) => set("provider_id", v)} />
       </FilterBar>
       <DataTable<Schemas["Earning"]>
         rows={data?.data}

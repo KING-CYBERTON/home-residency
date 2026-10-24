@@ -1,18 +1,21 @@
-const kes = new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 });
+const whole = new Intl.NumberFormat("en-KE", { maximumFractionDigits: 0 });
+const cents = new Intl.NumberFormat("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Money is carried as KES minor units (cents) everywhere in the API. */
+/**
+ * Money is carried as KES minor units (cents) everywhere in the API. It is shown the way the
+ * website and invoices show it: "KES 2,000", with cents only when there are some ("KES 413.79").
+ */
 export function money(minor: number | null | undefined): string {
   if (minor === null || minor === undefined) return "—";
-  return kes.format(minor / 100);
+  const sign = minor < 0 ? "−" : "";
+  const abs = Math.abs(minor);
+  return `${sign}KES ${abs % 100 === 0 ? whole.format(abs / 100) : cents.format(abs / 100)}`;
 }
 
-const dateFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short", year: "numeric" });
-const dateTimeFmt = new Intl.DateTimeFormat("en-KE", {
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+/** Dates are shown day first (24/10/2026) in Nairobi time, wherever the officer's browser is. */
+const zone = "Africa/Nairobi";
+const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: zone });
+const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: zone });
 
 export function date(value: string | null | undefined): string {
   if (!value) return "—";
@@ -23,7 +26,7 @@ export function date(value: string | null | undefined): string {
 export function dateTime(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : dateTimeFmt.format(d);
+  return Number.isNaN(d.getTime()) ? value : `${dateFmt.format(d)} ${timeFmt.format(d)}`;
 }
 
 const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });

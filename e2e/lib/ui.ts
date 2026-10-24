@@ -53,7 +53,8 @@ type Value = string | number | boolean | { label: string } | string[];
 
 /**
  * Fills the open FormDialog. Fields are found by their id (f-<name>); selects take a value or
- * { label }, checkboxes take a boolean, multiselects take the labels to tick.
+ * { label }, checkboxes take a boolean, multiselects take the labels to tick, and person pickers
+ * take the name to search for.
  */
 export async function fill(page: Page, values: Record<string, Value>) {
   const dialog = page.getByRole("dialog").last();
@@ -68,6 +69,10 @@ export async function fill(page: Page, values: Record<string, Value>) {
     } else if (typeof v === "boolean") {
       const checked = (await el.getAttribute("data-state")) === "checked";
       if (checked !== v) await el.click();
+    } else if ((await el.getAttribute("role")) === "combobox") {
+      // A person picker: search by name, then take the first match.
+      await el.fill(String(v));
+      await dialog.getByRole("listbox").getByRole("option").first().click();
     } else if ((await el.evaluate((e) => e.tagName)) === "SELECT") {
       await el.selectOption(typeof v === "object" ? { label: v.label } : String(v));
     } else {

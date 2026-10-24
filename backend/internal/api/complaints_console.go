@@ -700,7 +700,8 @@ func (s *Server) GetConsoleSpotChecks(w http.ResponseWriter, r *http.Request, pa
 	if params.To != nil {
 		b.add("sc.checked_at < ?", params.To.Time.AddDate(0, 0, 1))
 	}
-	pg, err := pagedRaw(r.Context(), s.DB, `SELECT `+spotCols+`, sc.checked_at AS _t, sc.id AS _id FROM spot_checks sc WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
+	pg, err := pagedRaw(r.Context(), s.DB, `SELECT `+spotCols+`, pu.full_name AS provider_name, su.full_name AS supervisor_name, sc.checked_at AS _t, sc.id AS _id
+		FROM spot_checks sc JOIN users pu ON pu.id = sc.provider_id LEFT JOIN users su ON su.id = sc.supervisor_id WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return

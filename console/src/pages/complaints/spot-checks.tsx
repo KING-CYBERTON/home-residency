@@ -2,6 +2,7 @@ import { Link } from "react-router";
 
 import { $api, type Schemas } from "@/api/client";
 import { DataTable } from "@/components/data-table";
+import { PersonFilter } from "@/components/person-filter";
 import { FilterBar, TextFilter } from "@/components/filters";
 import { Allowed, FormDialog } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page";
@@ -31,7 +32,7 @@ export function SpotChecksPage() {
               triggerVariant="default"
               title="Record a spot check"
               fields={[
-                { name: "provider_id", label: "Provider ID", required: true },
+                { name: "provider_id", label: "Provider", type: "person", person: "provider", required: true },
                 { name: "visit_id", label: "Visit ID" },
                 { name: "method", label: "Method", type: "select", options: ["on_site", "phone_client", "phone_provider"], required: true },
                 { name: "scores", label: "Scores by criterion (JSON)", type: "json", required: true, help: 'For example {"punctuality": 5, "quality": 4}' },
@@ -46,7 +47,7 @@ export function SpotChecksPage() {
         }
       />
       <FilterBar>
-        <TextFilter label="Provider ID" value={f.provider_id} onChange={(v) => set("provider_id", v)} />
+        <PersonFilter label="Provider" kind="provider" value={f.provider_id} onChange={(v) => set("provider_id", v)} />
         <TextFilter label="From" type="date" value={f.from} onChange={(v) => set("from", v)} />
         <TextFilter label="To" type="date" value={f.to} onChange={(v) => set("to", v)} />
       </FilterBar>
@@ -58,7 +59,8 @@ export function SpotChecksPage() {
         empty="No spot checks."
         columns={[
           { header: "Checked", cell: (s) => dateTime(s.checked_at) },
-          { header: "Provider", cell: (s) => <Link className="text-primary hover:underline" to={`/providers/${s.provider_id}`}>Open file</Link> },
+          { header: "Provider", cell: (s) => <Link className="text-primary hover:underline" to={`/providers/${s.provider_id}`}>{s.provider_name ?? "Open file"}</Link> },
+          { header: "Checked by", cell: (s) => s.supervisor_name ?? "—" },
           { header: "Method", cell: (s) => humanize(s.method) },
           { header: "Score", cell: (s) => score(s.total_score), className: "tabular-nums" },
           { header: "Scores", cell: (s) => <span className="text-xs">{Object.entries(s.scores ?? {}).map(([k, v]) => `${k} ${String(v)}`).join(", ")}</span> },

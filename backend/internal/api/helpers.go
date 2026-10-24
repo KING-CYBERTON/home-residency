@@ -79,10 +79,11 @@ func audit(ctx context.Context, q db, action, entityType string, entityID uuid.U
 		}
 		return x
 	}
+	c := httpx.ClientOf(ctx)
 	_, err := q.Exec(ctx, `
-		INSERT INTO audit_log (actor_id, actor_kind, action, entity_type, entity_id, before_state, after_state, reason, request_id)
-		VALUES ($1, $2::user_kind, $3, $4, $5, $6, $7, NULLIF($8,''), NULLIF($9,''))`,
-		actor, kind, action, entityType, entityID, nz(b), nz(a), reason, httpx.RequestID(ctx))
+		INSERT INTO audit_log (actor_id, actor_kind, action, entity_type, entity_id, before_state, after_state, reason, request_id, ip_address, user_agent)
+		VALUES ($1, $2::user_kind, $3, $4, $5, $6, $7, NULLIF($8,''), NULLIF($9,''), NULLIF($10,'')::inet, NULLIF($11,''))`,
+		actor, kind, action, entityType, entityID, nz(b), nz(a), reason, httpx.RequestID(ctx), c.IP, c.UserAgent)
 	return err
 }
 
@@ -181,18 +182,7 @@ func acceptTerms(ctx context.Context, q db, r *http.Request, userID uuid.UUID, a
 	return err
 }
 
-func clientIP(r *http.Request) string {
-	// Behind the ALB the last X-Forwarded-For entry is the address the load balancer saw.
-	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
-		parts := strings.Split(xf, ",")
-		return strings.TrimSpace(parts[len(parts)-1])
-	}
-	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		host = host[:i]
-	}
-	return strings.Trim(host, "[]")
-}
+func clientIP(r *http.Request) string { return httpx.ClientIP(r) }
 
 func fmtMoney(minor int64) string {
 	return "KES " + strconv.FormatFloat(float64(minor)/100, 'f', 2, 64)

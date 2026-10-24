@@ -52,7 +52,8 @@ func (s *Server) GetConsoleInvoices(w http.ResponseWriter, r *http.Request, para
 		b.add("i.created_at < ?", params.To.Time.AddDate(0, 0, 1))
 	}
 	p, err := pagedRaw(ctx, s.DB, `SELECT i.id, i.reference, i.client_id, i.request_id, i.subscription_id, i.status, i.subtotal_minor, i.vat_minor, i.total_minor,
-		i.paid_minor, i.currency, i.due_at, i.issued_at, i.paid_at, i.created_at AS _t, i.id AS _id FROM invoices i WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
+		i.paid_minor, i.currency, i.due_at, i.issued_at, i.paid_at, u.full_name AS client_name, i.created_at AS _t, i.id AS _id
+		FROM invoices i JOIN users u ON u.id = i.client_id WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
@@ -113,6 +114,12 @@ func (s *Server) GetConsolePayments(w http.ResponseWriter, r *http.Request, para
 	if params.Method != nil {
 		b.add("p.method = ?::payment_method", string(*params.Method))
 	}
+	if params.InvoiceId != nil {
+		b.add("p.invoice_id = ?", uuid.UUID(*params.InvoiceId))
+	}
+	if params.ClientId != nil {
+		b.add("i.client_id = ?", uuid.UUID(*params.ClientId))
+	}
 	if params.From != nil {
 		b.add("p.initiated_at >= ?", params.From.Time)
 	}
@@ -120,7 +127,8 @@ func (s *Server) GetConsolePayments(w http.ResponseWriter, r *http.Request, para
 		b.add("p.initiated_at < ?", params.To.Time.AddDate(0, 0, 1))
 	}
 	pg, err := pagedRaw(ctx, s.DB, `SELECT p.id, p.invoice_id, p.method, p.status, p.amount_minor, p.payer_msisdn, p.mpesa_receipt_number, p.failure_reason,
-		p.initiated_at, p.completed_at, p.initiated_at AS _t, p.id AS _id FROM payments p WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
+		p.initiated_at, p.completed_at, i.reference AS invoice_reference, i.client_id, u.full_name AS client_name, p.initiated_at AS _t, p.id AS _id
+		FROM payments p JOIN invoices i ON i.id = p.invoice_id JOIN users u ON u.id = i.client_id WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return

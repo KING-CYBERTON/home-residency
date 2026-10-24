@@ -25,6 +25,7 @@ import (
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/email"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
@@ -51,6 +52,7 @@ func run(cmd string, args []string) error {
 	if err != nil {
 		return err
 	}
+	httpx.TrustCDN(cfg.OriginVerify)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
