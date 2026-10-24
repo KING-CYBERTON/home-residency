@@ -70,7 +70,7 @@ export const nav: NavItem[] = [
   { name: "refunds", label: "Refunds", route: "/refunds", op: "GET /console/refunds", icon: Undo2, group: "Finance" },
   { name: "earnings", label: "Earnings", route: "/earnings", op: "GET /console/earnings", icon: HandCoins, group: "Finance" },
   { name: "payout-batches", label: "Payouts", route: "/payout-batches", op: "GET /console/payout-batches", icon: Banknote, group: "Finance" },
-  { name: "reconciliation", label: "Ledger and reconciliation", route: "/reconciliation", op: "GET /console/reconciliation", icon: Scale, group: "Finance" },
+  { name: "reconciliation", label: "Ledger", route: "/reconciliation", op: "GET /console/reconciliation", icon: Scale, group: "Finance" },
 
   { name: "service-areas", label: "Service areas", route: "/service-areas", op: "GET /console/service-areas", icon: MapPin, group: "Catalogue" },
   { name: "categories", label: "Categories", route: "/categories", op: "GET /console/categories", icon: Tags, group: "Catalogue" },

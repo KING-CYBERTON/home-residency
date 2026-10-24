@@ -4,6 +4,7 @@ package httpx
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -40,7 +41,14 @@ func ClientOf(ctx context.Context) Client {
 func ClientIP(r *http.Request) string {
 	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
 		parts := strings.Split(xf, ",")
-		return strings.TrimSpace(parts[len(parts)-1])
+		// The load balancer appends the address it saw, so the last entry is the only one a caller
+		// cannot forge. Behind CloudFront that address is CloudFront's, and the viewer is the entry
+		// before it; the secret header CloudFront adds is what proves the request came that way.
+		hop := 1
+		if trustedCDN != "" && len(parts) >= 2 && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Origin-Verify")), []byte(trustedCDN)) == 1 {
+			hop = 2
+		}
+		return strings.TrimSpace(parts[len(parts)-hop])
 	}
 	host := r.RemoteAddr
 	if i := strings.LastIndex(host, ":"); i > 0 {
@@ -48,6 +56,12 @@ func ClientIP(r *http.Request) string {
 	}
 	return strings.Trim(host, "[]")
 }
+
+var trustedCDN string
+
+// TrustCDN tells ClientIP the X-Origin-Verify value that marks a request as coming through the
+// console's CloudFront distribution. Empty, the default, trusts only the load balancer.
+func TrustCDN(secret string) { trustedCDN = secret }
 
 // Error is the API error envelope (components/schemas/Error in the spec).
 type Error struct {

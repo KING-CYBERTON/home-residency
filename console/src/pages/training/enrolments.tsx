@@ -45,7 +45,7 @@ export function TrainingsPage() {
               triggerVariant="default"
               title="Enrol a provider"
               fields={[
-                { name: "provider_id", label: "Provider ID", required: true, help: "Copy it from the provider's file." },
+                { name: "provider_id", label: "Provider", type: "person", person: "provider", required: true },
                 { name: "course_id", label: "Course", type: "select", options: courseOptions, required: true },
                 { name: "scheduled_for", label: "Scheduled for", type: "datetime" },
                 { name: "is_retraining", label: "This is retraining", type: "checkbox" },

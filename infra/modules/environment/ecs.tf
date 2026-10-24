@@ -29,6 +29,7 @@ locals {
     MPESA_B2C_SHORTCODE   = var.mpesa_b2c_shortcode
     WEBHOOK_ALLOWED_CIDRS = join(",", var.webhook_allowed_cidrs)
     VAPID_SUBJECT         = var.vapid_subject
+    ORIGIN_VERIFY_SECRET  = random_password.origin_verify.result
   }, var.extra_environment)
 
   container_secrets = concat(

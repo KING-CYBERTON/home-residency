@@ -248,6 +248,10 @@ func (s *Server) PutConsoleSettingsById(w http.ResponseWriter, r *http.Request, 
 		httpx.Fail(w, r, httpx.Invalid("A setting needs a key and a value"))
 		return
 	}
+	if msg := checkSetting(key, in.Value); msg != "" {
+		httpx.Fail(w, r, httpx.Invalid(msg))
+		return
+	}
 	val, _ := json.Marshal(in.Value)
 	ctx := r.Context()
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {

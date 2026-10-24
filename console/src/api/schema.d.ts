@@ -5601,6 +5601,8 @@ export interface components {
             amount_minor: number;
         };
         Invoice: {
+            /** @description The client's name, for staff screens. */
+            client_name?: string | null;
             /** Format: uuid */
             id: string;
             reference: string;
@@ -5650,6 +5652,10 @@ export interface components {
             amount_minor?: number;
         };
         Payment: {
+            invoice_reference?: string | null;
+            /** Format: uuid */
+            client_id?: string | null;
+            client_name?: string | null;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -5947,6 +5953,8 @@ export interface components {
             raise_complaint?: boolean;
         };
         SpotCheck: components["schemas"]["SpotCheckCreate"] & {
+            provider_name?: string | null;
+            supervisor_name?: string | null;
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
@@ -6069,6 +6077,10 @@ export interface components {
             after_state?: Record<string, never> | null;
             reason?: string | null;
             ip_address?: string | null;
+            /** @description The browser or app the change came from */
+            user_agent?: string | null;
+            /** @description Who made the change, by name */
+            actor_name?: string | null;
         };
         AccessLogEntry: {
             id: number;
@@ -11675,6 +11687,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["PaymentStatus"];
+                invoice_id?: string;
+                client_id?: string;
                 method?: components["schemas"]["PaymentMethod"];
                 from?: string;
                 to?: string;

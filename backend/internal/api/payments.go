@@ -147,7 +147,8 @@ func (s *Server) insertInvoice(ctx context.Context, q db, clientID uuid.UUID, re
 const invoiceJSON = `
 	SELECT to_jsonb(i) - 'created_at' - 'updated_at' || jsonb_build_object('lines',
 	  COALESCE((SELECT jsonb_agg(jsonb_build_object('id', l.id, 'kind', l.kind, 'description', l.description, 'quantity', l.quantity,
-	    'unit_minor', l.unit_minor, 'amount_minor', l.amount_minor) ORDER BY l.kind, l.id) FROM invoice_lines l WHERE l.invoice_id = i.id), '[]'::jsonb))
+	    'unit_minor', l.unit_minor, 'amount_minor', l.amount_minor) ORDER BY l.kind, l.id) FROM invoice_lines l WHERE l.invoice_id = i.id), '[]'::jsonb),
+	  'client_name', (SELECT u.full_name FROM users u WHERE u.id = i.client_id))
 	FROM invoices i`
 
 // ---- applying a payment

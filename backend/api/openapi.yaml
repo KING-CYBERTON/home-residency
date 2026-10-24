@@ -5885,6 +5885,16 @@ paths:
         in: query
         schema:
           $ref: '#/components/schemas/PaymentStatus'
+      - name: invoice_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: client_id
+        in: query
+        schema:
+          type: string
+          format: uuid
       - name: method
         in: query
         schema:
@@ -11916,6 +11926,10 @@ components:
     Invoice:
       type: object
       properties:
+        client_name:
+          type: string
+          nullable: true
+          description: The client's name, for staff screens.
         id:
           type: string
           format: uuid
@@ -11990,6 +12004,16 @@ components:
     Payment:
       type: object
       properties:
+        invoice_reference:
+          type: string
+          nullable: true
+        client_id:
+          type: string
+          format: uuid
+          nullable: true
+        client_name:
+          type: string
+          nullable: true
         id:
           type: string
           format: uuid
@@ -12597,6 +12621,12 @@ components:
       - $ref: '#/components/schemas/SpotCheckCreate'
       - type: object
         properties:
+          provider_name:
+            type: string
+            nullable: true
+          supervisor_name:
+            type: string
+            nullable: true
           id:
             type: string
             format: uuid

@@ -22,6 +22,7 @@ import (
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/email"
@@ -51,6 +52,7 @@ func run(cmd string, args []string) error {
 	if err != nil {
 		return err
 	}
+	httpx.TrustCDN(cfg.OriginVerify)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
