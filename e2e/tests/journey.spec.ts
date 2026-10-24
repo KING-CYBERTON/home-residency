@@ -305,7 +305,9 @@ test("visit: triage reschedules to now; door code shows; a wrong code is refused
   await c.reload();
   await c.getByRole("button", { name: "Show door code" }).click();
   await expect(c.getByText("DOOR CODE", { exact: false })).toBeVisible();
-  const code = ((await c.locator("main").innerText()).match(/\b\d{4}\b/g) ?? []).find((x) => !/^20\d\d$/.test(x))!;
+  // Read the code from its own element: a code such as 2026 looks like a year anywhere else on the page.
+  const code = (await c.locator(`[id^="code-"] p.font-mono`).innerText()).trim();
+  expect(code).toMatch(/^\d{4,}$/);
 
   const p = providerPage;
   await p.goto(SITE + "/provider/jobs");
