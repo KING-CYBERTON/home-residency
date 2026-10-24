@@ -184,6 +184,8 @@ func TestVettingToActivation(t *testing.T) {
 	// ---- training, contract, activation
 	maryID := prof["id"].(string)
 	h.expect(422, "approver", "POST", "/console/providers/"+maryID+"/activate", map[string]any{"category_ids": []string{w.catID}}) // not trained or contracted yet
+	// The induction seeded by migration 00015 would be a second requirement; this test makes its own.
+	h.sql(`UPDATE training_courses SET is_active = false WHERE code = 'GEN-IND'`)
 	course := h.expect(201, "trainer", "POST", "/console/training-courses", map[string]any{"code": "IND-1", "name": "Induction", "is_induction": true, "pass_mark": 70})
 	h.expect(409, "trainer", "POST", "/console/training-courses", map[string]any{"code": "IND-1", "name": "Duplicate"})
 	en := h.expect(201, "trainer", "POST", "/console/trainings", map[string]any{"provider_id": maryID, "course_id": course["id"]})
