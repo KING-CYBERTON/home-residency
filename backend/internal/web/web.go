@@ -62,7 +62,9 @@ type Site struct {
 	base    *template.Template
 	static  fs.FS
 	hashes  map[string]string // static path -> content hash, for cache-busting URLs
+	gzipped map[string][]byte // static path -> gzipped body, for text files
 	photos  map[string]*Photo
+	credits []Credit
 }
 
 // Page is the data every full-page render receives. Templates read Data for their own content.
@@ -75,7 +77,6 @@ type Page struct {
 	OGType      string // defaults to "website"
 	JSONLD      []any  // schema.org objects, written as application/ld+json
 	Image       *Photo // social preview image; defaults to img/og.png
-	ImageAlt    string
 	Data        any
 
 	Site *Site // set by Render
@@ -87,7 +88,7 @@ func New(o Options) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Site{BaseURL: strings.TrimRight(o.BaseURL, "/"), csp: contentSecurityPolicy(o.StorageOrigin), static: static, hashes: map[string]string{}}
+	s := &Site{BaseURL: strings.TrimRight(o.BaseURL, "/"), csp: contentSecurityPolicy(o.StorageOrigin), static: static, hashes: map[string]string{}, gzipped: map[string][]byte{}}
 	err = fs.WalkDir(static, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
@@ -98,12 +99,17 @@ func New(o Options) (*Site, error) {
 		}
 		sum := sha256.Sum256(b)
 		s.hashes[p] = hex.EncodeToString(sum[:5])
+		if gz := gzipStatic(p, b); gz != nil {
+			s.gzipped[p] = gz
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.indexPhotos()
+	if err := s.indexPhotos(); err != nil {
+		return nil, err
+	}
 	s.base, err = template.New("base").Funcs(s.funcs()).ParseFS(files, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -186,12 +192,13 @@ func IsHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" 
 
 func (s *Site) funcs() template.FuncMap {
 	return template.FuncMap{
-		"asset":    s.Asset,
-		"photo":    s.Photo,
-		"absURL":   s.AbsURL,
-		"siteName": func() string { return SiteName },
-		"year":     func() int { return time.Now().Year() },
-		"money":    Money,
+		"asset":        s.Asset,
+		"photo":        s.Photo,
+		"photoCredits": s.PhotoCredits,
+		"absURL":       s.AbsURL,
+		"siteName":     func() string { return SiteName },
+		"year":         func() int { return time.Now().Year() },
+		"money":        Money,
 		"jsonld": func(v any) (template.HTML, error) {
 			b, err := json.Marshal(v)
 			if err != nil {

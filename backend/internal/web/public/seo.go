@@ -134,10 +134,11 @@ func (p *Site) sitemapPaths(c catalogue) []sitemapURL {
 		}
 		out = append(out, u)
 	}
-	add("/", "1.0", "hero", "why", "providers")
-	for _, path := range []string{"/services", "/areas", "/pricing", "/how-it-works", "/faq", "/book", "/contact", web.JoinPath} {
+	add("/", "1.0", "hero", "providers")
+	for _, path := range []string{"/services", "/areas", "/pricing", "/how-it-works", "/faq", "/book"} {
 		add(path, "0.8")
 	}
+	add(web.JoinPath, "0.8", "providers")
 	for _, cat := range c.Categories {
 		add("/services/"+cat.Slug, "0.9", servicePhoto(cat.Slug))
 		for _, a := range c.Areas {
@@ -147,7 +148,9 @@ func (p *Site) sitemapPaths(c catalogue) []sitemapURL {
 	for _, a := range c.Areas {
 		add("/areas/"+a.Slug, "0.6")
 	}
+	add("/contact", "0.8", "estate")
 	add("/privacy", "0.2")
+	add("/credits", "0.1")
 	return out
 }
 

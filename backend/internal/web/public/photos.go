@@ -8,15 +8,32 @@ import (
 // Photographs live under internal/web/static/img/photos/ (see web.Photo). Pages fall back to a
 // plain panel when a photo is missing, so a category added in the console never breaks the site.
 
-const heroAlt = "A bright, tidy living room in a Nairobi home"
-
 // servicePhoto names the photo for a service category: service-<slug>.
 func servicePhoto(slug string) string { return "service-" + slug }
+
+// offerPhotos names the photo for each service on a rate card. A service that isn't listed has
+// no photo of its own and shows its category's line drawing.
+var offerPhotos = map[string]string{
+	"standard-clean-1br":  "service-cleaning",
+	"standard-clean-3br":  "service-cleaning",
+	"deep-clean":          "deep-clean",
+	"move-out-clean":      "deep-clean",
+	"live-in-general":     "service-live-in-house-help",
+	"live-in-nanny":       "nanny",
+	"day-worker-full-day": "service-day-worker",
+	"laundry-ironing":     "laundry",
+	"plumbing-callout":    "service-plumbing",
+	"plumbing-hourly":     "service-plumbing",
+	"electrical-callout":  "service-electrical",
+	"elderly-care-day":    "service-caregiver",
+}
+
+func offerPhoto(slug string) string { return offerPhotos[slug] }
 
 // orgImages lists the organisation's images for structured data, best first.
 func (p *Site) orgImages() []string {
 	out := []string{}
-	for _, name := range []string{"hero", "why", "providers"} {
+	for _, name := range []string{"hero", "providers"} {
 		if ph := p.site.Photo(name); ph != nil {
 			out = append(out, ph.Abs)
 		}
@@ -46,4 +63,4 @@ func serviceIcon(slug string) template.HTML {
 	return template.HTML(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="h-24 w-24"><path d="` + d + `"/></svg>`)
 }
 
-var templateFuncs = template.FuncMap{"servicePhoto": servicePhoto, "serviceIcon": serviceIcon}
+var templateFuncs = template.FuncMap{"servicePhoto": servicePhoto, "offerPhoto": offerPhoto, "serviceIcon": serviceIcon}
