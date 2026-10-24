@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { errorMessage } from "@/api/client";
+import { PersonPicker, type PersonKind } from "@/components/person-filter";
 import { humanize } from "@/lib/format";
 
 type Option = { value: string; label: string };
@@ -37,7 +38,9 @@ export type Field = {
     | "multiselect"
     | "checkbox"
     | "lines" // one entry per line -> string[]
-    | "json";
+    | "json"
+    | "person"; // a searchable picker for the kind in `person`, sent as the id
+  person?: PersonKind;
   options?: readonly string[] | Option[];
   required?: boolean;
   placeholder?: string;
@@ -206,6 +209,17 @@ export function FieldInput({
     case "datetime":
       return (
         <Input {...common} type="datetime-local" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />
+      );
+    case "person":
+      return (
+        <PersonPicker
+          id={id}
+          kind={field.person ?? "client"}
+          label={field.label}
+          required={field.required}
+          value={value ? String(value) : undefined}
+          onChange={(v) => onChange(v ?? "")}
+        />
       );
     case "time":
       return <Input {...common} type="time" step={900} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;

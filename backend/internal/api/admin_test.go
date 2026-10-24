@@ -180,11 +180,27 @@ func TestAdminAndCatalogue(t *testing.T) {
 	h.expect(404, "admin", "POST", "/console/staff/00000000-0000-0000-0000-000000000000/reset-mfa", nil)
 
 	// ---- settings and audit
-	set := h.expect(200, "admin", "PUT", "/console/settings/offer.expiry_minutes", map[string]any{"value": 90})
+	set := h.expect(200, "admin", "PUT", "/console/settings/offer.expiry_minutes", map[string]any{"value": 90},
+		"User-Agent", "Mozilla/5.0 (QA browser)", "X-Forwarded-For", "203.0.113.9")
 	if set["value"] != 90.0 || set["updated_by"] == nil {
 		t.Fatalf("setting: %v", set)
 	}
 	h.expect(403, "reporting", "PUT", "/console/settings/offer.expiry_minutes", map[string]any{"value": 10})
+	// Known settings only take values of their own type, so a slip cannot break the rule that reads them.
+	for _, bad := range []struct {
+		key   string
+		value any
+	}{
+		{"offer.expiry_minutes", "90 minutes"},
+		{"offer.expiry_minutes", 2.5},
+		{"rating.complaint_threshold", 9},
+		{"appraisal.weights", map[string]any{"rating": 0.5, "complaints": 0.2, "reliability": 0.1, "spot_checks": 0.1}},
+		{"payout.cycle", map[string]any{"frequency": "weekly", "weekday": 7}},
+		{"contract.current_version", ""},
+	} {
+		h.expect(422, "admin", "PUT", "/console/settings/"+bad.key, map[string]any{"value": bad.value})
+	}
+	h.expect(200, "admin", "PUT", "/console/settings/payout.cycle", map[string]any{"value": map[string]any{"frequency": "weekly", "weekday": 4}})
 	found := false
 	for _, x := range h.expectList(200, "reporting", "GET", "/console/settings") {
 		if x.(map[string]any)["key"] == "offer.expiry_minutes" && x.(map[string]any)["value"] == 90.0 {
@@ -195,8 +211,12 @@ func TestAdminAndCatalogue(t *testing.T) {
 		t.Fatal("setting not listed")
 	}
 	log := h.expect(200, "admin", "GET", "/console/audit-log?action=setting.update", nil)
-	if len(log["data"].([]any)) != 1 {
+	if len(log["data"].([]any)) != 2 {
 		t.Fatalf("audit: %v", log)
+	}
+	// The entry says who, by name, and where from: the address and the browser.
+	if e := log["data"].([]any)[1].(map[string]any); e["ip_address"] != "203.0.113.9" || e["user_agent"] != "Mozilla/5.0 (QA browser)" || e["actor_name"] == nil {
+		t.Fatalf("audit entry: %v", e)
 	}
 	all := h.expect(200, "admin", "GET", "/console/audit-log?limit=3", nil)
 	if all["meta"].(map[string]any)["next_cursor"] == nil {

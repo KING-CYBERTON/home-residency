@@ -23,6 +23,7 @@ type Config struct {
 
 	PublicBaseURL  string   // externally reachable origin, used to build M-Pesa callback URLs
 	WebhookToken   string   // shared secret Safaricom and the SMS gateway send as ?token= on callbacks
+	OriginVerify   string   // the X-Origin-Verify value CloudFront adds in front of the console's API calls
 	WebhookCIDRs   []string // optional source allow-list for webhooks (Safaricom egress ranges)
 	MpesaMode      string   // fake | sandbox | production
 	MpesaKey       string
@@ -58,6 +59,7 @@ func Load() (Config, error) {
 	}
 	c.PublicBaseURL = get("PUBLIC_BASE_URL", "http://localhost:8080")
 	c.WebhookToken = os.Getenv("WEBHOOK_TOKEN")
+	c.OriginVerify = os.Getenv("ORIGIN_VERIFY_SECRET")
 	if v := os.Getenv("WEBHOOK_ALLOWED_CIDRS"); v != "" {
 		c.WebhookCIDRs = strings.Split(v, ",")
 	}

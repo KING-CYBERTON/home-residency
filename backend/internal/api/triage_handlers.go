@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -527,6 +528,16 @@ func (s *Server) GetConsoleDashboard(w http.ResponseWriter, r *http.Request) {
 		NewLeads                     int                  `json:"new_leads"`
 		SegregationWarnings          []segregationWarning `json:"segregation_warnings"`
 	}
+	// The counters and the staffing check are independent reads, so they run side by side.
+	type warnings struct {
+		list []segregationWarning
+		err  error
+	}
+	seg := make(chan warnings, 1)
+	go func() {
+		list, err := s.segregationWarnings(r.Context())
+		seg <- warnings{list, err}
+	}()
 	err := s.DB.QueryRow(r.Context(), `
 		SELECT
 		 (SELECT count(*) FROM service_requests WHERE status IN ('submitted','triaging')),
@@ -538,7 +549,9 @@ func (s *Server) GetConsoleDashboard(w http.ResponseWriter, r *http.Request) {
 		 (SELECT count(*) FROM job_exceptions WHERE reviewed_at IS NULL),
 		 (SELECT count(*) FROM documents WHERE status = 'verified' AND expires_on BETWEEN current_date AND current_date + 30),
 		 (SELECT count(*) FROM payout_batches WHERE status = 'draft'),
-		 (SELECT count(*) FROM visits WHERE scheduled_start::date = current_date AND status IN ('scheduled','checked_in')),
+		 (SELECT count(*) FROM visits WHERE status IN ('scheduled','checked_in')
+		    AND scheduled_start >= date_trunc('day', now() AT TIME ZONE 'Africa/Nairobi') AT TIME ZONE 'Africa/Nairobi'
+		    AND scheduled_start < (date_trunc('day', now() AT TIME ZONE 'Africa/Nairobi') + interval '1 day') AT TIME ZONE 'Africa/Nairobi'),
 		 (SELECT count(*) FROM leads WHERE status = 'new')`).
 		Scan(&d.TriageQueue, &d.AwaitingProvider, &d.ApplicationsAwaitingVetting, &d.ApplicationsAwaitingApproval, &d.OpenComplaints,
 			&d.OpenSafeguardingComplaints, &d.OpenExceptions, &d.DocumentsExpiring30d, &d.PayoutsAwaitingApproval, &d.TodaysVisits, &d.NewLeads)
@@ -546,10 +559,12 @@ func (s *Server) GetConsoleDashboard(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, err)
 		return
 	}
-	if d.SegregationWarnings, err = s.segregationWarnings(r.Context()); err != nil {
-		httpx.Fail(w, r, err)
+	sw := <-seg
+	if sw.err != nil {
+		httpx.Fail(w, r, sw.err)
 		return
 	}
+	d.SegregationWarnings = sw.list
 	httpx.JSON(w, http.StatusOK, d)
 }
 
@@ -578,17 +593,47 @@ var twoPersonDuties = []struct {
 // segregationWarnings lists the two-person duties no pair of active staff can complete: there must
 // be a maker and a different checker.
 func (s *Server) segregationWarnings(ctx context.Context) ([]segregationWarning, error) {
+	// One read of who holds which role serves every duty, so the dashboard makes one round trip here.
+	rows, err := s.DB.Query(ctx, `SELECT array_agg(r.role::text) FROM users u JOIN staff_roles r ON r.user_id = u.id
+		WHERE u.kind = 'staff' AND u.status = 'active' GROUP BY u.id`)
+	if err != nil {
+		return nil, err
+	}
+	var staff [][]string
+	for rows.Next() {
+		var roles []string
+		if err := rows.Scan(&roles); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		staff = append(staff, roles)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	holds := func(roles, want []string) bool {
+		for _, r := range roles {
+			if r == "admin" || slices.Contains(want, r) {
+				return true
+			}
+		}
+		return false
+	}
 	out := []segregationWarning{}
 	for _, d := range twoPersonDuties {
 		var makers, checkers, people int
-		if err := s.DB.QueryRow(ctx, `
-			WITH staff AS (
-			  SELECT DISTINCT u.id, (r.role::text = ANY($1) OR r.role = 'admin') AS maker, (r.role::text = ANY($2) OR r.role = 'admin') AS checker
-			  FROM users u JOIN staff_roles r ON r.user_id = u.id
-			  WHERE u.kind = 'staff' AND u.status = 'active')
-			SELECT count(DISTINCT id) FILTER (WHERE maker), count(DISTINCT id) FILTER (WHERE checker), count(DISTINCT id) FILTER (WHERE maker OR checker)
-			FROM staff`, d.makers, d.checkers).Scan(&makers, &checkers, &people); err != nil {
-			return nil, err
+		for _, roles := range staff {
+			m, c := holds(roles, d.makers), holds(roles, d.checkers)
+			if m {
+				makers++
+			}
+			if c {
+				checkers++
+			}
+			if m || c {
+				people++
+			}
 		}
 		if makers > 0 && checkers > 0 && people >= 2 {
 			continue

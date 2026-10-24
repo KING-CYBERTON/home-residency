@@ -227,6 +227,7 @@ export function FaqsPage() {
     <CrudPage<Schemas["Faq"]>
       resource="faqs"
       title="FAQs"
+      description="Questions and answers on the help page and each category's page, in English and Swahili."
       noun="FAQ"
       columns={[
         { header: "Question", cell: (q) => <span className="line-clamp-2 max-w-md">{q.question}</span> },

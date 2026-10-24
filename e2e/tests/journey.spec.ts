@@ -44,7 +44,7 @@ test("catalogue: an admin adds a category, service, price, course and checklist"
 
   await goConsole(ops, "/rate-card");
   await act(ops, "Publish price", { service_id: { label: "Garden tidy" }, client_price_minor: 3000, provider_pay_minor: 2400, valid_from: nairobi(-60) });
-  await expect(ops.getByRole("row").filter({ hasText: "Garden tidy" })).toContainText("600.00"); // commission
+  await expect(ops.getByRole("row").filter({ hasText: "Garden tidy" })).toContainText("KES 600"); // commission
 
   await goConsole(ops, "/training-courses");
   await act(ops, "New course", { code: "IND-GDN", name: "Gardening induction", category_id: { label: "Gardening" }, is_induction: true, pass_mark: 70, is_active: true });

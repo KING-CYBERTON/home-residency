@@ -909,9 +909,12 @@ type AssignmentStatus string
 
 // AuditEntry defines model for AuditEntry.
 type AuditEntry struct {
-	Action      string                  `json:"action"`
-	ActorId     *openapi_types.UUID     `json:"actor_id"`
-	ActorKind   *UserKind               `json:"actor_kind"`
+	Action    string              `json:"action"`
+	ActorId   *openapi_types.UUID `json:"actor_id"`
+	ActorKind *UserKind           `json:"actor_kind"`
+
+	// ActorName Who made the change, by name
+	ActorName   *string                 `json:"actor_name"`
 	AfterState  *map[string]interface{} `json:"after_state"`
 	BeforeState *map[string]interface{} `json:"before_state"`
 	EntityId    *openapi_types.UUID     `json:"entity_id"`
@@ -920,6 +923,9 @@ type AuditEntry struct {
 	IpAddress   *string                 `json:"ip_address"`
 	OccurredAt  time.Time               `json:"occurred_at"`
 	Reason      *string                 `json:"reason"`
+
+	// UserAgent The browser or app the change came from
+	UserAgent *string `json:"user_agent"`
 }
 
 // AuditEntryPage defines model for AuditEntryPage.
@@ -1593,12 +1599,15 @@ type InvestigationReport struct {
 // Invoice defines model for Invoice.
 type Invoice struct {
 	ClientId *openapi_types.UUID `json:"client_id,omitempty"`
-	Currency *string             `json:"currency,omitempty"`
-	DueAt    *time.Time          `json:"due_at"`
-	Id       openapi_types.UUID  `json:"id"`
-	IssuedAt *time.Time          `json:"issued_at"`
-	Lines    *[]InvoiceLine      `json:"lines,omitempty"`
-	PaidAt   *time.Time          `json:"paid_at"`
+
+	// ClientName The client's name, for staff screens.
+	ClientName *string            `json:"client_name"`
+	Currency   *string            `json:"currency,omitempty"`
+	DueAt      *time.Time         `json:"due_at"`
+	Id         openapi_types.UUID `json:"id"`
+	IssuedAt   *time.Time         `json:"issued_at"`
+	Lines      *[]InvoiceLine     `json:"lines,omitempty"`
+	PaidAt     *time.Time         `json:"paid_at"`
 
 	// PaidMinor KES minor units (cents)
 	PaidMinor      int64               `json:"paid_minor"`
@@ -1983,16 +1992,19 @@ type PasswordReset struct {
 // Payment defines model for Payment.
 type Payment struct {
 	// AmountMinor KES minor units (cents)
-	AmountMinor        int64              `json:"amount_minor"`
-	CompletedAt        *time.Time         `json:"completed_at"`
-	FailureReason      *string            `json:"failure_reason"`
-	Id                 openapi_types.UUID `json:"id"`
-	InitiatedAt        *time.Time         `json:"initiated_at,omitempty"`
-	InvoiceId          openapi_types.UUID `json:"invoice_id"`
-	Method             PaymentMethod      `json:"method"`
-	MpesaReceiptNumber *string            `json:"mpesa_receipt_number"`
-	PayerMsisdn        *string            `json:"payer_msisdn"`
-	Status             PaymentStatus      `json:"status"`
+	AmountMinor        int64               `json:"amount_minor"`
+	ClientId           *openapi_types.UUID `json:"client_id"`
+	ClientName         *string             `json:"client_name"`
+	CompletedAt        *time.Time          `json:"completed_at"`
+	FailureReason      *string             `json:"failure_reason"`
+	Id                 openapi_types.UUID  `json:"id"`
+	InitiatedAt        *time.Time          `json:"initiated_at,omitempty"`
+	InvoiceId          openapi_types.UUID  `json:"invoice_id"`
+	InvoiceReference   *string             `json:"invoice_reference"`
+	Method             PaymentMethod       `json:"method"`
+	MpesaReceiptNumber *string             `json:"mpesa_receipt_number"`
+	PayerMsisdn        *string             `json:"payer_msisdn"`
+	Status             PaymentStatus       `json:"status"`
 }
 
 // PaymentMethod defines model for PaymentMethod.
@@ -2665,9 +2677,11 @@ type SpotCheck struct {
 	Method         SpotCheckMethod     `json:"method"`
 	Notes          *string             `json:"notes,omitempty"`
 	ProviderId     openapi_types.UUID  `json:"provider_id"`
+	ProviderName   *string             `json:"provider_name"`
 	RaiseComplaint *bool               `json:"raise_complaint,omitempty"`
 	Scores         map[string]float32  `json:"scores"`
 	SupervisorId   *openapi_types.UUID `json:"supervisor_id,omitempty"`
+	SupervisorName *string             `json:"supervisor_name"`
 	TotalScore     float32             `json:"total_score"`
 	VisitId        *openapi_types.UUID `json:"visit_id,omitempty"`
 }
@@ -3271,10 +3285,12 @@ type GetConsoleLedgerBalancesParams struct {
 
 // GetConsolePaymentsParams defines parameters for GetConsolePayments.
 type GetConsolePaymentsParams struct {
-	Status *PaymentStatus      `form:"status,omitempty" json:"status,omitempty"`
-	Method *PaymentMethod      `form:"method,omitempty" json:"method,omitempty"`
-	From   *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
-	To     *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	Status    *PaymentStatus      `form:"status,omitempty" json:"status,omitempty"`
+	InvoiceId *openapi_types.UUID `form:"invoice_id,omitempty" json:"invoice_id,omitempty"`
+	ClientId  *openapi_types.UUID `form:"client_id,omitempty" json:"client_id,omitempty"`
+	Method    *PaymentMethod      `form:"method,omitempty" json:"method,omitempty"`
+	From      *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+	To        *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
 
 	// Cursor Opaque cursor from meta.next_cursor
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -9805,6 +9821,22 @@ func (siw *ServerInterfaceWrapper) GetConsolePayments(w http.ResponseWriter, r *
 	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "invoice_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "invoice_id", r.URL.Query(), &params.InvoiceId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "invoice_id", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "client_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "client_id", r.URL.Query(), &params.ClientId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "client_id", Err: err})
 		return
 	}
 

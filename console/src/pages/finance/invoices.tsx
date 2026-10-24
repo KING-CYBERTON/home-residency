@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { $api, type Schemas } from "@/api/client";
 import { InvoiceStatus } from "@/api/enums.gen";
 import { DataTable } from "@/components/data-table";
+import { PersonFilter } from "@/components/person-filter";
 import { EnumFilter, FilterBar, TextFilter } from "@/components/filters";
 import { Allowed, FormDialog } from "@/components/form-dialog";
 import { DetailList, ErrorState, Loading, PageHeader, Section } from "@/components/page";
@@ -36,7 +37,7 @@ export function InvoicesPage() {
         <EnumFilter label="Status" value={f.status} options={InvoiceStatus} onChange={(v) => set("status", v)} />
         <TextFilter label="From" type="date" value={f.from} onChange={(v) => set("from", v)} />
         <TextFilter label="To" type="date" value={f.to} onChange={(v) => set("to", v)} />
-        <TextFilter label="Client ID" value={f.client_id} onChange={(v) => set("client_id", v)} />
+        <PersonFilter label="Client" kind="client" value={f.client_id} onChange={(v) => set("client_id", v)} />
       </FilterBar>
       <DataTable<Schemas["Invoice"]>
         rows={data?.data}
@@ -47,6 +48,7 @@ export function InvoicesPage() {
         empty="No invoices match these filters."
         columns={[
           { header: "Reference", cell: (i) => <span className="font-mono text-xs">{i.reference}</span> },
+          { header: "Client", cell: (i) => i.client_name ?? "—" },
           { header: "Status", cell: (i) => <StatusBadge value={i.status} /> },
           { header: "Issued", cell: (i) => date(i.issued_at) },
           { header: "Due", cell: (i) => date(i.due_at) },
@@ -120,12 +122,13 @@ export function InvoicePage() {
               ["Includes VAT", money(i.vat_minor)],
               ["Net of VAT", money(i.subtotal_minor)],
               ["Paid", money(i.paid_minor)],
+              ["Status", <StatusBadge value={i.status} />],
               ["Issued", dateTime(i.issued_at)],
-              ["Due", dateTime(i.due_at)],
+              ["Due", date(i.due_at)],
               ["Paid in full", dateTime(i.paid_at)],
               ["Request", i.request_id ? <Link className="text-primary hover:underline" to={`/requests/${i.request_id}`}>Open request</Link> : "—"],
-              ["Client", i.client_id ? <Link className="text-primary hover:underline" to={`/clients/${i.client_id}`}>Open client</Link> : "—"],
-              ["Payments", <Link className="text-primary hover:underline" to={`/payments`}>See payments</Link>],
+              ["Client", i.client_id ? <Link className="text-primary hover:underline" to={`/clients/${i.client_id}`}>{i.client_name ?? "Open client"}</Link> : "—"],
+              ["Payments", <Link className="text-primary hover:underline" to={`/payments?invoice_id=${i.id}`}>See payments</Link>],
             ]}
           />
         </Section>

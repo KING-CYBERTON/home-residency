@@ -114,8 +114,15 @@ test("outcome: both sides are told, the case closes, and the household sees the 
 test("spot check: a low score raises a complaint for the same queue", async ({ browser }) => {
   const sup = await consolePage(browser, "ops", problems); // supervisor
   await goConsole(sup, "/spot-checks");
-  await act(sup, "Record spot check", { provider_id: provider.userId, visit_id: job.visitId, method: "phone_client", scores: '{"punctuality": 40, "quality": 30}', total_score: 35, notes: `Household unhappy ${run}`, raise_complaint: true });
+  await act(sup, "Record spot check", { provider_id: provider.name, visit_id: job.visitId, method: "phone_client", scores: '{"punctuality": 40, "quality": 30}', total_score: 35, notes: `Household unhappy ${run}`, raise_complaint: true });
   await expect(sup.locator("main")).toContainText(`Household unhappy ${run}`);
+  // The list names the provider and the supervisor, and filters by provider name.
+  const row = sup.getByRole("row").filter({ hasText: `Household unhappy ${run}` });
+  await expect(row).toContainText(provider.name);
+  await sup.getByRole("combobox", { name: "Provider" }).fill(provider.name);
+  await sup.getByRole("listbox").getByRole("option").first().click();
+  await expect(sup).toHaveURL(new RegExp(`provider_id=${provider.userId}`));
+  await expect(row).toBeVisible();
   await goConsole(manager, "/complaints");
   await expect(manager.getByRole("row").filter({ hasText: "Spot check scored 35 out of 100" }).first()).toBeVisible();
 });

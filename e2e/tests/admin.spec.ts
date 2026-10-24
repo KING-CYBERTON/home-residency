@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { CONSOLE } from "../lib/env";
+import { CONSOLE, staff } from "../lib/env";
 import { totp } from "../lib/otp";
 import { call, expectStatus, staffToken } from "../lib/api";
 import { act, consolePage, fill, goConsole, watch } from "../lib/ui";
@@ -135,13 +135,35 @@ test("staff: roles change, the authenticator is reset, and a suspended colleague
 test("settings: a business rule changes and the audit log records who changed it", async () => {
   await goConsole(admin, "/settings");
   const row = admin.getByRole("row").filter({ hasText: "offer.expiry_minutes" });
+  await expect(row).toContainText("Offer expiry");
   await act(admin, "Change", { value: "90" }, { within: row });
-  await expect(row).toContainText("90");
+  await expect(row).toContainText("90 minutes");
   await act(admin, "Change", { value: "120" }, { within: row });
-  await expect(row).toContainText("120");
+  await expect(row).toContainText("120 minutes");
+
+  // Structured settings get their own fields, and the API refuses values that do not fit.
+  const weights = admin.getByRole("row").filter({ hasText: "appraisal.weights" });
+  await expect(weights).toContainText("Client ratings 50%");
+  await weights.getByRole("button", { name: "Change" }).click();
+  await fill(admin, { rating: 60 });
+  const dialog = admin.getByRole("dialog").last();
+  await dialog.locator('button[type="submit"]').click();
+  await expect(dialog).toContainText("must add up to 100%; these add up to 110%");
+  await fill(admin, { rating: 50 });
+  await dialog.locator('button[type="submit"]').click();
+  await expect(dialog).toBeHidden();
+
+  const payout = admin.getByRole("row").filter({ hasText: "payout.cycle" });
+  await act(admin, "Change", { weekday: { label: "Thursday" } }, { within: payout });
+  await expect(payout).toContainText("Weekly on Thursday");
+  await act(admin, "Change", { weekday: { label: "Friday" } }, { within: payout });
 
   await goConsole(admin, "/audit-log?action=setting.update");
-  await expect(admin.getByRole("row").filter({ hasText: "setting.update" }).first()).toBeVisible();
+  const entry = admin.getByRole("row").filter({ hasText: "setting.update" }).first();
+  await expect(entry).toBeVisible();
+  const me = await one<{ full_name: string }>(`SELECT full_name FROM users WHERE email = $1`, staff("ops").email);
+  await expect(entry, "the audit log names who made the change and from which browser").toContainText(me.full_name);
+  await expect(entry).toContainText(/Chrome|Chromium|on Linux/);
   await goConsole(admin, "/audit-log?action=staff.roles");
   await expect(admin.getByRole("row").filter({ hasText: "staff.roles" }).first()).toBeVisible();
 });

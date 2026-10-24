@@ -47,11 +47,10 @@ export function ReconciliationPage() {
         <ErrorState error={rec.error} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <Stat label="Matched" value={r?.matched ?? "…"} />
             <Stat label="Unmatched M-Pesa" value={unmatchedMpesa.length} bad={unmatchedMpesa.length > 0} />
             <Stat label="Unmatched payments" value={r?.unmatched_payments?.length ?? 0} bad={(r?.unmatched_payments?.length ?? 0) > 0} />
-            <Stat label="Client funds" value={money(r?.client_funds_balance_minor)} />
           </div>
           <Section className="mt-4" title="M-Pesa transactions with no matching payment">
             {unmatchedMpesa.length ? (
