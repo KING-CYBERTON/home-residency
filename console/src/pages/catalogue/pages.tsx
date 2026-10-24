@@ -37,6 +37,13 @@ export function ServiceAreasPage() {
   );
 }
 
+function notice(minutes: number) {
+  if (!minutes) return "None";
+  if (minutes % 1440 === 0) return `${minutes / 1440} day${minutes === 1440 ? "" : "s"}`;
+  if (minutes % 60 === 0) return `${minutes / 60} hour${minutes === 60 ? "" : "s"}`;
+  return `${minutes} min`;
+}
+
 export function CategoriesPage() {
   return (
     <CrudPage<Schemas["Category"]>
@@ -50,6 +57,8 @@ export function CategoriesPage() {
         { header: "Engagement", cell: (c) => humanize(c.engagement) },
         { header: "Vetting tier", cell: (c) => humanize(c.vetting_tier) },
         { header: "Client ID needed", cell: (c) => (c.requires_client_id_verification ? "Yes" : "No") },
+        { header: "Visits start", cell: (c) => (c.opens_at && c.closes_at ? `${c.opens_at}–${c.closes_at}` : "Any time") },
+        { header: "Notice", cell: (c) => notice(c.min_lead_minutes ?? 0) },
         { header: "Order", cell: (c) => c.sort_order ?? "—" },
         { header: "Status", cell: (c) => active(c.is_active) },
       ]}
@@ -61,6 +70,9 @@ export function CategoriesPage() {
         { name: "engagement", label: "Engagement", type: "select", options: EngagementType, required: true },
         { name: "vetting_tier", label: "Vetting tier", type: "select", options: VettingTier },
         { name: "requires_client_id_verification", label: "Client must verify their ID", type: "checkbox" },
+        { name: "opens_at", label: "Earliest start time", type: "time", help: "Nairobi time. Leave both times empty to allow any time of day." },
+        { name: "closes_at", label: "Latest start time", type: "time" },
+        { name: "min_lead_minutes", label: "Notice needed (minutes)", type: "number", help: "How far ahead a visit must be booked, for example 120 for two hours." },
         { name: "sop_markdown", label: "Standard operating procedure (Markdown)", type: "textarea" },
         { name: "sort_order", label: "Sort order", type: "number" },
         { name: "is_active", label: "Active", type: "checkbox" },

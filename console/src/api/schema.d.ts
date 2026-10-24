@@ -4280,6 +4280,18 @@ export interface components {
             sop_markdown?: string | null;
             is_active: boolean;
             sort_order?: number;
+            /**
+             * @description Earliest time a visit may start, HH:MM Nairobi time. Null with closes_at means any time of day.
+             * @example 07:00
+             */
+            opens_at?: string | null;
+            /**
+             * @description Latest time a visit may start, HH:MM Nairobi time.
+             * @example 19:00
+             */
+            closes_at?: string | null;
+            /** @description How far ahead a visit must be booked, in minutes. */
+            min_lead_minutes?: number;
         };
         CategoryInput: {
             slug: string;
@@ -4292,6 +4304,11 @@ export interface components {
             sop_markdown?: string;
             is_active?: boolean;
             sort_order?: number;
+            /** @description Earliest start time, HH:MM Nairobi time; empty or null for any time of day */
+            opens_at?: string | null;
+            /** @description Latest start time, HH:MM Nairobi time */
+            closes_at?: string | null;
+            min_lead_minutes?: number;
         };
         Service: {
             /** Format: uuid */
@@ -5253,6 +5270,8 @@ export interface components {
             contacted_by?: string | null;
             /** Format: date-time */
             contacted_at?: string | null;
+            /** @description Staff only. What is wrong with the employment dates, such as a date in the future; checked on every read, so referees added before the rules existed are flagged too. */
+            date_problems?: string[];
         };
         RefereeRecord: {
             outcome: components["schemas"]["RefereeOutcome"];

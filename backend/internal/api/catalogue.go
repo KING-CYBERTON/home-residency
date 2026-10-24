@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -23,7 +24,7 @@ import (
 
 type col struct {
 	name string
-	kind string // text | int | num | bool | uuid | ts | json | enum:<type>
+	kind string // text | int | num | bool | uuid | ts | time | json | enum:<type>
 }
 
 type resource struct {
@@ -84,6 +85,8 @@ func (c col) cast() string {
 		return "::uuid"
 	case c.kind == "ts":
 		return "::timestamptz"
+	case c.kind == "time":
+		return "::time"
 	case c.kind == "json":
 		return "::jsonb"
 	case strings.HasPrefix(c.kind, "enum:"):
@@ -117,6 +120,18 @@ func (c col) value(v any) (any, error) {
 			return bad()
 		}
 		return b, nil
+	case "time":
+		str, ok := v.(string)
+		if !ok {
+			return bad()
+		}
+		if str == "" {
+			return nil, nil // the field was cleared
+		}
+		if _, err := time.Parse("15:04", str); err != nil {
+			return nil, httpx.Invalid(c.name + " must be a time such as 07:30")
+		}
+		return str, nil
 	case "json":
 		b, err := json.Marshal(v)
 		if err != nil {
@@ -312,12 +327,17 @@ var (
 	}
 	categoryRes = resource{
 		entity: "category", table: "service_categories", order: "t.sort_order, t.name",
-		sel:      `SELECT ` + stampless + ` FROM service_categories t`,
+		sel: `SELECT ` + stampless + ` || jsonb_build_object('opens_at', to_char(t.opens_at, 'HH24:MI'), 'closes_at', to_char(t.closes_at, 'HH24:MI'))
+			FROM service_categories t`,
 		required: []string{"slug", "name", "engagement"},
 		cols: []col{{"slug", "text"}, {"name", "text"}, {"name_sw", "text"}, {"description", "text"}, {"engagement", "enum:engagement_type"},
-			{"vetting_tier", "enum:vetting_tier"}, {"requires_client_id_verification", "bool"}, {"sop_markdown", "text"}, {"is_active", "bool"}, {"sort_order", "int"}},
+			{"vetting_tier", "enum:vetting_tier"}, {"requires_client_id_verification", "bool"}, {"sop_markdown", "text"}, {"is_active", "bool"}, {"sort_order", "int"},
+			{"opens_at", "time"}, {"closes_at", "time"}, {"min_lead_minutes", "int"}},
 		check: `SELECT 'The slug may only use lower-case letters, numbers and single hyphens, for example "house-cleaning".' FROM service_categories WHERE id = $1 AND slug !~ '` + slugOK + `'
-			UNION ALL SELECT 'The sort order cannot be negative.' FROM service_categories WHERE id = $1 AND sort_order < 0`,
+			UNION ALL SELECT 'The sort order cannot be negative.' FROM service_categories WHERE id = $1 AND sort_order < 0
+			UNION ALL SELECT 'Give both the earliest and the latest start time, or neither for any time of day.' FROM service_categories WHERE id = $1 AND (opens_at IS NULL) <> (closes_at IS NULL)
+			UNION ALL SELECT 'The latest start time must be after the earliest.' FROM service_categories WHERE id = $1 AND closes_at <= opens_at
+			UNION ALL SELECT 'The notice needed must be between 0 minutes and 30 days.' FROM service_categories WHERE id = $1 AND (min_lead_minutes < 0 OR min_lead_minutes > 43200)`,
 	}
 	serviceRes = resource{
 		entity: "service", table: "services", order: "t.sort_order, t.name",

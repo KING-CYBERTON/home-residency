@@ -379,6 +379,7 @@ func (s *Server) loadApplication(ctx context.Context, q db, id uuid.UUID, staff 
 			"employment_from": dateOrNil(x.from), "employment_to": dateOrNil(x.to)}
 		if staff {
 			m["outcome"], m["contacted_by"], m["contacted_at"] = x.outcome, x.contactedBy, x.contactedAt
+			m["date_problems"] = refereeDateProblems(x.from, x.to, s.Now())
 			if x.stmtEnc != nil {
 				st, err := s.Cipher.Decrypt(x.stmtEnc)
 				if err != nil {
@@ -600,6 +601,27 @@ func (s *Server) PostProviderApplicationsReferees(w http.ResponseWriter, r *http
 		}
 	}
 	httpx.Fail(w, r, httpx.ErrNotFound)
+}
+
+// refereeDateProblems describes, for staff, what is wrong with a referee's employment dates. The
+// same rules stop new referees (checkReferee); this catches the ones added before them.
+func refereeDateProblems(from, to *time.Time, today time.Time) []string {
+	out := []string{}
+	if from != nil && from.After(today) {
+		out = append(out, "Start date "+from.Format("02/01/2006")+" is in the future")
+	}
+	if to != nil && to.After(today) {
+		out = append(out, "End date "+to.Format("02/01/2006")+" is in the future")
+	}
+	switch {
+	case from != nil && to != nil && !to.After(*from):
+		out = append(out, "End date is not after the start date")
+	case from != nil && to != nil && to.Sub(*from) < minEmployment:
+		out = append(out, "Worked together for less than a month")
+	case from == nil && to != nil:
+		out = append(out, "End date given without a start date")
+	}
+	return out
 }
 
 // minEmployment is the shortest working relationship a referee can speak to.

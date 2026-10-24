@@ -141,7 +141,7 @@ func (p *Site) sitemapPaths(c catalogue) []sitemapURL {
 	add(web.JoinPath, "0.8", "providers")
 	for _, cat := range c.Categories {
 		add("/services/"+cat.Slug, "0.9", servicePhoto(cat.Slug))
-		for _, a := range c.Areas {
+		for _, a := range c.pricedAreas(cat.ID) {
 			add("/services/"+cat.Slug+"/"+a.Slug, "0.7")
 		}
 	}

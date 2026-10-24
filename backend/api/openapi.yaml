@@ -9294,6 +9294,19 @@ components:
           type: boolean
         sort_order:
           type: integer
+        opens_at:
+          type: string
+          nullable: true
+          example: '07:00'
+          description: Earliest time a visit may start, HH:MM Nairobi time. Null with closes_at means any time of day.
+        closes_at:
+          type: string
+          nullable: true
+          example: '19:00'
+          description: Latest time a visit may start, HH:MM Nairobi time.
+        min_lead_minutes:
+          type: integer
+          description: How far ahead a visit must be booked, in minutes.
       required:
       - id
       - slug
@@ -9323,6 +9336,20 @@ components:
           type: boolean
         sort_order:
           type: integer
+        opens_at:
+          type: string
+          nullable: true
+          pattern: ^(|([01][0-9]|2[0-3]):[0-5][0-9])$
+          description: Earliest start time, HH:MM Nairobi time; empty or null for any time of day
+        closes_at:
+          type: string
+          nullable: true
+          pattern: ^(|([01][0-9]|2[0-3]):[0-5][0-9])$
+          description: Latest start time, HH:MM Nairobi time
+        min_lead_minutes:
+          type: integer
+          minimum: 0
+          maximum: 43200
       required:
       - slug
       - name
@@ -11255,6 +11282,12 @@ components:
           type: string
           format: date-time
           nullable: true
+        date_problems:
+          type: array
+          items:
+            type: string
+          description: Staff only. What is wrong with the employment dates, such as a date in the future; checked
+            on every read, so referees added before the rules existed are flagged too.
       required:
       - id
       - full_name

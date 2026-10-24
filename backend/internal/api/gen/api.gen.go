@@ -944,31 +944,45 @@ type CancelInput struct {
 
 // Category defines model for Category.
 type Category struct {
-	Description                  *string            `json:"description"`
-	Engagement                   EngagementType     `json:"engagement"`
-	Id                           openapi_types.UUID `json:"id"`
-	IsActive                     bool               `json:"is_active"`
-	Name                         string             `json:"name"`
-	NameSw                       *string            `json:"name_sw"`
-	RequiresClientIdVerification *bool              `json:"requires_client_id_verification,omitempty"`
-	Slug                         string             `json:"slug"`
-	SopMarkdown                  *string            `json:"sop_markdown"`
-	SortOrder                    *int               `json:"sort_order,omitempty"`
-	VettingTier                  *VettingTier       `json:"vetting_tier,omitempty"`
+	// ClosesAt Latest time a visit may start, HH:MM Nairobi time.
+	ClosesAt    *string            `json:"closes_at"`
+	Description *string            `json:"description"`
+	Engagement  EngagementType     `json:"engagement"`
+	Id          openapi_types.UUID `json:"id"`
+	IsActive    bool               `json:"is_active"`
+
+	// MinLeadMinutes How far ahead a visit must be booked, in minutes.
+	MinLeadMinutes *int    `json:"min_lead_minutes,omitempty"`
+	Name           string  `json:"name"`
+	NameSw         *string `json:"name_sw"`
+
+	// OpensAt Earliest time a visit may start, HH:MM Nairobi time. Null with closes_at means any time of day.
+	OpensAt                      *string      `json:"opens_at"`
+	RequiresClientIdVerification *bool        `json:"requires_client_id_verification,omitempty"`
+	Slug                         string       `json:"slug"`
+	SopMarkdown                  *string      `json:"sop_markdown"`
+	SortOrder                    *int         `json:"sort_order,omitempty"`
+	VettingTier                  *VettingTier `json:"vetting_tier,omitempty"`
 }
 
 // CategoryInput defines model for CategoryInput.
 type CategoryInput struct {
-	Description                  *string        `json:"description,omitempty"`
-	Engagement                   EngagementType `json:"engagement"`
-	IsActive                     *bool          `json:"is_active,omitempty"`
-	Name                         string         `json:"name"`
-	NameSw                       *string        `json:"name_sw,omitempty"`
-	RequiresClientIdVerification *bool          `json:"requires_client_id_verification,omitempty"`
-	Slug                         string         `json:"slug"`
-	SopMarkdown                  *string        `json:"sop_markdown,omitempty"`
-	SortOrder                    *int           `json:"sort_order,omitempty"`
-	VettingTier                  *VettingTier   `json:"vetting_tier,omitempty"`
+	// ClosesAt Latest start time, HH:MM Nairobi time
+	ClosesAt       *string        `json:"closes_at"`
+	Description    *string        `json:"description,omitempty"`
+	Engagement     EngagementType `json:"engagement"`
+	IsActive       *bool          `json:"is_active,omitempty"`
+	MinLeadMinutes *int           `json:"min_lead_minutes,omitempty"`
+	Name           string         `json:"name"`
+	NameSw         *string        `json:"name_sw,omitempty"`
+
+	// OpensAt Earliest start time, HH:MM Nairobi time; empty or null for any time of day
+	OpensAt                      *string      `json:"opens_at"`
+	RequiresClientIdVerification *bool        `json:"requires_client_id_verification,omitempty"`
+	Slug                         string       `json:"slug"`
+	SopMarkdown                  *string      `json:"sop_markdown,omitempty"`
+	SortOrder                    *int         `json:"sort_order,omitempty"`
+	VettingTier                  *VettingTier `json:"vetting_tier,omitempty"`
 }
 
 // Channel defines model for Channel.
@@ -2302,8 +2316,11 @@ type ReasonInput struct {
 
 // Referee defines model for Referee.
 type Referee struct {
-	ContactedAt    *time.Time          `json:"contacted_at"`
-	ContactedBy    *openapi_types.UUID `json:"contacted_by"`
+	ContactedAt *time.Time          `json:"contacted_at"`
+	ContactedBy *openapi_types.UUID `json:"contacted_by"`
+
+	// DateProblems Staff only. What is wrong with the employment dates, such as a date in the future; checked on every read, so referees added before the rules existed are flagged too.
+	DateProblems   *[]string           `json:"date_problems,omitempty"`
 	EmployerName   *string             `json:"employer_name"`
 	EmploymentFrom *openapi_types.Date `json:"employment_from"`
 	EmploymentTo   *openapi_types.Date `json:"employment_to"`
