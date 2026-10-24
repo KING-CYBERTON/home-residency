@@ -76,6 +76,12 @@ func newSite(t *testing.T) (*httptest.Server, *api.Server) {
 		`INSERT INTO rate_card_entries (service_id, client_price_minor, provider_pay_minor, valid_from) SELECT id, 250000, 200000, now() - interval '1 day' FROM services`,
 		`INSERT INTO rate_card_entries (service_id, service_area_id, client_price_minor, provider_pay_minor, valid_from)
 		   SELECT s.id, a.id, 300000, 240000, now() - interval '1 day' FROM services s, service_areas a WHERE a.slug='kilimani'`,
+		// Gardening has a price in Kilimani only, so it gets no Karen page.
+		`INSERT INTO service_categories (slug, name, engagement, is_active) VALUES ('gardening','Gardening','one_off',true)`,
+		`INSERT INTO services (category_id, slug, name, pricing_unit, scope_items, is_active, default_duration_minutes)
+		   SELECT id,'garden-tidy','Garden tidy','per_job','[]',true,120 FROM service_categories WHERE slug='gardening'`,
+		`INSERT INTO rate_card_entries (service_id, service_area_id, client_price_minor, provider_pay_minor, valid_from)
+		   SELECT s.id, a.id, 300000, 240000, now() - interval '1 day' FROM services s, service_areas a WHERE s.slug='garden-tidy' AND a.slug='kilimani'`,
 		`INSERT INTO faqs (category_id, question, answer) SELECT id, 'Do I need to supply cleaning products?', 'No, the provider brings them.' FROM service_categories WHERE slug='cleaning'`,
 	} {
 		if _, err := pool.Exec(ctx, q); err != nil {
@@ -257,5 +263,88 @@ func TestContactForm(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != http.StatusForbidden {
 		t.Errorf("cross-site post: %d", res.StatusCode)
+	}
+}
+
+func TestAreaPagesOnlyWherePriced(t *testing.T) {
+	ts, _ := newSite(t)
+	if code, _, _ := get(t, ts, "/services/gardening/kilimani"); code != 200 {
+		t.Fatalf("priced area: %d", code)
+	}
+	if code, _, _ := get(t, ts, "/services/gardening/karen"); code != 404 {
+		t.Fatalf("an area without a gardening price should have no page: %d", code)
+	}
+	_, _, body := get(t, ts, "/services/gardening")
+	mustContain(t, "gardening", body, `href="/services/gardening/kilimani"`)
+	if strings.Contains(body, `href="/services/gardening/karen"`) {
+		t.Error("gardening links to its empty Karen page")
+	}
+	_, _, body = get(t, ts, "/areas/karen")
+	mustContain(t, "karen", body, `href="/services/cleaning/karen"`)
+	if strings.Contains(body, "/services/gardening/karen") {
+		t.Error("Karen lists gardening, which has no price there")
+	}
+	_, _, body = get(t, ts, "/sitemap.xml")
+	mustContain(t, "sitemap", body, "/services/gardening/kilimani", "/services/cleaning/karen")
+	if strings.Contains(body, "/services/gardening/karen") {
+		t.Error("sitemap lists an unpriced area page")
+	}
+}
+
+func TestRenamedSlugsRedirect(t *testing.T) {
+	ts, srv := newSite(t)
+	ctx := context.Background()
+	for _, q := range []string{
+		`INSERT INTO service_areas (slug, name, is_active) VALUES ('kasa','Kasa',true)`,
+		`UPDATE service_areas SET slug = 'kasarani', name = 'Kasarani' WHERE slug = 'kasa'`,
+		`UPDATE service_categories SET slug = 'home-cleaning' WHERE slug = 'cleaning'`,
+	} {
+		if _, err := srv.DB.Exec(ctx, q); err != nil {
+			t.Fatal(q, err)
+		}
+	}
+	noFollow := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	location := func(path string) (int, string) {
+		t.Helper()
+		res, err := noFollow.Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res.StatusCode, res.Header.Get("Location")
+	}
+	for path, want := range map[string]string{
+		"/areas/kasa":                          "/areas/kasarani",
+		"/services/home-cleaning/kasa?utm=sms": "/services/home-cleaning/kasarani?utm=sms",
+		"/services/cleaning":                   "/services/home-cleaning",
+		"/services/cleaning/kilimani":          "/services/home-cleaning/kilimani",
+	} {
+		if code, loc := location(path); code != http.StatusMovedPermanently || loc != want {
+			t.Errorf("%s: %d to %q, want 301 to %q", path, code, loc, want)
+		}
+	}
+	if code, _, _ := get(t, ts, "/areas/kasarani"); code != 200 {
+		t.Errorf("new slug: %d", code)
+	}
+	if code, _ := location("/areas/nowhere"); code != 404 {
+		t.Errorf("unknown slug: %d", code)
+	}
+
+	// A second rename points the first old slug straight at the newest one, and a slug taken
+	// back is a page again rather than a redirect.
+	if _, err := srv.DB.Exec(ctx, `UPDATE service_areas SET slug = 'kasarani-east' WHERE slug = 'kasarani'`); err != nil {
+		t.Fatal(err)
+	}
+	if code, loc := location("/areas/kasa"); code != http.StatusMovedPermanently || loc != "/areas/kasarani-east" {
+		t.Errorf("chain: %d to %q", code, loc)
+	}
+	if _, err := srv.DB.Exec(ctx, `UPDATE service_areas SET slug = 'kasa' WHERE slug = 'kasarani-east'`); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := location("/areas/kasa"); code != 200 {
+		t.Errorf("reused slug: %d", code)
+	}
+	if code, loc := location("/areas/kasarani"); code != http.StatusMovedPermanently || loc != "/areas/kasa" {
+		t.Errorf("after moving back: %d to %q", code, loc)
 	}
 }

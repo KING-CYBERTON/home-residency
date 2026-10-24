@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { $api, type Schemas } from "@/api/client";
 import { DataTable } from "@/components/data-table";
 import { Allowed, FormDialog } from "@/components/form-dialog";
+import { useAreaOptions } from "@/components/lookups";
 import { DetailList, Empty, ErrorState, Loading, PageHeader, Section, TextBlock } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { useCan, useMe } from "@/lib/access";
@@ -21,6 +22,7 @@ const OPEN_STATUSES = ["submitted", "triaging", "awaiting_client_choice", "await
 export function RequestPage() {
   const { id = "" } = useParams();
   const me = useMe();
+  const areas = useAreaOptions();
   const path = { params: { path: { id } } };
   const req = $api.useQuery("get", "/console/requests/{id}", path, { refetchInterval: 15_000 });
   const canShortlist = useCan("GET /console/requests/{id}/shortlist");
@@ -168,6 +170,7 @@ export function RequestPage() {
               ],
               ["Phone", r.client?.phone],
               ["ID verification", <StatusBadge value={r.client?.id_verification} />],
+              ["Service area", areas.find((a) => a.value === r.address?.service_area_id)?.label ?? "Not in an area"],
               ["Address", [r.address?.house_number, r.address?.street, r.address?.estate].filter(Boolean).join(", ") || "—"],
               ["Landmark", r.address?.landmark],
               ["Provider", r.provider?.display_name ?? "Not yet assigned"],

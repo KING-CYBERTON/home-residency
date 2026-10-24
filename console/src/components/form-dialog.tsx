@@ -32,6 +32,7 @@ export type Field = {
     | "money" // entered in KES, sent as minor units
     | "date"
     | "datetime"
+    | "time" // HH:MM; an empty field is sent as "" so an edit can clear it
     | "select"
     | "multiselect"
     | "checkbox"
@@ -76,6 +77,9 @@ function toBody(fields: Field[], values: Values): Values {
         break;
       case "datetime":
         if (v) out[f.name] = new Date(String(v)).toISOString();
+        break;
+      case "time":
+        if (v !== undefined) out[f.name] = String(v);
         break;
       case "lines":
         if (typeof v === "string" && v.trim())
@@ -203,6 +207,8 @@ export function FieldInput({
       return (
         <Input {...common} type="datetime-local" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />
       );
+    case "time":
+      return <Input {...common} type="time" step={900} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
     default:
       return <Input {...common} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
   }

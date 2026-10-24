@@ -260,6 +260,11 @@ export function ApplicationPage() {
                   <div>
                     <div>{r.employer_name || <span className="text-muted-foreground">Employer not given</span>}</div>
                     {period && <div className="text-muted-foreground text-xs">{period}</div>}
+                    {r.date_problems?.map((p) => (
+                      <Badge key={p} variant="warning" className="mt-1">
+                        {p}
+                      </Badge>
+                    ))}
                   </div>
                 );
               },

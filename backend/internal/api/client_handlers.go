@@ -229,6 +229,15 @@ func (s *Server) priceFor(ctx context.Context, q db, clientID, serviceID, addres
 	return p, nil
 }
 
+// categoryWindow is when the category's visits may start.
+func categoryWindow(c categoryDTO) domain.BookingWindow {
+	w := domain.BookingWindow{Category: c.Name, MinLead: time.Duration(c.MinLeadMinutes) * time.Minute}
+	if c.OpensAt != nil && c.ClosesAt != nil {
+		w.OpensAt, w.ClosesAt = *c.OpensAt, *c.ClosesAt
+	}
+	return w
+}
+
 func (s *Server) areaSupported(ctx context.Context, q db, areaID *uuid.UUID) bool {
 	if areaID == nil {
 		return false
@@ -281,6 +290,9 @@ func (s *Server) PostClientRequests(w http.ResponseWriter, r *http.Request, para
 			}
 			p, err := s.priceFor(ctx, tx, cid, in.ServiceId, in.AddressId, in.Quantity)
 			if err != nil {
+				return err
+			}
+			if err := categoryWindow(p.category).CheckStart(in.RequestedStart, now); err != nil {
 				return err
 			}
 			if in.RecurrenceRule != nil && p.category.Engagement != "day_based" {

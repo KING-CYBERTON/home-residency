@@ -130,6 +130,16 @@ func TestVettingToActivation(t *testing.T) {
 	if full["referees"].([]any)[0].(map[string]any)["phone"] != "+254711000111" {
 		t.Fatalf("staff must see referee phone: %v", full["referees"])
 	}
+	if probs := full["referees"].([]any)[0].(map[string]any)["date_problems"].([]any); len(probs) != 0 {
+		t.Fatalf("no dates, no problems: %v", probs)
+	}
+	// A referee saved before the date rules existed, with a start date next year, is flagged.
+	h.sql(`UPDATE referees SET employment_from = current_date + 400, employment_to = NULL WHERE id = $1`, ref["id"])
+	full = h.expect(200, "vetter", "GET", "/console/applications/"+appID, nil)
+	if probs := full["referees"].([]any)[0].(map[string]any)["date_problems"].([]any); len(probs) != 1 || !strings.Contains(probs[0].(string), "is in the future") {
+		t.Fatalf("future start date: %v", probs)
+	}
+	h.sql(`UPDATE referees SET employment_from = NULL WHERE id = $1`, ref["id"])
 	items := map[string]string{}
 	for _, it := range full["items"].([]any) {
 		m := it.(map[string]any)

@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+
+	"github.com/KING-CYBERTON/home-residency/backend/internal/api/gen"
 )
 
 // Households are in Kenya: show and read times in East Africa Time (no daylight saving).
@@ -50,9 +52,10 @@ func (p *Portal) funcs() template.FuncMap {
 			}
 			return float64(*f)
 		},
-		"list":  func(s ...string) []string { return s },
-		"minus": func(a, b any) int64 { return deref64(a) - deref64(b) },
-		"per":   func(u any) string { return strings.TrimPrefix(fmt.Sprint(u), "per_") },
+		"list":   func(s ...string) []string { return s },
+		"window": bookingWindow,
+		"minus":  func(a, b any) int64 { return deref64(a) - deref64(b) },
+		"per":    func(u any) string { return strings.TrimPrefix(fmt.Sprint(u), "per_") },
 	}
 }
 
@@ -231,4 +234,34 @@ func optString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// bookingWindow says when a category's visits may start, e.g. "Cleaning visits start between 07:00
+// and 19:00 and need booking at least 2 hours ahead.", or "" when any time will do.
+func bookingWindow(c *gen.Category) string {
+	if c == nil {
+		return ""
+	}
+	var parts []string
+	if c.OpensAt != nil && c.ClosesAt != nil && *c.OpensAt != "" {
+		parts = append(parts, "start between "+*c.OpensAt+" and "+*c.ClosesAt)
+	}
+	if c.MinLeadMinutes != nil && *c.MinLeadMinutes > 0 {
+		m := *c.MinLeadMinutes
+		lead := fmt.Sprintf("%d minutes", m)
+		switch {
+		case m%1440 == 0:
+			lead = fmt.Sprintf("%d day", m/1440)
+		case m%60 == 0:
+			lead = fmt.Sprintf("%d hour", m/60)
+		}
+		if !strings.HasSuffix(lead, "minutes") && !strings.HasPrefix(lead, "1 ") {
+			lead += "s"
+		}
+		parts = append(parts, "need booking at least "+lead+" ahead")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return c.Name + " visits " + strings.Join(parts, " and ") + "."
 }

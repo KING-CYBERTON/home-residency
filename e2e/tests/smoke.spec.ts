@@ -19,7 +19,8 @@ test.beforeAll(async () => {
   const p = await activeProvider("Smoke Provider");
   const c = await client("Smoke Household");
   const job = await acceptedJob(ops, c, p, 60);
-  const other = await one<{ id: string }>(`SELECT id FROM service_categories WHERE slug <> 'cleaning' AND is_active ORDER BY sort_order LIMIT 1`);
+  const other = await one<{ id: string }>(`SELECT c.id FROM service_categories c WHERE c.slug <> 'cleaning' AND c.is_active
+     AND EXISTS (SELECT 1 FROM checklist_templates t WHERE t.category_id = c.id AND t.is_current) ORDER BY c.sort_order LIMIT 1`);
   const app = await call<{ id: string }>(p.token, "POST", "/provider/applications", { category_id: other.id });
   const complaint = await call<{ id: string }>(c.token, "POST", "/client/complaints", { request_id: job.requestId, severity: "quality", summary: "Smoke test complaint" });
   Object.assign(ids, { request: job.requestId, provider: p.userId, client: c.userId, application: app.id, complaint: complaint.id, clientToken: c.token, providerToken: p.token, assignment: job.assignmentId });

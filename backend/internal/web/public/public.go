@@ -95,6 +95,7 @@ type Offer struct {
 type catalogue struct {
 	Categories []api.Category
 	Areas      []api.ServiceArea
+	Priced     map[uuid.UUID]map[uuid.UUID]bool // category -> areas where it has a current price
 }
 
 func (p *Site) catalogue(ctx context.Context) (catalogue, error) {
@@ -103,7 +104,49 @@ func (p *Site) catalogue(ctx context.Context) (catalogue, error) {
 		return catalogue{}, err
 	}
 	areas, err := p.srv.PublicAreas(ctx)
-	return catalogue{Categories: cats, Areas: areas}, err
+	if err != nil {
+		return catalogue{}, err
+	}
+	priced, err := p.srv.PublicPricedAreas(ctx)
+	return catalogue{Categories: cats, Areas: areas, Priced: priced}, err
+}
+
+// pricedAreas are the areas with a price for the category: the only ones that get a
+// /services/{category}/{area} page.
+func (c catalogue) pricedAreas(catID uuid.UUID) []api.ServiceArea {
+	out := []api.ServiceArea{}
+	for _, a := range c.Areas {
+		if c.Priced[catID][a.ID] {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// pricedCategories are the categories with a price in the area.
+func (c catalogue) pricedCategories(areaID uuid.UUID) []api.Category {
+	out := []api.Category{}
+	for _, cat := range c.Categories {
+		if c.Priced[cat.ID][areaID] {
+			out = append(out, cat)
+		}
+	}
+	return out
+}
+
+// redirectRenamed sends a request for a renamed area or category slug to its page under the new
+// slug with a 301, keeping the query string. It reports whether it did.
+func (p *Site) redirectRenamed(w http.ResponseWriter, r *http.Request, kind, slug string, to func(newSlug string) string) bool {
+	next, err := p.srv.PublicSlugRedirect(r.Context(), kind, slug)
+	if err != nil || next == "" {
+		return false
+	}
+	u := to(next)
+	if r.URL.RawQuery != "" {
+		u += "?" + r.URL.RawQuery
+	}
+	http.Redirect(w, r, u, http.StatusMovedPermanently)
+	return true
 }
 
 func (c catalogue) category(slug string) (api.Category, bool) {
@@ -257,7 +300,9 @@ func (p *Site) categoryPage(w http.ResponseWriter, r *http.Request, catSlug, are
 	}
 	cat, ok := c.category(catSlug)
 	if !ok {
-		p.site.NotFound(w, r)
+		if !p.redirectRenamed(w, r, "category", catSlug, func(s string) string { return strings.TrimSuffix("/services/"+s+"/"+areaSlug, "/") }) {
+			p.site.NotFound(w, r)
+		}
 		return
 	}
 	var area *api.ServiceArea
@@ -265,6 +310,13 @@ func (p *Site) categoryPage(w http.ResponseWriter, r *http.Request, catSlug, are
 	if areaSlug != "" {
 		a, ok := c.area(areaSlug)
 		if !ok {
+			if !p.redirectRenamed(w, r, "area", areaSlug, func(s string) string { return "/services/" + cat.Slug + "/" + s }) {
+				p.site.NotFound(w, r)
+			}
+			return
+		}
+		// Only areas with a price for this category have a page; the rest would be empty.
+		if !c.Priced[cat.ID][a.ID] {
 			p.site.NotFound(w, r)
 			return
 		}
@@ -298,14 +350,15 @@ func (p *Site) categoryPage(w http.ResponseWriter, r *http.Request, catSlug, are
 	}
 	desc += ". Fixed prices, managed bookings."
 
-	ld := []any{breadcrumbs(p.site, crumbs...), p.serviceLD(cat, area, c.Areas, offers, path)}
+	areas := c.pricedAreas(cat.ID)
+	ld := []any{breadcrumbs(p.site, crumbs...), p.serviceLD(cat, area, areas, offers, path)}
 	if len(faqs) > 0 {
 		ld = append(ld, faqPage(faqs))
 	}
 	p.render(w, r, &web.Page{
 		Title: title, Description: desc, Path: path, Section: "services", JSONLD: ld,
 		Image: p.site.Photo(servicePhoto(cat.Slug)),
-		Data: map[string]any{"Category": cat, "Area": area, "Areas": c.Areas, "Offers": offers, "FAQs": faqs, "VAT": vat,
+		Data: map[string]any{"Category": cat, "Area": area, "Areas": areas, "Offers": offers, "FAQs": faqs, "VAT": vat,
 			"BookURL": bookURL(cat.Slug, "", areaSlug)},
 	}, "category")
 }
@@ -333,7 +386,9 @@ func (p *Site) area(w http.ResponseWriter, r *http.Request) {
 	}
 	a, ok := c.area(chi.URLParam(r, "area"))
 	if !ok {
-		p.site.NotFound(w, r)
+		if !p.redirectRenamed(w, r, "area", chi.URLParam(r, "area"), func(s string) string { return "/areas/" + s }) {
+			p.site.NotFound(w, r)
+		}
 		return
 	}
 	path := "/areas/" + a.Slug
@@ -343,7 +398,7 @@ func (p *Site) area(w http.ResponseWriter, r *http.Request) {
 		Path:        path,
 		Section:     "areas",
 		JSONLD:      []any{breadcrumbs(p.site, crumb{"Home", "/"}, crumb{"Areas", "/areas"}, crumb{a.Name, path})},
-		Data:        map[string]any{"Area": a, "Categories": c.Categories},
+		Data:        map[string]any{"Area": a, "Categories": c.pricedCategories(a.ID)},
 	}, "area")
 }
 

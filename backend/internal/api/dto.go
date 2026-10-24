@@ -55,6 +55,9 @@ type categoryDTO struct {
 	SopMarkdown                  *string   `json:"sop_markdown"`
 	IsActive                     bool      `json:"is_active"`
 	SortOrder                    int       `json:"sort_order"`
+	OpensAt                      *string   `json:"opens_at"`  // earliest start, HH:MM Nairobi time; nil means any time
+	ClosesAt                     *string   `json:"closes_at"` // latest start
+	MinLeadMinutes               int       `json:"min_lead_minutes"`
 }
 
 type rateCardEntryDTO struct {

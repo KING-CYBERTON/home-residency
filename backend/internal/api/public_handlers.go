@@ -18,7 +18,8 @@ const serviceCols = `s.id, s.category_id, s.slug, s.name, s.description, s.scope
 	s.min_quantity::float8, s.max_quantity::float8, s.default_duration_minutes, s.is_active`
 
 const categoryCols = `c.id, c.slug, c.name, c.name_sw, c.description, c.engagement::text, c.vetting_tier::text,
-	c.requires_client_id_verification, c.sop_markdown, c.is_active, c.sort_order`
+	c.requires_client_id_verification, c.sop_markdown, c.is_active, c.sort_order,
+	to_char(c.opens_at, 'HH24:MI'), to_char(c.closes_at, 'HH24:MI'), c.min_lead_minutes`
 
 func scanService(row pgx.Row) (serviceDTO, error) {
 	var d serviceDTO
@@ -36,7 +37,7 @@ func scanService(row pgx.Row) (serviceDTO, error) {
 func scanCategory(row pgx.Row) (categoryDTO, error) {
 	var d categoryDTO
 	err := row.Scan(&d.ID, &d.Slug, &d.Name, &d.NameSw, &d.Description, &d.Engagement, &d.VettingTier,
-		&d.RequiresClientIDVerification, &d.SopMarkdown, &d.IsActive, &d.SortOrder)
+		&d.RequiresClientIDVerification, &d.SopMarkdown, &d.IsActive, &d.SortOrder, &d.OpensAt, &d.ClosesAt, &d.MinLeadMinutes)
 	return d, err
 }
 

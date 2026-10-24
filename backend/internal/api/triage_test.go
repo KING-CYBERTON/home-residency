@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -203,4 +204,42 @@ func TestShortlistDistanceFromHomeArea(t *testing.T) {
 	if d := sl[0].(map[string]any)["score_breakdown"].(map[string]any)["distance_km"].(float64); d > 1 {
 		t.Fatalf("distance from the home area centre: got %.1f km", d)
 	}
+}
+
+// A category's hours and notice are enforced when a visit is booked; the API says why and when.
+func TestBookingRespectsCategoryHoursAndNotice(t *testing.T) {
+	h := newHarness(t)
+	w := h.newWorld()
+	h.sql(`UPDATE service_categories SET opens_at = '07:00', closes_at = '19:00', min_lead_minutes = 120 WHERE id = $1`, w.catID)
+	eat := time.FixedZone("EAT", 3*3600)
+	book := func(start time.Time) map[string]any {
+		return map[string]any{"accept_terms": true, "service_id": w.svcID, "address_id": w.addrID, "requested_start": start.UTC().Format(time.RFC3339)}
+	}
+	tomorrow := time.Now().In(eat).AddDate(0, 0, 1)
+	day := func(hh, mm int) time.Time {
+		return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), hh, mm, 0, 0, eat)
+	}
+
+	soon := h.expect(422, "client", "POST", "/client/requests", book(time.Now().Add(30*time.Minute)))
+	if !strings.Contains(soon["message"].(string), "needs 2 hours' notice") || soon["details"].(map[string]any)["earliest_start"] == nil {
+		t.Fatalf("too soon: %v", soon)
+	}
+	late := h.expect(422, "client", "POST", "/client/requests", book(day(21, 0)))
+	if !strings.Contains(late["message"].(string), "start between 07:00 and 19:00") {
+		t.Fatalf("after hours: %v", late)
+	}
+	h.expect(422, "client", "POST", "/client/requests", book(day(6, 45)))
+	h.expect(201, "client", "POST", "/client/requests", book(day(9, 0)))
+
+	// The console edits the window, and refuses one that makes no sense.
+	h.staff("ops", "ops@homend.test", "admin")
+	cat := h.expect(200, "ops", "PATCH", "/console/categories/"+w.catID, map[string]any{"opens_at": "06:00", "closes_at": "21:30", "min_lead_minutes": 60})
+	if cat["opens_at"] != "06:00" || cat["closes_at"] != "21:30" || cat["min_lead_minutes"] != 60.0 {
+		t.Fatalf("category: %v", cat)
+	}
+	h.expect(201, "client", "POST", "/client/requests", book(day(21, 0)))
+	h.expect(422, "ops", "PATCH", "/console/categories/"+w.catID, map[string]any{"opens_at": "20:00", "closes_at": "08:00"})
+	h.expect(422, "ops", "PATCH", "/console/categories/"+w.catID, map[string]any{"opens_at": "07:00", "closes_at": ""})
+	h.expect(200, "ops", "PATCH", "/console/categories/"+w.catID, map[string]any{"opens_at": "", "closes_at": "", "min_lead_minutes": 0})
+	h.expect(201, "client", "POST", "/client/requests", book(day(2, 0)))
 }

@@ -20,6 +20,7 @@ export function RequestQueuePage() {
   const [f, set] = useParamState(["status", "category_id", "service_area_id", "q", "from", "to", "mine"], pager.reset);
   const categories = useCategoryOptions();
   const areas = useAreaOptions();
+  const areaName = new Map(areas.map((a) => [a.value, a.label]));
   const { data, isLoading, error } = $api.useQuery(
     "get",
     "/console/requests",
@@ -76,7 +77,15 @@ export function RequestQueuePage() {
             ),
           },
           { header: "Client", cell: (r) => r.client?.full_name ?? "—" },
-          { header: "Area", cell: (r) => r.address?.estate ?? "—" },
+          {
+            header: "Area",
+            cell: (r) => (
+              <div>
+                <div>{areaName.get(r.address?.service_area_id ?? "") ?? <span className="text-muted-foreground">Not in an area</span>}</div>
+                {r.address?.estate && <div className="text-muted-foreground text-xs">{r.address.estate}</div>}
+              </div>
+            ),
+          },
           { header: "Start", cell: (r) => dateTime(r.requested_start) },
           { header: "Total", cell: (r) => money(r.total_minor), className: "text-right tabular-nums" },
           { header: "Submitted", cell: (r) => ago(r.submitted_at) },
