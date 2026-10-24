@@ -211,9 +211,14 @@ func checkApplicant(f otpForm, r *http.Request) string {
 func (p *Portal) applyPassword(w http.ResponseWriter, r *http.Request) {
 	f := p.form(r)
 	f.Email, f.Name, f.Category = strings.TrimSpace(r.PostFormValue("email")), strings.TrimSpace(r.PostFormValue("full_name")), r.PostFormValue("category")
+	var phone *string
+	if raw := strings.TrimSpace(r.PostFormValue("phone")); raw != "" {
+		f.Phone = normalisePhone(raw)
+		phone = &f.Phone
+	}
 	if f.Error = checkApplicant(f, r); f.Error == "" {
 		in := gen.PasswordRegister{Kind: gen.PasswordRegisterKindProvider, FullName: f.Name, Email: openapi_types.Email(f.Email),
-			Password: r.PostFormValue("password"), Consents: applyConsents()}
+			Phone: phone, Password: r.PostFormValue("password"), Consents: applyConsents()}
 		if _, err := p.signIn(w, r, in, p.api.PostAuthRegister); err != nil {
 			f.Error = message(err)
 		}

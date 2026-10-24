@@ -13,7 +13,33 @@
     {{else}}
     <p class="text-sm text-slate-600">We are not taking applications right now. Please check again soon.</p>
     {{end}}
-    {{if .Categories}}<button type="submit" class="btn-primary mt-2 w-full">Start application</button>{{end}}
+    {{if .Categories}}
+    {{$p := .Profile}}
+    <h2 class="pt-4 text-lg font-bold text-slate-900">About you</h2>
+    <p class="text-sm text-slate-600">The vetting team reads these with your documents. They also fill in your profile.</p>
+    <div class="space-y-3 pt-1">
+      <div><label class="field-label" for="dob">Date of birth</label>
+        <input id="dob" name="date_of_birth" type="date" required value="{{val $p.DateOfBirth}}" class="field-input"></div>
+      <div><label class="field-label" for="years">Years of experience in this work</label>
+        <input id="years" name="years_experience" type="number" min="0" max="60" inputmode="numeric" required value="{{val $p.YearsExperience}}" class="field-input"></div>
+      <div><label class="field-label" for="home">Where do you live?</label>
+        <select id="home" name="home_service_area_id" class="field-input"><option value="">Somewhere not listed</option>
+          {{range .Areas}}<option value="{{.Id}}"{{if eq2 $p.HomeServiceAreaId .Id}} selected{{end}}>{{.Name}}</option>{{end}}
+        </select></div>
+      <div><label class="field-label" for="langs">Languages you speak</label>
+        <input id="langs" name="languages" placeholder="English, Kiswahili" value="{{with $p.Languages}}{{range $i, $l := .}}{{if $i}}, {{end}}{{$l}}{{end}}{{end}}" class="field-input"></div>
+      <div><label class="field-label" for="avail">When can you work?</label>
+        <select id="avail" name="availability" required class="field-input">
+          <option value="full_time">Full time, weekdays</option>
+          <option value="part_time">Some days of the week</option>
+          <option value="weekends">Weekends</option>
+          <option value="live_in">Live-in (I can stay with the household)</option>
+        </select></div>
+      <div><label class="field-label" for="prev">Where have you done this work before?</label>
+        <textarea id="prev" name="previous_work" rows="3" required maxlength="1000" placeholder="For example: 3 years with a family in Kilimani, cleaning and laundry" class="field-input"></textarea></div>
+    </div>
+    <button type="submit" class="btn-primary mt-2 w-full">Start application</button>
+    {{end}}
   </form>
   {{end}}
 </section>

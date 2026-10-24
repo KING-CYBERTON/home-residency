@@ -110,8 +110,32 @@ func (s *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	phone := ""
+	if body.Phone != nil {
+		phone = strings.TrimSpace(*body.Phone)
+	}
+	switch {
+	case phone != "" && !phoneRE.MatchString(phone):
+		httpx.Fail(w, r, httpx.Invalid("Phone must be in international format"))
+		return
+	case phone == "" && body.Kind == gen.PasswordRegisterKindProvider:
+		// The vetting team calls applicants, and a phone is how one person keeps one account.
+		httpx.Fail(w, r, httpx.Invalid("Give a phone number: the vetting team needs to call you"))
+		return
+	}
+	if phone != "" {
+		var taken bool
+		if err := s.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE phone_e164 = $1)`, phone).Scan(&taken); err != nil {
+			httpx.Fail(w, r, err)
+			return
+		}
+		if taken {
+			httpx.Fail(w, r, httpx.Conflict("An account already uses this phone number. Sign in with it instead"))
+			return
+		}
+	}
 	id, err := s.createAccount(ctx, r, newAccount{
-		kind: string(body.Kind), name: body.FullName, email: normEmail(string(body.Email)), passwordHash: hash, consents: body.Consents,
+		kind: string(body.Kind), name: body.FullName, phone: phone, email: normEmail(string(body.Email)), passwordHash: hash, consents: body.Consents,
 	})
 	if err != nil {
 		httpx.Fail(w, r, err)

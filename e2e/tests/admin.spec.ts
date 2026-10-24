@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { CONSOLE } from "../lib/env";
 import { totp } from "../lib/otp";
+import { call, expectStatus, staffToken } from "../lib/api";
 import { act, consolePage, fill, goConsole, watch } from "../lib/ui";
-import { client } from "../lib/world";
+import { client, service } from "../lib/world";
 
 // Running the office: an admin invites a colleague, who signs in with password and authenticator
 // code through the real sign-in screen; roles decide what they see; an account can be suspended
@@ -173,4 +174,19 @@ test("households: search, and suspending and reinstating an account", async () =
   await expect(admin.locator("main")).toContainText("Suspended");
   await act(admin, "Reinstate", { reason: "Apologised; first incident" });
   await expect(admin.locator("main")).toContainText("Active");
+});
+
+test("catalogue: an inactive category can be activated again, and its services only go live with it", async () => {
+  await goConsole(admin, "/categories");
+  const row = admin.getByRole("row").filter({ hasText: "Pest control" });
+  await expect(row).toContainText("Inactive");
+  await act(admin, "Activate", {}, { within: row });
+  await expect(row).not.toContainText("Inactive");
+  await act(admin, "Deactivate", {}, { within: row });
+  await expect(row).toContainText("Inactive");
+
+  const fumigation = await service("fumigation-house");
+  const token = await staffToken("ops");
+  await expectStatus(call(token, "PATCH", `/console/services/${fumigation.id}`, { is_active: true }), 422);
+  await call(token, "PATCH", `/console/services/${fumigation.id}`, { is_active: false });
 });

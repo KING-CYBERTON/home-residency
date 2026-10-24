@@ -60,6 +60,18 @@ export function CrudPage<T extends BaseRecord & { id?: string | number }>({
             onSubmit={(values) => update({ resource, id: row.id!, values, ...quiet })}
           />
         </Allowed>
+        <Allowed when={can.update && (row.is_active === false || row.is_published === false)}>
+          <FormDialog
+            trigger={row.is_published === false ? "Publish" : "Activate"}
+            title={`${row.is_published === false ? "Publish" : "Activate"} ${noun}`}
+            description="It shows to clients and providers again."
+            submitLabel={row.is_published === false ? "Publish" : "Activate"}
+            success={`${capitalise(noun)} ${row.is_published === false ? "published" : "activated"}`}
+            onSubmit={() =>
+              update({ resource, id: row.id!, values: row.is_published === false ? { is_published: true } : { is_active: true }, ...quiet })
+            }
+          />
+        </Allowed>
         <Allowed when={canDelete && can.remove && row.is_active !== false && row.is_published !== false}>
           <FormDialog
             trigger="Deactivate"

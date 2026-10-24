@@ -161,10 +161,11 @@ func (s *Server) createAccount(ctx context.Context, r *http.Request, a newAccoun
 		method = "password"
 	}
 	var id uuid.UUID
+	// A phone given with a password is not verified yet; one that came through an SMS code is.
 	err := dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO users (kind, status, full_name, phone_e164, phone_verified_at, email, password_hash)
-			VALUES ($1::user_kind, 'active', $2, NULLIF($3,''), CASE WHEN $3 <> '' THEN now() END, NULLIF($4,'')::citext, NULLIF($5,''))
+			VALUES ($1::user_kind, 'active', $2, NULLIF($3,''), CASE WHEN $3 <> '' AND $5 = '' THEN now() END, NULLIF($4,'')::citext, NULLIF($5,''))
 			RETURNING id`, a.kind, name, a.phone, a.email, a.passwordHash).Scan(&id); err != nil {
 			return err
 		}

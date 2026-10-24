@@ -51,7 +51,9 @@ func (p *Portal) applications(w http.ResponseWriter, r *http.Request) {
 
 type newApplicationPage struct {
 	Categories []gen.Category
+	Areas      []gen.ServiceArea
 	Selected   string
+	Profile    gen.ProviderProfile // answers already on the profile are filled in
 }
 
 func (p *Portal) newApplication(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +62,31 @@ func (p *Portal) newApplication(w http.ResponseWriter, r *http.Request) {
 		p.problem(w, r, err)
 		return
 	}
-	p.render(w, r, http.StatusOK, page{name: "application_new", title: "Apply for work", nav: "more"}, newApplicationPage{Categories: cats, Selected: r.URL.Query().Get("category")})
+	areas, _ := call[[]gen.ServiceArea](r, nil, p.api.GetPublicServiceAreas)
+	prof, _ := call[gen.ProviderProfile](r, nil, p.api.GetProviderProfile)
+	p.render(w, r, http.StatusOK, page{name: "application_new", title: "Apply for work", nav: "more"},
+		newApplicationPage{Categories: cats, Areas: areas, Selected: r.URL.Query().Get("category"), Profile: prof})
+}
+
+// applicationAnswers are the questions on the application form. The profile ones (date of birth,
+// experience, home area, languages) are also copied to the provider's profile by the API.
+func applicationAnswers(r *http.Request) map[string]any {
+	a := map[string]any{}
+	for _, k := range []string{"date_of_birth", "years_experience", "home_service_area_id", "availability", "previous_work", "why"} {
+		if v := strings.TrimSpace(r.PostFormValue(k)); v != "" {
+			a[k] = v
+		}
+	}
+	langs := []string{}
+	for _, l := range strings.Split(r.PostFormValue("languages"), ",") {
+		if l = strings.TrimSpace(l); l != "" {
+			langs = append(langs, l)
+		}
+	}
+	if len(langs) > 0 {
+		a["languages"] = langs
+	}
+	return a
 }
 
 func (p *Portal) createApplication(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +95,8 @@ func (p *Portal) createApplication(w http.ResponseWriter, r *http.Request) {
 		p.done(w, r, portal+"/applications/new", "! Choose the kind of work you want to apply for.")
 		return
 	}
-	app, err := call[gen.Application](r, gen.ApplicationCreate{CategoryId: cat}, p.api.PostProviderApplications)
+	answers := applicationAnswers(r)
+	app, err := call[gen.Application](r, gen.ApplicationCreate{CategoryId: cat, Answers: &answers}, p.api.PostProviderApplications)
 	if err != nil {
 		p.failed(w, r, portal+"/applications/new", err)
 		return

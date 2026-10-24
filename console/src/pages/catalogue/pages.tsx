@@ -1,7 +1,7 @@
 import type { Schemas } from "@/api/client";
 import { EngagementType, Language, NotificationChannel, PricingUnit, VettingTier } from "@/api/enums.gen";
 import { Badge } from "@/components/ui/badge";
-import { useAreaName, useAreaOptions, useCategoryName, useCategoryOptions } from "@/components/lookups";
+import { useAreaName, useAreaOptions, useCategories, useCategoryName, useCategoryOptions } from "@/components/lookups";
 import { StatusBadge } from "@/components/status-badge";
 import { dateTime, humanize, money } from "@/lib/format";
 
@@ -72,6 +72,8 @@ export function CategoriesPage() {
 export function ServicesPage() {
   const categoryName = useCategoryName();
   const categories = useCategoryOptions();
+  const { data: cats } = useCategories();
+  const inactiveCats = new Set((cats ?? []).filter((c) => !c.is_active).map((c) => c.id));
   return (
     <CrudPage<Schemas["Service"]>
       resource="services"
@@ -83,8 +85,21 @@ export function ServicesPage() {
         { header: "Category", cell: (s) => categoryName(s.category_id) },
         { header: "Unit", cell: (s) => humanize(s.pricing_unit) },
         { header: "Duration", cell: (s) => (s.default_duration_minutes ? `${s.default_duration_minutes} min` : "—") },
-        { header: "Current price", cell: (s) => money(s.current_price?.client_price_minor), className: "tabular-nums" },
-        { header: "Status", cell: (s) => active(s.is_active) },
+        {
+          header: "Current price",
+          cell: (s) =>
+            s.current_price ? money(s.current_price.client_price_minor) : <span className="text-muted-foreground text-xs">No all-area price</span>,
+          className: "tabular-nums",
+        },
+        {
+          header: "Status",
+          cell: (s) =>
+            s.is_active && inactiveCats.has(s.category_id) ? (
+              <span className="text-xs text-amber-700 dark:text-amber-300">Category inactive: can't be booked</span>
+            ) : (
+              active(s.is_active)
+            ),
+        },
       ]}
       fields={[
         { name: "category_id", label: "Category", type: "select", options: categories, required: true },
@@ -107,6 +122,7 @@ export function SubscriptionPlansPage() {
     <CrudPage<Schemas["SubscriptionPlan"]>
       resource="subscription-plans"
       title="Subscription plans"
+      description="Household plans paid by M-Pesa each period, with the benefits shown on the pricing page."
       noun="plan"
       columns={[
         { header: "Code", cell: (p) => <code className="text-xs">{p.code}</code> },

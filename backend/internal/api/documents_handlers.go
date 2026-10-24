@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -169,7 +170,13 @@ func (s *Server) GetDocumentsDownloadUrl(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	purpose := ""
-	if params.Purpose != nil {
+	if params.XAccessPurpose != nil {
+		purpose = *params.XAccessPurpose
+		if dec, err := url.PathUnescape(purpose); err == nil {
+			purpose = dec
+		}
+		purpose = strings.TrimSpace(purpose)
+	} else if params.Purpose != nil {
 		purpose = strings.TrimSpace(*params.Purpose)
 	}
 	if p.Kind == auth.KindStaff && len(purpose) < 3 {
@@ -197,13 +204,13 @@ func (s *Server) GetDocumentsDownloadUrl(w http.ResponseWriter, r *http.Request,
 		httpx.Fail(w, r, err)
 		return
 	}
-	url, err := s.Store.PresignGet(ctx, key, downloadTTL)
+	link, err := s.Store.PresignGet(ctx, key, downloadTTL)
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return
 	}
 	_ = owner
-	httpx.JSON(w, http.StatusOK, map[string]any{"url": url, "expires_at": s.Now().Add(downloadTTL).UTC()})
+	httpx.JSON(w, http.StatusOK, map[string]any{"url": link, "expires_at": s.Now().Add(downloadTTL).UTC()})
 }
 
 // ---- staff review of documents
@@ -317,8 +324,8 @@ func (s *Server) GetConsoleDocumentsAccessLog(w http.ResponseWriter, r *http.Req
 		httpx.Fail(w, r, err)
 		return
 	}
-	pg, err := pagedRaw(r.Context(), s.DB, `SELECT l.id, l.document_id, l.accessed_by, l.purpose, host(l.ip_address) AS ip_address, l.accessed_at,
-		l.accessed_at AS _t, `+strings.Replace(bigUUID, "%s", "l.id", 1)+` AS _id FROM document_access_log l WHERE l.document_id = $1`, []any{uuid.UUID(id)}, cur, pageLimit(params.Limit))
+	pg, err := pagedRaw(r.Context(), s.DB, `SELECT l.id, l.document_id, l.accessed_by, u.full_name AS accessed_by_name, l.purpose, host(l.ip_address) AS ip_address, l.accessed_at,
+		l.accessed_at AS _t, `+strings.Replace(bigUUID, "%s", "l.id", 1)+` AS _id FROM document_access_log l LEFT JOIN users u ON u.id = l.accessed_by WHERE l.document_id = $1`, []any{uuid.UUID(id)}, cur, pageLimit(params.Limit))
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return

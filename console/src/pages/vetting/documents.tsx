@@ -87,8 +87,13 @@ export function AccessLogPage() {
   return (
     <>
       <PageHeader
-        title="Document access log"
-        description={doc.data ? `${humanize(doc.data.document_type)} · ${doc.data.original_filename ?? id}` : id}
+        back={doc.data?.owner_user_id ? { to: `/providers/${doc.data.owner_user_id}`, label: "Provider file" } : undefined}
+        title={doc.data ? `Access log: ${humanize(doc.data.document_type)}` : "Document access log"}
+        description={
+          doc.data
+            ? `${doc.data.original_filename ?? "Unnamed file"} · ${humanize(doc.data.status)} · uploaded ${dateTime(doc.data.created_at)}`
+            : "Who opened this document, when and why."
+        }
       />
       <DataTable<Schemas["AccessLogEntry"]>
         rows={data?.data}
@@ -98,7 +103,7 @@ export function AccessLogPage() {
         empty="Nobody has opened this document."
         columns={[
           { header: "When", cell: (e) => dateTime(e.accessed_at) },
-          { header: "Who", cell: (e) => <span className="font-mono text-xs">{e.accessed_by}</span> },
+          { header: "Who", cell: (e) => e.accessed_by_name ?? <span className="font-mono text-xs">{e.accessed_by}</span> },
           { header: "Purpose", cell: (e) => e.purpose ?? "—" },
           { header: "IP address", cell: (e) => e.ip_address ?? "—" },
         ]}
