@@ -14,17 +14,17 @@
 {{end}}
 
 {{define "portal-header"}}
-<header class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+<header class="sticky top-0 z-10 border-b border-stone bg-parchment">
   <div class="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
-    <a href="{{.Base}}/" class="flex items-center gap-2 font-semibold text-brand-800">
-      <img src="{{asset "img/favicon.svg"}}" alt="" width="28" height="28"> Homend
+    <a href="{{.Base}}/" class="flex min-h-11 items-center gap-2.5 text-onyx">
+      <img src="{{asset "img/favicon.svg"}}" alt="" width="28" height="28"> <span class="font-display text-2xl leading-none tracking-[-0.02em] uppercase">Homend</span>
     </a>
     {{if .Me}}
     <div class="flex items-center gap-1">
-      <button type="button" data-install hidden class="rounded-full border border-brand-700 px-3 py-1 text-xs font-medium text-brand-800">Install app</button>
-      <a href="{{.Base}}/notifications" class="relative rounded-full p-2 text-slate-600 hover:bg-slate-100" aria-label="Notifications{{if .Unread}}, {{.Unread}} unread{{end}}">
+      <button type="button" data-install hidden class="min-h-11 rounded-sm border border-onyx px-3 text-xs font-medium tracking-[0.06em] text-onyx uppercase">Install app</button>
+      <a href="{{.Base}}/notifications" class="relative flex h-11 w-11 items-center justify-center rounded-sm text-onyx hover:bg-paper" aria-label="Notifications{{if .Unread}}, {{.Unread}} unread{{end}}">
         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 11-6 0"/></svg>
-        {{if .Unread}}<span class="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-rose-600"></span>{{end}}
+        {{if .Unread}}<span class="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-saffron ring-2 ring-parchment"></span>{{end}}
       </a>
     </div>
     {{end}}
@@ -34,16 +34,16 @@
 
 {{define "portal-content"}}
 <div class="mx-auto max-w-xl px-4 pb-28 pt-4" hx-boost="true">
-  {{if .Flash}}<div role="status" class="mb-4 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">{{.Flash}}</div>{{end}}
-  {{if .Error}}<div role="alert" class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{{.Error}}</div>{{end}}
+  {{if .Flash}}<div role="status" class="mb-4 border-l-2 border-saffron bg-paper px-4 py-3 text-sm text-onyx">{{.Flash}}</div>{{end}}
+  {{if .Error}}<div role="alert" class="mb-4 border-l-2 border-rose-700 bg-rose-50 px-4 py-3 text-sm text-rose-900">{{.Error}}</div>{{end}}
   {{template "page" .}}
 </div>
 {{end}}
 
 {{define "portal-tabbar"}}
 {{if .Me}}
-<nav class="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]" aria-label="Portal">
-  <ul class="mx-auto grid max-w-xl grid-cols-5 text-center text-[11px] font-medium text-slate-500">
+<nav class="fixed inset-x-0 bottom-0 z-10 border-t border-stone bg-paper pb-[env(safe-area-inset-bottom)]" aria-label="Portal">
+  <ul class="mx-auto grid max-w-xl grid-cols-5 text-center text-xs font-medium text-slate-600">
     {{template "tab" dict "Base" .Base "Nav" .Nav "Key" "home" "Href" "/" "Label" "Home" "Icon" "M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"}}
     {{template "tab" dict "Base" .Base "Nav" .Nav "Key" "requests" "Href" "/requests" "Label" "Bookings" "Icon" "M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"}}
     {{template "tab" dict "Base" .Base "Nav" .Nav "Key" "book" "Href" "/book" "Label" "Book" "Icon" "M12 5v14m-7-7h14"}}
@@ -56,8 +56,8 @@
 
 {{define "tab"}}
 <li>
-  <a href="{{.Base}}{{.Href}}" class="flex flex-col items-center gap-0.5 py-2 {{if eq .Nav .Key}}text-brand-700{{else}}hover:text-slate-800{{end}}" {{if eq .Nav .Key}}aria-current="page"{{end}}>
-    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="{{.Icon}}"/></svg>
+  <a href="{{.Base}}{{.Href}}" class="flex min-h-14 flex-col items-center justify-center gap-1 border-t-2 py-2 {{if eq .Nav .Key}}border-saffron font-semibold text-onyx{{else}}border-transparent hover:text-onyx{{end}}" {{if eq .Nav .Key}}aria-current="page"{{end}}>
+    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="square" stroke-linejoin="miter" d="{{.Icon}}"/></svg>
     {{.Label}}
   </a>
 </li>

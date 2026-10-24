@@ -134,7 +134,7 @@ func (p *Portal) manifest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/manifest+json")
 	web.Cacheable(w, 3600e9)
 	_, _ = w.Write([]byte(`{"name":"Homend Residence for providers","short_name":"Homend Work","start_url":"` + portal + `/","scope":"` + portal + `/",` +
-		`"display":"standalone","background_color":"#ffffff","theme_color":"#0f766e","icons":[` +
+		`"display":"standalone","background_color":"#d8cbb8","theme_color":"#d8cbb8","icons":[` +
 		`{"src":"` + p.site.Asset("img/icon-192.png") + `","sizes":"192x192","type":"image/png"},` +
 		`{"src":"` + p.site.Asset("img/icon-512.png") + `","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}`))
 }

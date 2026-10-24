@@ -1,42 +1,202 @@
 /* Tailwind input for every server-rendered surface. Build with `make css` in backend/.
-   The output (static/css/app.css) is committed so the Go binary embeds it; CI checks it is current. */
+   The output (static/css/app.css) is committed so the Go binary embeds it; CI checks it is current.
+
+   Visual language: warm parchment canvas, warm onyx type, one saffron accent, a light serif for
+   headings and a geometric sans for everything else, sharp corners and no shadows. The palette
+   is applied by remapping Tailwind's colour names (brand, slate, white and the status colours)
+   below, so the templates keep their utility classes. Text colours are tuned so every pairing the
+   templates use passes WCAG AA (4.5:1) on the canvas and on card surfaces. */
 @import "tailwindcss" source(none);
 @source "../";
 @source not "../static";
 
+/* Cormorant Garamond and DM Sans stand in for TT Ramillas and Satoshi, the faces the design
+   was drawn with (both need licences). Self-hosted, latin subset, one variable file each. */
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url("/static/fonts/cormorant-garamond.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url("/static/fonts/dm-sans.woff2") format("woff2-variations");
+}
+
 @theme {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --color-brand-50: #f0fdfa;
-  --color-brand-100: #ccfbf1;
-  --color-brand-200: #99f6e4;
-  --color-brand-500: #14b8a6;
-  --color-brand-600: #0d9488;
-  --color-brand-700: #0f766e;
-  --color-brand-800: #115e59;
-  --color-brand-900: #134e4a;
-  --color-accent-500: #f59e0b;
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Cormorant Garamond", "Iowan Old Style", Georgia, "Times New Roman", serif;
+
+  /* Design tokens */
+  --color-parchment: #d8cbb8; /* page canvas */
+  --color-paper: #efe7db; /* cards, inputs, bars: a lighter sheet on the canvas */
+  --color-linen: #bfb4a3;
+  --color-stone: #b6ab9c; /* 1px hairlines */
+  --color-walnut: #978e81; /* decorative only, too light for text */
+  --color-espresso: #615b53; /* control borders */
+  --color-onyx: #2c2c2c; /* text, primary buttons */
+  --color-midnight: #292622; /* dark sections */
+  --color-saffron: #d49653; /* the one accent: active states, ratings, punctuation */
+
+  /* Tailwind names the templates use, remapped onto the tokens */
+  --color-white: #efe7db;
+  --color-black: #1f1d1a;
+  --color-brand-50: #e3d8c8;
+  --color-brand-100: #e6dccd;
+  --color-brand-200: #b6ab9c;
+  --color-brand-500: #d49653;
+  --color-brand-600: #615b53;
+  --color-brand-700: #2c2c2c;
+  --color-brand-800: #1f1d1a;
+  --color-brand-900: #1f1d1a;
+  --color-accent-500: #d49653;
+
+  --color-slate-50: #e3d8c8;
+  --color-slate-100: #d0c3af;
+  --color-slate-200: #b6ab9c;
+  --color-slate-300: #776e62; /* control and pill borders, 3:1 on canvas and cards */
+  --color-slate-400: #776e62;
+  --color-slate-500: #514b44;
+  --color-slate-600: #4d4740;
+  --color-slate-700: #3d3833;
+  --color-slate-800: #2c2c2c;
+  --color-slate-900: #292622;
+
+  /* Status colours, warmed to sit on parchment */
+  --color-emerald-50: #e6e5d0;
+  --color-emerald-100: #dde0c6;
+  --color-emerald-200: #b9bf9c;
+  --color-emerald-700: #2f5530;
+  --color-emerald-800: #2f5530;
+  --color-amber-50: #f1e3c8;
+  --color-amber-100: #ecd7b3;
+  --color-amber-200: #dcb98a;
+  --color-amber-300: #d49653;
+  --color-amber-500: #d49653;
+  --color-amber-700: #634824;
+  --color-amber-800: #5a4020;
+  --color-amber-900: #5a4020;
+  --color-rose-50: #f0dcd3;
+  --color-rose-100: #ebd0c5;
+  --color-rose-200: #d9b0a2;
+  --color-rose-300: #c99a8a;
+  --color-rose-600: #8a3324;
+  --color-rose-700: #8a3324;
+  --color-rose-800: #7a2c20;
+  --color-rose-900: #7a2c20;
+  --color-red-50: #f0dcd3;
+  --color-red-700: #8a3324;
+  --color-red-800: #7a2c20;
+  --color-sky-100: #e3d8c8;
+  --color-sky-800: #2c2c2c;
+
+  /* Sharp geometry: 3px on controls and tags, square cards and panels */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+
+  /* Flat: depth comes from tone and hairlines, never shadows */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+}
+
+@layer base {
+  html { background-color: var(--color-parchment); }
+  ::selection { background-color: var(--color-saffron); color: var(--color-onyx); }
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--color-onyx); }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-onyx bg-onyx px-5 py-2.5 text-[13px] font-medium tracking-[0.06em] text-paper uppercase transition-colors duration-300 hover:border-midnight hover:bg-midnight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-onyx disabled:opacity-60;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-onyx bg-transparent px-5 py-2.5 text-[13px] font-medium tracking-[0.06em] text-onyx uppercase transition-colors duration-300 hover:bg-onyx hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-onyx;
   }
-  .nav-link { @apply rounded px-2 py-2 text-slate-700 hover:text-brand-700 md:px-0 md:py-0; }
-  .nav-link-active { @apply font-semibold text-brand-700; }
-  .card { @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm; }
-  .field-label { @apply block text-sm font-medium text-slate-800; }
+  /* Ghost button for dark sections */
+  .btn-light {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-parchment px-5 py-2.5 text-[13px] font-medium tracking-[0.06em] text-parchment uppercase transition-colors duration-300 hover:bg-parchment hover:text-onyx focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-parchment;
+  }
+  .nav-link {
+    @apply inline-flex min-h-11 items-center px-2 text-[13px] font-medium tracking-[0.06em] text-onyx uppercase underline-offset-[6px] hover:underline md:min-h-0 md:px-0;
+  }
+  .nav-link-active { @apply underline decoration-saffron decoration-2; }
+  .eyebrow { @apply text-xs font-medium tracking-[0.14em] text-slate-600 uppercase; }
+  .display { @apply font-display font-light tracking-[-0.03em] uppercase; }
+  .rule { @apply border-t border-stone; }
+  .card { @apply rounded-none border border-stone bg-paper p-6; }
+  .field-label { @apply block text-sm font-medium text-onyx; }
   .field-input {
-    @apply mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200;
+    @apply mt-1 block min-h-11 w-full rounded-sm border border-espresso bg-paper px-3 py-2.5 text-base text-onyx focus:border-onyx focus:outline-2 focus:outline-offset-0 focus:outline-onyx;
   }
   .field-error { @apply mt-1 text-sm text-red-700; }
   .prose-body p { @apply mt-4 leading-7; }
-  .prose-body h2 { @apply mt-10 text-xl font-bold text-slate-900; }
+  .prose-body h2 { @apply mt-10 text-2xl text-slate-900; }
   .prose-body ul { @apply mt-4 list-disc space-y-2 pl-6; }
+  .prose-body a { @apply underline underline-offset-2; }
+}
+
+/* Unlayered, so these win over the templates' utilities (font-bold on a heading, for one).
+   Headings are set in the serif at a light weight; the serif runs small, so h1 and h2 scale their
+   text sizes up by redefining the size variables Tailwind's text-* utilities read. */
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  --text-base: 1.375rem;
+  --text-base--line-height: 1.15;
+  --text-lg: 1.5rem;
+  --text-lg--line-height: 1.1;
+  --text-xl: 1.75rem;
+  --text-xl--line-height: 1.1;
+  --text-2xl: 2.125rem;
+  --text-2xl--line-height: 1.05;
+  --text-3xl: 2.625rem;
+  --text-3xl--line-height: 1;
+  --text-4xl: 3.25rem;
+  --text-4xl--line-height: 0.95;
+  --text-5xl: 4.25rem;
+  --text-5xl--line-height: 0.92;
+  --text-6xl: 5.25rem;
+  --text-6xl--line-height: 0.9;
+}
+h1 { text-transform: uppercase; letter-spacing: -0.025em; }
+/* Small uppercase section labels stay in the sans, like .eyebrow */
+/* A heading with no size of its own gets the smallest serif size the design allows */
+h2:not(.text-xs, .text-sm, .text-base, .text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-6xl) { font-size: 1.375rem; line-height: 1.15; }
+:is(h1, h2):is(.text-sm, .text-xs) { font-family: var(--font-sans); letter-spacing: 0.12em; font-weight: 500; }
+h1.display, h2.display { font-weight: 300; letter-spacing: -0.035em; }
+
+/* Links that are coloured like body text are underlined so they never rely on colour alone. */
+:is(a.text-brand-700, a.text-brand-800):not([class*="bg-"], .nav-link, .flex, .inline-flex) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+/* Filled buttons written inline in the portals read like .btn-primary */
+:is(a, button).bg-brand-700:not(.flex) {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-height: 2.75rem;
 }
 
 /* HTMX request indicators (htmx is configured not to inject its own <style>, for the CSP). */
 .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}

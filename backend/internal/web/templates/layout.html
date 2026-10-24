@@ -14,7 +14,7 @@
 <meta property="og:image" content="{{absURL (asset "img/og.png")}}">
 <meta property="og:locale" content="en_KE">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#d8cbb8">
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false}'>
 <link rel="icon" href="{{asset "img/favicon.svg"}}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{asset "img/icon-192.png"}}">
@@ -23,14 +23,14 @@
 {{range .JSONLD}}{{jsonld .}}
 {{end}}{{block "head" .}}{{end}}
 </head>
-<body class="min-h-screen flex flex-col bg-white text-slate-800 antialiased">
-<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:shadow">Skip to content</a>
+<body class="min-h-screen flex flex-col bg-parchment text-onyx antialiased">
+<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-sm focus:border focus:border-onyx focus:bg-paper focus:px-3 focus:py-2">Skip to content</a>
 {{block "header" .}}{{template "public-header" .}}{{end}}
 <main id="main" class="flex-1">
 {{block "content" .}}
 <section class="mx-auto max-w-3xl px-4 py-16 text-center">
-  <p class="text-sm font-semibold text-brand-700">404</p>
-  <h1 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">We couldn't find that page</h1>
+  <p class="eyebrow">Error 404</p>
+  <h1 class="display mt-4 text-4xl text-slate-900 sm:text-5xl">We couldn't find that page</h1>
   <p class="mt-4 text-slate-600">The link may be old, or the page may have moved.</p>
   <div class="mt-8 flex flex-wrap justify-center gap-3">
     <a href="/" class="btn-primary">Go to the home page</a>
@@ -45,25 +45,25 @@
 </html>{{end}}
 
 {{define "public-header"}}
-<header class="border-b border-slate-200 bg-white">
+<header class="border-b border-stone bg-parchment">
   <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-    <a href="/" class="flex items-center gap-2 font-bold text-slate-900">
+    <a href="/" class="flex min-h-11 items-center gap-2.5 text-onyx">
       <img src="{{asset "img/favicon.svg"}}" alt="" width="28" height="28">
-      <span>{{siteName}}</span>
+      <span class="font-display text-2xl leading-none tracking-[-0.02em] uppercase">{{siteName}}</span>
     </a>
     <nav aria-label="Main" class="hidden items-center gap-6 text-sm font-medium md:flex">
       {{template "nav-links" .}}
     </nav>
     <div class="hidden items-center gap-3 md:flex">
-      <a href="{{clientPath}}" class="text-sm font-medium text-slate-700 hover:text-brand-700">Sign in</a>
+      <a href="{{clientPath}}" class="nav-link">Sign in</a>
       <a href="/book" class="btn-primary">Book a service</a>
     </div>
     <details class="relative md:hidden">
-      <summary class="cursor-pointer list-none rounded-md border border-slate-300 px-3 py-2 text-sm font-medium" aria-label="Menu">Menu</summary>
-      <nav aria-label="Main" class="absolute right-0 z-40 mt-2 flex w-64 flex-col gap-1 rounded-lg border border-slate-200 bg-white p-3 text-base shadow-lg">
+      <summary class="flex min-h-11 cursor-pointer list-none items-center rounded-sm border border-onyx px-4 text-[13px] font-medium tracking-[0.06em] uppercase" aria-label="Menu">Menu</summary>
+      <nav aria-label="Main" class="absolute right-0 z-40 mt-2 flex w-64 flex-col gap-1 border border-onyx bg-paper p-3">
         {{template "nav-links" .}}
-        <hr class="my-2 border-slate-200">
-        <a href="{{clientPath}}" class="rounded px-2 py-2 hover:bg-slate-50">Sign in</a>
+        <hr class="my-2 border-stone">
+        <a href="{{clientPath}}" class="nav-link">Sign in</a>
         <a href="/book" class="btn-primary mt-1 text-center">Book a service</a>
       </nav>
     </details>
@@ -80,38 +80,41 @@
 {{end}}
 
 {{define "public-footer"}}
-<footer class="mt-16 border-t border-slate-200 bg-slate-50 text-sm text-slate-600">
-  <div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 md:grid-cols-4">
+<footer class="mt-24 bg-midnight text-sm text-linen">
+  <div class="mx-auto grid max-w-6xl gap-10 px-4 pt-16 pb-12 sm:grid-cols-2 md:grid-cols-4">
     <div>
-      <p class="font-semibold text-slate-900">{{siteName}}</p>
+      <p class="eyebrow text-parchment">{{siteName}}</p>
       <p class="mt-2">Vetted, trained and supervised home service providers in Nairobi. Every booking is managed by our team.</p>
     </div>
     <div>
-      <p class="font-semibold text-slate-900">Households</p>
+      <p class="eyebrow text-parchment">Households</p>
       <ul class="mt-2 space-y-1">
-        <li><a href="/services" class="hover:text-brand-700">Services</a></li>
-        <li><a href="/pricing" class="hover:text-brand-700">Pricing</a></li>
-        <li><a href="/book" class="hover:text-brand-700">Book a service</a></li>
-        <li><a href="{{clientPath}}" class="hover:text-brand-700">Sign in</a></li>
+        <li><a href="/services" class="inline-block py-1 hover:text-parchment hover:underline">Services</a></li>
+        <li><a href="/pricing" class="inline-block py-1 hover:text-parchment hover:underline">Pricing</a></li>
+        <li><a href="/book" class="inline-block py-1 hover:text-parchment hover:underline">Book a service</a></li>
+        <li><a href="{{clientPath}}" class="inline-block py-1 hover:text-parchment hover:underline">Sign in</a></li>
       </ul>
     </div>
     <div>
-      <p class="font-semibold text-slate-900">Providers</p>
+      <p class="eyebrow text-parchment">Providers</p>
       <ul class="mt-2 space-y-1">
-        <li><a href="{{joinPath}}" class="hover:text-brand-700">Apply to work with us</a></li>
-        <li><a href="{{providerPath}}" class="hover:text-brand-700">Provider sign in</a></li>
+        <li><a href="{{joinPath}}" class="inline-block py-1 hover:text-parchment hover:underline">Apply to work with us</a></li>
+        <li><a href="{{providerPath}}" class="inline-block py-1 hover:text-parchment hover:underline">Provider sign in</a></li>
       </ul>
     </div>
     <div>
-      <p class="font-semibold text-slate-900">Company</p>
+      <p class="eyebrow text-parchment">Company</p>
       <ul class="mt-2 space-y-1">
-        <li><a href="/how-it-works" class="hover:text-brand-700">How it works</a></li>
-        <li><a href="/faq" class="hover:text-brand-700">Questions</a></li>
-        <li><a href="/contact" class="hover:text-brand-700">Contact us</a></li>
-        <li><a href="/privacy" class="hover:text-brand-700">Privacy</a></li>
+        <li><a href="/how-it-works" class="inline-block py-1 hover:text-parchment hover:underline">How it works</a></li>
+        <li><a href="/faq" class="inline-block py-1 hover:text-parchment hover:underline">Questions</a></li>
+        <li><a href="/contact" class="inline-block py-1 hover:text-parchment hover:underline">Contact us</a></li>
+        <li><a href="/privacy" class="inline-block py-1 hover:text-parchment hover:underline">Privacy</a></li>
       </ul>
     </div>
   </div>
-  <p class="border-t border-slate-200 py-4 text-center text-xs">&copy; {{year}} {{siteName}}</p>
+  <div class="mx-auto max-w-6xl px-4">
+    <p class="font-display text-[clamp(2.75rem,9vw,7rem)] leading-[0.85] tracking-[-0.04em] text-parchment uppercase" aria-hidden="true">{{siteName}}</p>
+    <p class="mt-6 border-t border-espresso py-5 text-xs tracking-[0.14em] uppercase">&copy; {{year}} {{siteName}} &middot; Nairobi</p>
+  </div>
 </footer>
 {{end}}

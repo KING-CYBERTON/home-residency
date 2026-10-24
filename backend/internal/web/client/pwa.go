@@ -22,8 +22,8 @@ func (p *Portal) manifest(w http.ResponseWriter, r *http.Request) {
   "scope": "` + b + `/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#0f766e",
+  "background_color": "#d8cbb8",
+  "theme_color": "#d8cbb8",
   "lang": "en-KE",
   "categories": ["lifestyle", "productivity"],
   "icons": [

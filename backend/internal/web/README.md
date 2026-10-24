@@ -28,7 +28,10 @@ Template functions: `asset "css/app.css"` (cache-busted URL; also `site.Asset` i
 (integer cents to `KES 2,500`), `jsonld`, `deref`, `siteName`, `year`, `clientPath`, `providerPath`, `joinPath`.
 
 The layout already loads `css/app.css`, `js/htmx.min.js`, `img/favicon.svg`; icons for manifests are
-`img/icon-192.png` and `img/icon-512.png`. No web fonts: the system font stack keeps pages light.
+`img/icon-192.png` and `img/icon-512.png`. Two self-hosted variable fonts (`static/fonts/`, about 37 KB
+each, SIL Open Font License): DM Sans for text and Cormorant Garamond for headings. They stand in
+for Satoshi and TT Ramillas, the faces the design was drawn with; dropping licensed files into
+`static/fonts/` and changing the two `@font-face` rules in `styles/app.css` swaps them.
 
 ## Rules every route gets from `site.Middleware`
 
@@ -40,6 +43,13 @@ The layout already loads `css/app.css`, `js/htmx.min.js`, `img/favicon.svg`; ico
 
 ## Styles
 
-Edit `styles/app.css` (Tailwind v4, brand colours under `@theme`) or use classes in any template
+The look (warm parchment canvas, warm onyx type, one saffron accent, light serif headings, sharp
+corners, no shadows) lives in `styles/app.css`. Its `@theme` remaps the Tailwind colour names the
+templates use (`brand-*`, `slate-*`, `white`, the status colours) onto the design tokens, with
+every text colour checked for WCAG AA on the canvas and on cards, so templates keep plain utility
+classes. Use `parchment`, `paper`, `stone`, `onyx`, `midnight` and `saffron` directly in new markup,
+and `.display`, `.eyebrow`, `.btn-primary`, `.btn-secondary` and `.btn-light` for the recurring pieces.
+
+Edit `styles/app.css` (Tailwind v4, colours under `@theme`) or use classes in any template
 under `internal/web/`, then run `make css` in `backend/` and commit `static/css/app.css`. CI fails
 if the committed CSS is stale.

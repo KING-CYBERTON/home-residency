@@ -2,10 +2,10 @@
 {{define "price"}}{{if .Price}}<span class="font-semibold text-slate-900">{{money .Price.ClientPriceMinor .Price.Currency}}</span> <span class="text-sm text-slate-500">{{.UnitLabel}}</span>{{if gt .Price.PlacementFeeMinor 0}}<span class="block text-xs text-slate-500">plus a one-off placement fee of {{money .Price.PlacementFeeMinor .Price.Currency}}</span>{{end}}{{else}}<span class="text-sm text-slate-500">Price on request</span>{{end}}{{end}}
 
 {{define "trust-strip"}}
-<ul class="grid gap-4 sm:grid-cols-3">
-  <li class="card"><p class="font-semibold text-slate-900">Vetted and trained</p><p class="mt-1 text-sm text-slate-600">ID, Certificate of Good Conduct and two referees checked, plus an interview and training before anyone is sent to you.</p></li>
-  <li class="card"><p class="font-semibold text-slate-900">Fixed prices</p><p class="mt-1 text-sm text-slate-600">You pay the published rate card. Any change to the job is agreed in the app first.</p></li>
-  <li class="card"><p class="font-semibold text-slate-900">Managed by our team</p><p class="mt-1 text-sm text-slate-600">We pick the provider, follow up every visit and act on every complaint.</p></li>
+<ul class="grid border-y border-stone sm:grid-cols-3">
+  <li class="border-b border-stone py-6 sm:border-r sm:border-b-0 sm:pr-6"><p class="eyebrow text-onyx">Vetted and trained</p><p class="mt-3 text-sm text-slate-600">ID, Certificate of Good Conduct and two referees checked, plus an interview and training before anyone is sent to you.</p></li>
+  <li class="border-b border-stone py-6 sm:border-r sm:border-b-0 sm:px-6"><p class="eyebrow text-onyx">Fixed prices</p><p class="mt-3 text-sm text-slate-600">You pay the published rate card. Any change to the job is agreed in the app first.</p></li>
+  <li class="py-6 sm:pl-6"><p class="eyebrow text-onyx">Managed by our team</p><p class="mt-3 text-sm text-slate-600">We pick the provider, follow up every visit and act on every complaint.</p></li>
 </ul>
 {{end}}
 
