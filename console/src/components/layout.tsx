@@ -81,7 +81,9 @@ export function Layout({ children }: { children?: ReactNode }) {
           <div className="flex-1" />
           {me && (
             <div className="min-w-0 text-right text-sm leading-tight">
-              <div className="font-medium">{me.full_name}</div>
+              <NavLink to="/account" className="font-medium hover:underline">
+                {me.full_name}
+              </NavLink>
               <div
                 className="text-muted-foreground hidden max-w-md truncate text-xs sm:block"
                 title={(me.roles ?? []).map((r) => roleLabels[r as StaffRole] ?? r).join(", ")}

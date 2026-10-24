@@ -454,6 +454,62 @@ paths:
           $ref: '#/components/responses/E422'
         default:
           $ref: '#/components/responses/Edefault'
+  /me/sessions:
+    get:
+      tags:
+      - Auth
+      summary: Your signed-in sessions
+      operationId: getMeSessions
+      description: The sessions that are still signed in, newest first. `current` marks the one making this request.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionInfo'
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '422':
+          $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /me/sessions/{id}:
+    delete:
+      tags:
+      - Auth
+      summary: Sign out one of your sessions
+      operationId: deleteMeSession
+      description: Signs that browser or phone out. To sign out the session you are using, call /auth/logout.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Done
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '422':
+          $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /me/consents:
     post:
       tags:
@@ -7781,6 +7837,112 @@ paths:
           $ref: '#/components/responses/E422'
         default:
           $ref: '#/components/responses/Edefault'
+  /console/staff/{id}/sessions:
+    get:
+      tags:
+      - 'Console: Admin'
+      summary: A staff user's signed-in sessions
+      operationId: getConsoleStaffSessions
+      x-roles:
+      - admin
+      description: '**Roles:** `admin`'
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionInfo'
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '422':
+          $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /console/staff/{id}/sign-out:
+    post:
+      tags:
+      - 'Console: Admin'
+      summary: Sign a staff user out everywhere
+      operationId: postConsoleStaffSignOut
+      x-roles:
+      - admin
+      description: '**Roles:** `admin`. Ends every session the user has, for a lost phone or a shared computer. Their password and authenticator still work.'
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonInput'
+      responses:
+        '204':
+          description: Done
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '422':
+          $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
+  /console/staff/{id}/reset-password:
+    post:
+      tags:
+      - 'Console: Admin'
+      summary: Give a staff user a new temporary password
+      operationId: postConsoleStaffResetPassword
+      x-roles:
+      - admin
+      description: '**Roles:** `admin`. For a forgotten password. The old password stops working, every session ends, and the new one is returned once. The authenticator is unchanged. You cannot reset your own; change it from My account.'
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryPassword'
+        '400':
+          $ref: '#/components/responses/E400'
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '422':
+          $ref: '#/components/responses/E422'
+        default:
+          $ref: '#/components/responses/Edefault'
   /console/staff/{id}/reset-mfa:
     post:
       tags:
@@ -12743,6 +12905,46 @@ components:
       - email
       - status
       - roles
+    SessionInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        user_agent:
+          type: string
+          nullable: true
+        ip_address:
+          type: string
+          nullable: true
+        mfa_passed:
+          type: boolean
+        current:
+          type: boolean
+          description: The session making this request.
+      required:
+      - id
+      - created_at
+      - last_seen_at
+      - expires_at
+      - mfa_passed
+      - current
+    TemporaryPassword:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+      - password
     TotpEnrolment:
       type: object
       description: A fresh authenticator secret. Shown once.

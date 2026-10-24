@@ -68,8 +68,9 @@ export function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function handleUnauthenticated(response: Response) {
-  if (response.status === 401 && !response.url.includes("/auth/staff/")) {
+/** A 401 means the session has ended, except a wrong current password when changing it, which leaves you signed in. */
+function handleUnauthenticated(response: Response, err: ApiError) {
+  if (response.status === 401 && !response.url.includes("/auth/staff/") && err.code !== "invalid_credentials") {
     sessionToken.clear();
     onUnauthenticated();
   }
@@ -83,10 +84,11 @@ const authMiddleware: Middleware = {
   },
   async onResponse({ response }) {
     if (response.ok) return response;
-    handleUnauthenticated(response);
     // Throwing here makes every failed call reject with an ApiError, so
     // queries and mutations surface the API's message and status.
-    throw await toApiError(response);
+    const err = await toApiError(response);
+    handleUnauthenticated(response, err);
+    throw err;
   },
 };
 
@@ -114,8 +116,9 @@ export async function request<T>(
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
   if (!response.ok) {
-    handleUnauthenticated(response);
-    throw await toApiError(response);
+    const err = await toApiError(response);
+    handleUnauthenticated(response, err);
+    throw err;
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -129,8 +132,9 @@ export async function download(path: string, query: Query, filename: string) {
   }
   const response = await fetch(url, { headers: authHeaders() });
   if (!response.ok) {
-    handleUnauthenticated(response);
-    throw await toApiError(response);
+    const err = await toApiError(response);
+    handleUnauthenticated(response, err);
+    throw err;
   }
   const blob = await response.blob();
   const href = URL.createObjectURL(blob);

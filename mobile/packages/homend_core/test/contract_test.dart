@@ -26,6 +26,8 @@ const unused = {
   'POST /push-subscriptions': 'web push is for the PWA; native push is a later step',
   'DELETE /push-subscriptions': 'web push is for the PWA; native push is a later step',
   'GET /provider/checklists/{}': 'the application carries its own checklist items',
+  'GET /me/sessions': 'session management is in the console for now',
+  'DELETE /me/sessions/{}': 'session management is in the console for now',
 };
 
 String norm(String path) => path.replaceAll(RegExp(r'\{[^}]+\}'), '{}');

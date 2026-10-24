@@ -427,15 +427,23 @@ func (s *Server) CreateStaff(ctx context.Context, name, email string, roles []st
 	return
 }
 
+// temporaryPassword is the password an admin hands a colleague for a new account or after a reset.
+func (s *Server) temporaryPassword() (string, error) {
+	pw, err := s.Auth.NewCode()
+	if err != nil {
+		return "", err
+	}
+	return "Hr-" + uuid.NewString()[:13] + pw[:2], nil
+}
+
 func (s *Server) createStaff(ctx context.Context, name, email, phone string, roles []string) (id uuid.UUID, password, totpSecret, totpURI string, err error) {
 	if len(roles) == 0 {
 		return id, "", "", "", errors.New("at least one role is required")
 	}
-	pw, err := s.Auth.NewCode()
+	pw, err := s.temporaryPassword()
 	if err != nil {
 		return id, "", "", "", err
 	}
-	pw = "Hr-" + uuid.NewString()[:13] + pw[:2]
 	hash, err := auth.HashPassword(pw)
 	if err != nil {
 		return id, "", "", "", err

@@ -59,7 +59,7 @@ export const authProvider: AuthProvider = {
   },
 
   async onError(error) {
-    if (error instanceof ApiError && error.status === 401) {
+    if (error instanceof ApiError && error.status === 401 && error.code !== "invalid_credentials") {
       cachedMe = null;
       return { logout: true, redirectTo: "/login", error };
     }
