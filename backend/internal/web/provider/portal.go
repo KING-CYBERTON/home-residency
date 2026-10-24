@@ -220,6 +220,8 @@ type view struct {
 type page struct {
 	name, title, nav string
 	public           bool
+	description      string     // meta description, for public pages
+	image            *web.Photo // social preview image, for public pages
 }
 
 func (p *Portal) render(w http.ResponseWriter, r *http.Request, status int, pg page, data any) {
@@ -230,7 +232,7 @@ func (p *Portal) render(w http.ResponseWriter, r *http.Request, status int, pg p
 		http.Error(w, "Something went wrong. Please try again.", http.StatusInternalServerError)
 		return
 	}
-	p.site.Render(w, r, t, status, &web.Page{Title: pg.title, NoIndex: !pg.public, Section: section(pg), Data: v})
+	p.site.Render(w, r, t, status, &web.Page{Title: pg.title, Description: pg.description, Image: pg.image, NoIndex: !pg.public, Section: section(pg), Data: v})
 }
 
 func section(pg page) string {

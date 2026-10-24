@@ -1,7 +1,7 @@
 [
   {
     "name": "hero",
-    "used_for": "Home page hero",
+    "used_for": "Home page hero; contact us",
     "alt": "A family relaxing together on the sofa at home",
     "photographer": "Jimmy Dean",
     "profile": "https://unsplash.com/@jimmydean",
@@ -13,7 +13,7 @@
   },
   {
     "name": "service-cleaning",
-    "used_for": "House cleaning; standard clean",
+    "used_for": "House cleaning; standard clean; services",
     "alt": "A cleaner mopping a bright living room floor",
     "photographer": "Vitaly Gariev",
     "profile": "https://unsplash.com/@silverkblack",
@@ -25,7 +25,7 @@
   },
   {
     "name": "deep-clean",
-    "used_for": "Deep clean; move-in / move-out clean",
+    "used_for": "Deep clean; move-in / move-out clean; work with us",
     "alt": "A cleaner in gloves dusting a shelf",
     "photographer": "Vitaly Gariev",
     "profile": "https://unsplash.com/@silverkblack",
@@ -37,7 +37,7 @@
   },
   {
     "name": "service-live-in-house-help",
-    "used_for": "Live-in house help",
+    "used_for": "Live-in house help; how it works",
     "alt": "A house help mopping the floor at home",
     "photographer": "Vitaly Gariev",
     "profile": "https://unsplash.com/@silverkblack",
@@ -49,7 +49,7 @@
   },
   {
     "name": "service-day-worker",
-    "used_for": "Day worker",
+    "used_for": "Day worker; looking for work (home page)",
     "alt": "A man damp-mopping a home's entrance way",
     "photographer": "CDC",
     "profile": "https://unsplash.com/@cdc",
@@ -61,7 +61,7 @@
   },
   {
     "name": "laundry",
-    "used_for": "Laundry and ironing",
+    "used_for": "Laundry and ironing; prices",
     "alt": "A laundry room with a washer and dryer",
     "photographer": "Franco Debartolo",
     "profile": "https://unsplash.com/@francotheshooter",
@@ -109,7 +109,7 @@
   },
   {
     "name": "service-caregiver",
-    "used_for": "Caregiver and elderly care",
+    "used_for": "Caregiver and elderly care; questions and answers",
     "alt": "Two hands holding each other",
     "photographer": "Marion Cervela",
     "profile": "https://unsplash.com/@manacervela",
@@ -120,20 +120,8 @@
     "edits": "Brand-teal duotone (the original is black and white)"
   },
   {
-    "name": "providers",
-    "used_for": "Work with us",
-    "alt": "Children playing with toys on the floor",
-    "photographer": "BBC Creative",
-    "profile": "https://unsplash.com/@bethbapchurch",
-    "source": "https://unsplash.com/photos/1w20Cysy1cg",
-    "original_file": "bbc-creative-1w20Cysy1cg.jpg",
-    "license": "Unsplash License",
-    "license_url": "https://unsplash.com/license",
-    "edits": "Cropped and resized"
-  },
-  {
     "name": "estate",
-    "used_for": "Estate partnerships (contact page)",
+    "used_for": "Areas we serve; estate partnerships (contact page)",
     "alt": "A professional reading the business pages",
     "photographer": "Adeolu Eletu",
     "profile": "https://unsplash.com/@adeolueletu",

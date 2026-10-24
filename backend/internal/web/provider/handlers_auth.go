@@ -175,7 +175,8 @@ func (p *Portal) join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Cacheable(w, 5*time.Minute)
-	p.render(w, r, http.StatusOK, page{name: "join", title: "Work with Homend Residence", public: true}, joinPage{Categories: cats})
+	p.render(w, r, http.StatusOK, page{name: "join", title: "Work with Homend Residence", public: true, image: p.site.Photo("deep-clean"),
+		description: "Steady, well-paid work in Nairobi homes for cleaners, domestic workers, caregivers and tradespeople. Apply on your phone; get paid weekly by M-Pesa."}, joinPage{Categories: cats})
 }
 
 func (p *Portal) applyForm(w http.ResponseWriter, r *http.Request) {

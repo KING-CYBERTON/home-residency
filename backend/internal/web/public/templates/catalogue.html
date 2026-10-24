@@ -24,10 +24,8 @@
 
 {{/* /services */}}
 {{define "services-content"}}
-<section class="mx-auto max-w-6xl px-4 pt-14 pb-10">
-  <p class="eyebrow">What we do</p>
-  <h1 class="display mt-3 text-4xl text-slate-900 sm:text-6xl">Home services in Nairobi</h1>
-  <p class="mt-3 max-w-2xl text-slate-600">Every service is delivered by a provider we have vetted and trained, at the price shown. Choose a service to see what is included.</p>
+{{template "section-hero" (hero "What we do" "Home services in Nairobi" "Every service is delivered by a provider we have vetted and trained, at the price shown. Choose a service to see what is included." "service-cleaning")}}
+<section class="mx-auto max-w-6xl px-4 pb-10">
   {{range .Data.Groups}}
   <div class="mt-12 grid gap-6 border-t border-slate-200 pt-10 md:grid-cols-[16rem_1fr]" data-reveal>
     <a href="/services/{{.Category.Slug}}" class="group hidden md:block" tabindex="-1" aria-hidden="true">
@@ -119,9 +117,8 @@
 
 {{/* /areas */}}
 {{define "areas-content"}}
-<section class="mx-auto max-w-6xl px-4 pt-14 pb-10">
-  <h1 class="display text-4xl text-slate-900 sm:text-6xl">Areas we serve</h1>
-  <p class="mt-3 max-w-2xl text-slate-600">We send providers who live and work close to you, so they arrive on time. We are adding areas as we grow.</p>
+{{template "section-hero" (hero "Where we work" "Areas we serve" "We send providers who live and work close to you, so they arrive on time. We are adding areas as we grow." "estate")}}
+<section class="mx-auto max-w-6xl px-4 pt-4 pb-10">
   <ul class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
     {{range .Data.Areas}}<li><a href="/areas/{{.Slug}}" class="card block transition-colors duration-300 hover:border-brand-600 hover:bg-brand-50"><span class="font-semibold text-slate-900">{{.Name}}</span><span class="block text-sm text-slate-500">{{.County}}</span></a></li>
     {{else}}<li class="text-slate-600">We are about to launch. <a href="/contact" class="font-medium text-brand-700">Leave your details</a> to hear when we reach you.</li>{{end}}
@@ -146,9 +143,8 @@
 
 {{/* /pricing */}}
 {{define "pricing-content"}}
-<section class="mx-auto max-w-6xl px-4 pt-14 pb-10">
-  <h1 class="display text-4xl text-slate-900 sm:text-6xl">Prices</h1>
-  <p class="mt-3 max-w-2xl text-slate-600">Every booking is charged at the published rate card. Some areas have their own prices; choose yours to see them.</p>
+{{template "section-hero" (hero "Rate card" "Prices" "Every booking is charged at the published rate card, VAT included. Some areas have their own prices; choose yours to see them." "laundry")}}
+<section class="mx-auto max-w-6xl px-4 pt-4 pb-10">
   <form action="/pricing" method="get" class="mt-6 flex flex-wrap items-end gap-3" hx-get="/pricing" hx-target="#rate-card" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true">
     <label class="w-full sm:w-auto"><span class="field-label">Your area</span>
       <select name="area" class="field-input sm:w-64">
@@ -216,9 +212,9 @@
 
 {{/* /faq */}}
 {{define "faq-content"}}
+{{template "section-hero" (hero "Help" "Questions and answers" "How booking, payment, vetting and visits work, in plain words." "service-caregiver")}}
 <section class="mx-auto max-w-3xl px-4 py-10">
-  <h1 class="display text-4xl text-slate-900 sm:text-5xl">Questions and answers</h1>
-  <div class="mt-8">{{template "faq-list" .Data.FAQs}}</div>
+  <div>{{template "faq-list" .Data.FAQs}}</div>
   {{if not .Data.FAQs}}<p class="mt-4 text-slate-600">We're writing these now.</p>{{end}}
   <p class="mt-8 text-slate-600">Can't find your answer? <a href="/contact" class="font-medium text-brand-700">Ask us</a>.</p>
 </section>
