@@ -12876,6 +12876,14 @@ components:
         ip_address:
           type: string
           nullable: true
+        user_agent:
+          type: string
+          nullable: true
+          description: The browser or app the change came from
+        actor_name:
+          type: string
+          nullable: true
+          description: Who made the change, by name
       required:
       - id
       - occurred_at

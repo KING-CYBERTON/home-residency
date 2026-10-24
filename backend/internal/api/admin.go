@@ -301,8 +301,8 @@ func (s *Server) GetConsoleAuditLog(w http.ResponseWriter, r *http.Request, para
 		b.add("l.occurred_at < ?", params.To.Time.AddDate(0, 0, 1))
 	}
 	pg, err := pagedRaw(r.Context(), s.DB, `SELECT l.id, l.occurred_at, l.actor_id, l.actor_kind, l.action, l.entity_type, l.entity_id,
-		l.before_state, l.after_state, l.reason, host(l.ip_address) AS ip_address,
-		l.occurred_at AS _t, `+strings.Replace(bigUUID, "%s", "l.id", 1)+` AS _id FROM audit_log l WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
+		l.before_state, l.after_state, l.reason, host(l.ip_address) AS ip_address, l.user_agent, u.full_name AS actor_name,
+		l.occurred_at AS _t, `+strings.Replace(bigUUID, "%s", "l.id", 1)+` AS _id FROM audit_log l LEFT JOIN users u ON u.id = l.actor_id WHERE `+b.where(), b.args, cur, pageLimit(params.Limit))
 	if err != nil {
 		httpx.Fail(w, r, err)
 		return

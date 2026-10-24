@@ -9,14 +9,45 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 )
 
 type ctxKey int
 
-const requestIDKey ctxKey = 1
+const (
+	requestIDKey ctxKey = 1
+	clientKey    ctxKey = 2
+)
+
+// Client is where a request came from, kept on its context so the audit log can record it.
+type Client struct {
+	IP        string // empty when it cannot be parsed
+	UserAgent string
+}
+
+// ClientOf returns the address and browser of the request that ctx belongs to.
+func ClientOf(ctx context.Context) Client {
+	c, _ := ctx.Value(clientKey).(Client)
+	return c
+}
+
+// ClientIP is the caller's address. Behind the ALB the last X-Forwarded-For entry is the address
+// the load balancer saw; anything before it was supplied by the caller and cannot be trusted.
+func ClientIP(r *http.Request) string {
+	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
+		parts := strings.Split(xf, ",")
+		return strings.TrimSpace(parts[len(parts)-1])
+	}
+	host := r.RemoteAddr
+	if i := strings.LastIndex(host, ":"); i > 0 {
+		host = host[:i]
+	}
+	return strings.Trim(host, "[]")
+}
 
 // Error is the API error envelope (components/schemas/Error in the spec).
 type Error struct {
@@ -112,7 +143,15 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 			id = hex.EncodeToString(b)
 		}
 		w.Header().Set("X-Request-Id", id)
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDKey, id)))
+		ctx := context.WithValue(r.Context(), requestIDKey, id)
+		c := Client{UserAgent: r.UserAgent()}
+		if len(c.UserAgent) > 512 {
+			c.UserAgent = c.UserAgent[:512]
+		}
+		if ip := net.ParseIP(ClientIP(r)); ip != nil {
+			c.IP = ip.String()
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, clientKey, c)))
 	})
 }
 

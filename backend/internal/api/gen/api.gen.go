@@ -909,9 +909,12 @@ type AssignmentStatus string
 
 // AuditEntry defines model for AuditEntry.
 type AuditEntry struct {
-	Action      string                  `json:"action"`
-	ActorId     *openapi_types.UUID     `json:"actor_id"`
-	ActorKind   *UserKind               `json:"actor_kind"`
+	Action    string              `json:"action"`
+	ActorId   *openapi_types.UUID `json:"actor_id"`
+	ActorKind *UserKind           `json:"actor_kind"`
+
+	// ActorName Who made the change, by name
+	ActorName   *string                 `json:"actor_name"`
 	AfterState  *map[string]interface{} `json:"after_state"`
 	BeforeState *map[string]interface{} `json:"before_state"`
 	EntityId    *openapi_types.UUID     `json:"entity_id"`
@@ -920,6 +923,9 @@ type AuditEntry struct {
 	IpAddress   *string                 `json:"ip_address"`
 	OccurredAt  time.Time               `json:"occurred_at"`
 	Reason      *string                 `json:"reason"`
+
+	// UserAgent The browser or app the change came from
+	UserAgent *string `json:"user_agent"`
 }
 
 // AuditEntryPage defines model for AuditEntryPage.

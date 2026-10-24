@@ -180,7 +180,8 @@ func TestAdminAndCatalogue(t *testing.T) {
 	h.expect(404, "admin", "POST", "/console/staff/00000000-0000-0000-0000-000000000000/reset-mfa", nil)
 
 	// ---- settings and audit
-	set := h.expect(200, "admin", "PUT", "/console/settings/offer.expiry_minutes", map[string]any{"value": 90})
+	set := h.expect(200, "admin", "PUT", "/console/settings/offer.expiry_minutes", map[string]any{"value": 90},
+		"User-Agent", "Mozilla/5.0 (QA browser)", "X-Forwarded-For", "203.0.113.9")
 	if set["value"] != 90.0 || set["updated_by"] == nil {
 		t.Fatalf("setting: %v", set)
 	}
@@ -197,6 +198,10 @@ func TestAdminAndCatalogue(t *testing.T) {
 	log := h.expect(200, "admin", "GET", "/console/audit-log?action=setting.update", nil)
 	if len(log["data"].([]any)) != 1 {
 		t.Fatalf("audit: %v", log)
+	}
+	// The entry says who, by name, and where from: the address and the browser.
+	if e := log["data"].([]any)[0].(map[string]any); e["ip_address"] != "203.0.113.9" || e["user_agent"] != "Mozilla/5.0 (QA browser)" || e["actor_name"] == nil {
+		t.Fatalf("audit entry: %v", e)
 	}
 	all := h.expect(200, "admin", "GET", "/console/audit-log?limit=3", nil)
 	if all["meta"].(map[string]any)["next_cursor"] == nil {
