@@ -114,8 +114,8 @@ WHERE NOT EXISTS (
 );
 
 -- Vetting checklist v1 for each category that has none yet.
-INSERT INTO checklist_templates (category_id, version, is_current)
-SELECT c.id, 1, true
+INSERT INTO checklist_templates (category_id, version, is_current, approved_at)
+SELECT c.id, 1, true, now()
 FROM service_categories c
 WHERE c.slug IN ('cleaning', 'live-in-house-help', 'day-worker', 'plumbing', 'electrical', 'caregiver', 'pest-control')
   AND NOT EXISTS (SELECT 1 FROM checklist_templates t WHERE t.category_id = c.id);

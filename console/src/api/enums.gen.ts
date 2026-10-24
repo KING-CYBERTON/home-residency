@@ -38,4 +38,5 @@ export const ExceptionKind = ["late_arrival","no_show","low_rating","scope_dispu
 export const NotificationChannel = ["sms","whatsapp","email","web_push","in_app"] as const;
 export const IdVerificationStatus = ["none","pending","verified","rejected"] as const;
 export const Language = ["en","sw"] as const;
+export const ChecklistState = ["current","awaiting_approval","replaced","not_approved"] as const;
 export const LeadStatus = ["new","contacted","qualified","converted","closed"] as const;

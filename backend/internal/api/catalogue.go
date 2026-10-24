@@ -533,10 +533,20 @@ func (s *Server) PostConsoleRateCard(w http.ResponseWriter, r *http.Request) {
 
 // ---- onboarding checklists ----
 
+// tplChecklistJSON reads checklist versions with their items, who drafted and approved them, and
+// their state relative to the category's current version.
 const tplChecklistJSON = `
-	SELECT to_jsonb(t) || jsonb_build_object('items', COALESCE((
-	  SELECT jsonb_agg(to_jsonb(i) - 'template_id' ORDER BY i.sort_order, i.id) FROM checklist_template_items i WHERE i.template_id = t.id), '[]'::jsonb))
-	FROM checklist_templates t`
+	SELECT to_jsonb(t) || jsonb_build_object(
+	  'items', COALESCE((
+	    SELECT jsonb_agg(to_jsonb(i) - 'template_id' ORDER BY i.sort_order, i.id) FROM checklist_template_items i WHERE i.template_id = t.id), '[]'::jsonb),
+	  'created_by_name', cu.full_name,
+	  'approved_by_name', au.full_name,
+	  'state', CASE
+	    WHEN t.is_current THEN 'current'
+	    WHEN t.version > COALESCE((SELECT max(c.version) FROM checklist_templates c WHERE c.category_id = t.category_id AND c.is_current), 0) THEN 'awaiting_approval'
+	    WHEN t.approved_at IS NOT NULL THEN 'replaced'
+	    ELSE 'not_approved' END)
+	FROM checklist_templates t LEFT JOIN users cu ON cu.id = t.created_by LEFT JOIN users au ON au.id = t.approved_by`
 
 func (s *Server) GetConsoleChecklists(w http.ResponseWriter, r *http.Request, params gen.GetConsoleChecklistsParams) {
 	b := &qb{}
@@ -559,22 +569,20 @@ func (s *Server) PostConsoleChecklists(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, err)
 		return
 	}
-	if len(in.Items) == 0 {
-		httpx.Fail(w, r, httpx.Invalid("A checklist needs at least one item"))
+	if err := checkChecklistItems(in.Items); err != nil {
+		httpx.Fail(w, r, err)
 		return
 	}
 	ctx := r.Context()
 	var id uuid.UUID
 	err = dbpkg.Tx(ctx, s.DB, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `INSERT INTO checklist_templates (category_id, version)
-			SELECT $1, COALESCE(max(version), 0) + 1 FROM checklist_templates WHERE category_id = $1 RETURNING id`, uuid.UUID(in.CategoryId)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO checklist_templates (category_id, version, created_by)
+			SELECT $1, COALESCE(max(version), 0) + 1, $2 FROM checklist_templates WHERE category_id = $1 RETURNING id`,
+			uuid.UUID(in.CategoryId), actorID(ctx)).Scan(&id); err != nil {
 			return err
 		}
 		for n, it := range in.Items {
-			if strings.TrimSpace(it.Label) == "" {
-				return httpx.Invalid("Every item needs a label")
-			}
-			order := n
+			order := n + 1
 			if it.SortOrder != nil {
 				order = *it.SortOrder
 			}
@@ -587,6 +595,22 @@ func (s *Server) PostConsoleChecklists(w http.ResponseWriter, r *http.Request) {
 				id, string(it.Kind), docType(it.DocumentType), strings.TrimSpace(it.Label), it.IsMandatory, minCount, it.ValidityMonths, order); err != nil {
 				return err
 			}
+		}
+		// A draft that changes nothing would only give the approver an empty review.
+		var same bool
+		if err := tx.QueryRow(ctx, `
+			WITH cur AS (SELECT i.kind, i.document_type, i.label, i.is_mandatory, i.min_count, i.validity_months, row_number() OVER (ORDER BY i.sort_order, i.id) AS n
+			               FROM checklist_template_items i JOIN checklist_templates t ON t.id = i.template_id
+			              WHERE t.category_id = $2 AND t.is_current),
+			     new AS (SELECT kind, document_type, label, is_mandatory, min_count, validity_months, row_number() OVER (ORDER BY sort_order, id) AS n
+			               FROM checklist_template_items WHERE template_id = $1)
+			SELECT EXISTS (SELECT 1 FROM cur) AND NOT EXISTS (
+			  (SELECT * FROM cur EXCEPT SELECT * FROM new) UNION ALL (SELECT * FROM new EXCEPT SELECT * FROM cur))`,
+			id, uuid.UUID(in.CategoryId)).Scan(&same); err != nil {
+			return err
+		}
+		if same {
+			return httpx.Invalid("This is the same as the current version. Change at least one requirement before saving a draft.")
 		}
 		return audit(ctx, tx, "checklist.draft", "checklist_template", id, nil, in, "")
 	})
@@ -613,10 +637,12 @@ func (s *Server) PostConsoleChecklistsPublish(w http.ResponseWriter, r *http.Req
 		if cur {
 			return httpx.Conflict("This version is already published")
 		}
-		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = false WHERE category_id = $1 AND is_current`, cat); err != nil {
+		// approved_at marks a version that has been current, including ones seeded without an approver.
+		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = false, approved_at = COALESCE(approved_at, created_at)
+			WHERE category_id = $1 AND is_current`, cat); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = true, approved_by = $2 WHERE id = $1`, uuid.UUID(id), actorID(ctx)); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE checklist_templates SET is_current = true, approved_by = $2, approved_at = now() WHERE id = $1`, uuid.UUID(id), actorID(ctx)); err != nil {
 			return err
 		}
 		return audit(ctx, tx, "checklist.publish", "checklist_template", uuid.UUID(id), nil, map[string]any{"category_id": cat}, "")
@@ -631,6 +657,44 @@ func (s *Server) PostConsoleChecklistsPublish(w http.ResponseWriter, r *http.Req
 		return
 	}
 	httpx.JSON(w, http.StatusOK, raw)
+}
+
+// checklistKinds are the known requirement types; expiring ones can lapse and be checked again.
+var checklistKinds = map[gen.ChecklistItemKind]bool{"document": true, "referee": true, "clearance": true, "interview": true,
+	"practical_assessment": true, "trade_licence": true, "medical": true, "training": true}
+var expiringKinds = map[gen.ChecklistItemKind]bool{"document": true, "clearance": true, "trade_licence": true, "medical": true, "training": true}
+
+// checkChecklistItems refuses an incomplete checklist, naming the item by its position so the
+// editor can point at the row.
+func checkChecklistItems(items []gen.ChecklistTemplateItem) error {
+	if len(items) == 0 {
+		return httpx.Invalid("A checklist needs at least one requirement.")
+	}
+	seen := map[string]int{}
+	for n, it := range items {
+		row := fmt.Sprintf("Requirement %d", n+1)
+		label := strings.TrimSpace(it.Label)
+		switch {
+		case label == "":
+			return httpx.Invalid(row + " needs a name.")
+		case !checklistKinds[it.Kind]:
+			return httpx.Invalid(fmt.Sprintf("%s (%s) has an unknown type.", row, label))
+		case it.Kind == "document" && docType(it.DocumentType) == "":
+			return httpx.Invalid(fmt.Sprintf("%s (%s) is a document upload: choose which document.", row, label))
+		case it.ValidityMonths != nil && (*it.ValidityMonths < 1 || *it.ValidityMonths > 120):
+			return httpx.Invalid(fmt.Sprintf("%s (%s): the expiry must be between 1 and 120 months.", row, label))
+		case it.ValidityMonths != nil && !expiringKinds[it.Kind]:
+			return httpx.Invalid(fmt.Sprintf("%s (%s): this type of requirement does not expire.", row, label))
+		case it.MinCount != nil && (*it.MinCount < 1 || *it.MinCount > 10):
+			return httpx.Invalid(fmt.Sprintf("%s (%s): the number needed must be between 1 and 10.", row, label))
+		}
+		key := strings.ToLower(label)
+		if first, dup := seen[key]; dup {
+			return httpx.Invalid(fmt.Sprintf("Requirements %d and %d are both called %q. Give each a different name.", first, n+1, label))
+		}
+		seen[key] = n + 1
+	}
+	return nil
 }
 
 func docType(d *gen.DocumentType) string {

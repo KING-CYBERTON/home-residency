@@ -58,16 +58,36 @@ func TestAdminAndCatalogue(t *testing.T) {
 		{"kind": "document", "document_type": "national_id", "label": "National ID", "is_mandatory": true},
 		{"kind": "referee", "label": "Referees", "is_mandatory": true, "min_count": 2},
 	}})
-	if tpl["version"] != 1.0 || tpl["is_current"] != false || len(tpl["items"].([]any)) != 2 {
+	if tpl["version"] != 1.0 || tpl["is_current"] != false || len(tpl["items"].([]any)) != 2 || tpl["state"] != "awaiting_approval" || tpl["created_by_name"] == nil {
 		t.Fatalf("checklist: %v", tpl)
 	}
-	h.expect(422, "admin", "POST", "/console/checklists", map[string]any{"category_id": cat["id"], "items": []map[string]any{{"kind": "document", "label": "no type", "is_mandatory": true}}})
+	for name, items := range map[string][]map[string]any{
+		"document without its type": {{"kind": "document", "label": "no type", "is_mandatory": true}},
+		"empty name":                {{"kind": "interview", "label": " ", "is_mandatory": true}},
+		"repeated name":             {{"kind": "interview", "label": "Interview", "is_mandatory": true}, {"kind": "practical_assessment", "label": "interview", "is_mandatory": true}},
+		"expiry out of range":       {{"kind": "clearance", "label": "Good Conduct", "is_mandatory": true, "validity_months": 0}},
+		"expiry on an interview":    {{"kind": "interview", "label": "Interview", "is_mandatory": true, "validity_months": 12}},
+		"too many referees":         {{"kind": "referee", "label": "Referees", "is_mandatory": true, "min_count": 11}},
+		"no items":                  {},
+	} {
+		t.Run("checklist refused: "+name, func(t *testing.T) {
+			h.expect(422, "admin", "POST", "/console/checklists", map[string]any{"category_id": cat["id"], "items": items})
+		})
+	}
 	h.expect(403, "finance", "POST", "/console/checklists/"+tpl["id"].(string)+"/publish", nil)
 	pub := h.expect(200, "approver", "POST", "/console/checklists/"+tpl["id"].(string)+"/publish", nil)
 	if pub["is_current"] != true {
 		t.Fatalf("publish: %v", pub)
 	}
+	if pub["state"] != "current" || pub["approved_by_name"] == nil || pub["approved_at"] == nil {
+		t.Fatalf("publish: %v", pub)
+	}
 	h.expect(409, "approver", "POST", "/console/checklists/"+tpl["id"].(string)+"/publish", nil)
+	// A draft identical to the current version is refused.
+	h.expect(422, "admin", "POST", "/console/checklists", map[string]any{"category_id": cat["id"], "items": []map[string]any{
+		{"kind": "document", "document_type": "national_id", "label": "National ID", "is_mandatory": true},
+		{"kind": "referee", "label": "Referees", "is_mandatory": true, "min_count": 2},
+	}})
 	v2 := h.expect(201, "admin", "POST", "/console/checklists", map[string]any{"category_id": cat["id"], "items": []map[string]any{{"kind": "referee", "label": "Referees", "is_mandatory": true}}})
 	h.expect(200, "approver", "POST", "/console/checklists/"+v2["id"].(string)+"/publish", nil)
 	lists := h.expectList(200, "approver", "GET", "/console/checklists?category_id="+cat["id"].(string))
@@ -77,7 +97,7 @@ func TestAdminAndCatalogue(t *testing.T) {
 			current++
 		}
 	}
-	if len(lists) != 2 || current != 1 {
+	if len(lists) != 2 || current != 1 || lists[1].(map[string]any)["state"] != "replaced" {
 		t.Fatalf("checklists: %v", lists)
 	}
 

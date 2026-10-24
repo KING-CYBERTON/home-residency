@@ -9520,6 +9520,22 @@ components:
           type: string
           format: uuid
           nullable: true
+        approved_by_name:
+          type: string
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_by_name:
+          type: string
+          nullable: true
+        state:
+          $ref: '#/components/schemas/ChecklistState'
         items:
           type: array
           items:
@@ -9532,7 +9548,18 @@ components:
       - category_id
       - version
       - is_current
+      - state
       - items
+    ChecklistState:
+      type: string
+      description: 'current: new applications use it. awaiting_approval: a draft newer than the current version,
+        waiting for an approver. replaced: an earlier current version. not_approved: a draft that a later
+        version overtook before it was approved.'
+      enum:
+      - current
+      - awaiting_approval
+      - replaced
+      - not_approved
     ChecklistTemplateInput:
       type: object
       properties:
@@ -9546,7 +9573,10 @@ components:
       required:
       - category_id
       - items
-      description: Creates a new draft version. Publish with /console/checklists/{id}/publish.
+      description: 'Creates a new draft version. Publish with /console/checklists/{id}/publish. Refused (422)
+        when an item is incomplete (a document item without its document type, an empty label, a repeated
+        label, an expiry outside 1 to 120 months, a count outside 1 to 10) or when the items are the same as
+        the current version.'
     TrainingCourse:
       type: object
       properties:

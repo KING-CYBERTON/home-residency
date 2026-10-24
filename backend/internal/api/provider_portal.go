@@ -149,7 +149,7 @@ const checklistItemObj = `jsonb_build_object('id', i.id, 'kind', i.kind, 'docume
 	'min_count', i.min_count, 'validity_months', i.validity_months, 'sort_order', i.sort_order)`
 
 const checklistJSON = `
-	SELECT jsonb_build_object('id', t.id, 'category_id', t.category_id, 'version', t.version, 'is_current', t.is_current, 'approved_by', t.approved_by,
+	SELECT jsonb_build_object('id', t.id, 'category_id', t.category_id, 'version', t.version, 'is_current', t.is_current, 'state', 'current', 'approved_by', t.approved_by,
 	  'created_at', t.created_at,
 	  'items', COALESCE((SELECT jsonb_agg(` + checklistItemObj + ` ORDER BY i.sort_order, i.label) FROM checklist_template_items i WHERE i.template_id = t.id), '[]'::jsonb))
 	FROM checklist_templates t`

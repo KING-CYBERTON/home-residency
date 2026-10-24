@@ -49,17 +49,25 @@ test("catalogue: an admin adds a category, service, price, course and checklist"
   await goConsole(ops, "/training-courses");
   await act(ops, "New course", { code: "IND-GDN", name: "Gardening induction", category_id: { label: "Gardening" }, is_induction: true, pass_mark: 70, is_active: true });
 
+  // The checklist is pasted in the editor's text mode; an admin drafts, and only an approver makes it current.
   await goConsole(ops, "/checklists");
-  await act(ops, "New version", {
-    category_id: { label: "Gardening" },
-    items: "document | National ID | yes | national_id\ndocument | Certificate of good conduct | yes | good_conduct_certificate | 12\nreferee | Referees | yes\ninterview | Interview | yes",
-  });
-  // An admin drafts; only an approver can make it current.
-  const draft = ops.locator("main").getByText("Gardening v1");
-  await expect(draft).toBeVisible();
+  await ops.getByRole("link", { name: "Draft a checklist" }).click();
+  await ops.locator("#cl-category").selectOption({ label: "Gardening" });
+  await ops.locator("#cl-from").selectOption("blank");
+  await ops.getByText("Advanced: edit as text").click();
+  await ops
+    .getByLabel("Requirements as text")
+    .fill("document | National ID | yes | national_id\ndocument | Certificate of good conduct | yes | good_conduct_certificate | 12\nreferee | Referees | yes | | | 1\ninterview | Interview | yes");
+  await ops.getByRole("button", { name: "Use this text" }).click();
+  await expect(ops.getByRole("listitem", { name: /^Requirement \d+$/ })).toHaveCount(4);
+  await ops.getByRole("button", { name: "Save draft" }).click();
+  await expect(ops.getByRole("status")).toContainText("Draft v1 of the Gardening checklist is saved. It is waiting for an approver");
   await goConsole(approver, "/checklists");
-  await act(approver, "Make current");
-  await expect(approver.locator("main")).toContainText("approved by you");
+  const gardening = approver.getByRole("region", { name: "Gardening" });
+  await gardening.getByRole("button", { name: /Gardening/ }).click();
+  await act(approver, "Approve and make current", {}, { within: gardening });
+  await expect(gardening).toContainText("v1 current");
+  await expect(gardening).toContainText("Made current by you");
 });
 
 test("public site: the new service is listed with its price before VAT", async () => {

@@ -4,6 +4,7 @@ import { CONSOLE } from "../lib/env";
 import { totp } from "../lib/otp";
 import { call, expectStatus, staffToken } from "../lib/api";
 import { act, consolePage, fill, goConsole, watch } from "../lib/ui";
+import { one } from "../lib/db";
 import { client, service } from "../lib/world";
 
 // Running the office: an admin invites a colleague, who signs in with password and authenticator
@@ -16,10 +17,11 @@ test.describe.configure({ mode: "serial" });
 const problems: string[] = [];
 const run = Date.now().toString(36).slice(-5);
 const colleague = { name: `Faith Njeri ${run}`, email: `faith.${run}@e2e.test`, password: "", secret: "" };
-let admin: Page;
+let admin: Page, approver: Page;
 
 test.beforeAll(async ({ browser }) => {
   admin = await consolePage(browser, "ops", problems);
+  approver = await consolePage(browser, "approver", problems);
 });
 
 test.afterAll(() => {
@@ -189,4 +191,140 @@ test("catalogue: an inactive category can be activated again, and its services o
   const token = await staffToken("ops");
   await expectStatus(call(token, "PATCH", `/console/services/${fumigation.id}`, { is_active: true }), 422);
   await call(token, "PATCH", `/console/services/${fumigation.id}`, { is_active: false });
+});
+
+// ---- vetting checklists: the row editor, the diff against the current version, and approval
+
+const requirements = (page: Page) => page.getByRole("listitem", { name: /^Requirement \d+$/ });
+
+/** The editor row whose Name field holds this text. */
+async function requirement(page: Page, name: string) {
+  const rows = requirements(page);
+  for (let i = 0; i < (await rows.count()); i++) if ((await rows.nth(i).getByLabel("Name").inputValue()) === name) return rows.nth(i);
+  throw new Error(`no requirement named "${name}"`);
+}
+
+test("checklists: a new category's checklist is copied from another, edited row by row, and approved", async () => {
+  const token = await staffToken("ops");
+  const name = `Tiling ${run}`;
+  const cat = await call(token, "POST", "/console/categories", { slug: `tiling-${run}`, name, engagement: "one_off", vetting_tier: "trade", is_active: true });
+  const plumbing = await one<{ n: number }>(
+    `SELECT count(*)::int AS n FROM checklist_template_items i JOIN checklist_templates t ON t.id = i.template_id JOIN service_categories c ON c.id = t.category_id
+     WHERE c.slug = 'plumbing' AND t.is_current`,
+  );
+
+  await goConsole(admin, "/checklists");
+  const section = admin.getByRole("region", { name });
+  await expect(section).toContainText("No checklist: applicants can't be vetted");
+  await section.getByRole("button", { name: new RegExp(name) }).click();
+  await section.getByRole("link", { name: "Create checklist" }).click();
+  await expect(admin.locator("#cl-category")).toHaveValue(cat.id);
+
+  // Start from a copy of Plumbing's current checklist.
+  const copy = await admin.locator("#cl-from option", { hasText: "Copy from Plumbing" }).getAttribute("value");
+  await admin.locator("#cl-from").selectOption(copy!);
+  await expect(requirements(admin)).toHaveCount(plumbing.n);
+  await expect(admin.locator("main")).toContainText("Trade certificate (NITA or TVET)");
+  await expect(admin.locator("main")).toContainText(`${name} has no current checklist, so everything here is new.`);
+
+  // Rename the licence and make it required.
+  const licence = await requirement(admin, "Valid trade licence (EPRA or NCA)");
+  await licence.getByLabel("Name").fill("NCA tiling licence");
+  await licence.getByLabel("Required").check();
+
+  // A new row is checked as it is filled in.
+  await admin.getByRole("button", { name: "Add requirement" }).click();
+  const added = requirements(admin).last();
+  await admin.getByRole("button", { name: "Save draft" }).click();
+  await expect(admin.getByRole("alert").filter({ hasText: "Fix the highlighted requirements" })).toBeVisible();
+  await expect(added).toContainText("Give it a name.");
+  await expect(added).toContainText("Choose which document.");
+  await added.getByLabel("Name").fill("NCA tiling licence");
+  await expect(added).toContainText("Another requirement has this name.");
+  await added.getByLabel("Name").fill("Tile adhesive safety course");
+  await added.getByLabel("Type").selectOption({ label: "Training" });
+  await expect(added.getByLabel("Which document")).toHaveCount(0);
+  await added.getByLabel("Expires after (months)").fill("200");
+  await expect(added).toContainText("1 to 120");
+  await added.getByLabel("Expires after (months)").fill("36");
+  await expect(added.locator("ul.text-destructive")).toHaveCount(0);
+
+  // Reorder: up one place with the button, then dragged to the top by its handle.
+  await added.getByRole("button", { name: "Move up" }).click();
+  await expect(requirements(admin).nth(plumbing.n - 1).getByLabel("Name")).toHaveValue("Tile adhesive safety course");
+  // A tall window keeps both rows on screen: a scroll between press and move would grab another handle.
+  const viewport = admin.viewportSize()!;
+  await admin.setViewportSize({ width: viewport.width, height: 2400 });
+  await requirements(admin).nth(plumbing.n - 1).getByRole("button", { name: "Drag to reorder" }).dragTo(requirements(admin).first(), { targetPosition: { x: 40, y: 4 } });
+  await admin.setViewportSize(viewport);
+  await expect(requirements(admin).first().getByLabel("Name")).toHaveValue("Tile adhesive safety course");
+
+  await admin.getByRole("button", { name: "Save draft" }).click();
+  await expect(admin).toHaveURL(/\/checklists\?category_id=.*&saved=/);
+  await expect(admin.getByRole("status")).toContainText(`Draft v1 of the ${name} checklist is saved. It is waiting for an approver to make it current.`);
+  await expect(section).toContainText("Draft v1 waiting for approval");
+
+  // The approver sees the draft and makes it current.
+  await goConsole(approver, `/checklists?category_id=${cat.id}`);
+  const theirs = approver.getByRole("region", { name });
+  await expect(theirs).toContainText("Tile adhesive safety course");
+  await act(approver, "Approve and make current", {}, { within: theirs });
+  await expect(theirs).toContainText("v1 current");
+  await expect(theirs).toContainText(`${plumbing.n + 1} requirements`);
+  await expect(theirs).not.toContainText("waiting for approval");
+});
+
+test("checklists: a change to a current checklist shows what changed, and the old version is kept", async () => {
+  await goConsole(admin, "/checklists");
+  const section = admin.getByRole("region", { name: "Pest control" });
+  await section.getByRole("button", { name: /Pest control/ }).click();
+  await expect(section).toContainText("v1 current");
+  await section.getByRole("link", { name: "Edit checklist" }).click();
+
+  // It starts from the current version, and saving it unchanged is refused.
+  await expect(admin.locator("#cl-from option:checked")).toContainText("current version (v1)");
+  await expect(admin.getByRole("alert").filter({ hasText: "Nothing has changed from the current version (v1)" })).toBeVisible();
+
+  // Standard requirements are marked, documents included, and removing one asks first.
+  await expect(await requirement(admin, "National ID (both sides)")).toContainText("Standard");
+  await expect(await requirement(admin, "Practical skills test")).not.toContainText("Standard");
+  const interview = await requirement(admin, "In-person interview");
+  await interview.getByRole("button", { name: "Remove" }).click();
+  await expect(interview.getByRole("alert")).toContainText("This is a Standard requirement");
+  await interview.getByRole("button", { name: "Keep it" }).click();
+  await expect(requirements(admin).filter({ has: admin.getByRole("alert") })).toHaveCount(0);
+  await interview.getByRole("button", { name: "Remove" }).click();
+  await interview.getByRole("button", { name: "Remove anyway" }).click();
+
+  await (await requirement(admin, "Certificate of Good Conduct (DCI)")).getByLabel("Expires after (months)").fill("24");
+  await admin.getByRole("button", { name: "Add requirement" }).click();
+  const medical = requirements(admin).last();
+  await medical.getByLabel("Type").selectOption({ label: "Medical" });
+  await medical.getByLabel("Name").fill("Chemical exposure medical");
+  await medical.getByLabel("Expires after (months)").fill("12");
+
+  const changes = admin.getByRole("list", { name: "Changes" });
+  await expect(changes.locator('[data-change="removed"]')).toContainText("In-person interview");
+  await expect(changes.locator('[data-change="changed"]')).toContainText("expires after 24 months (was 12)");
+  await expect(changes.locator('[data-change="added"]')).toContainText("Chemical exposure medical");
+  await expect(changes.locator('[data-change="same"]').first()).toBeVisible();
+
+  // The same list in the Advanced text mode.
+  await admin.getByText("Advanced: edit as text").click();
+  await expect(admin.getByLabel("Requirements as text")).toHaveValue(/medical \| Chemical exposure medical \| yes \| {2}\| 12/);
+  await expect(admin.getByLabel("Requirements as text")).toHaveValue(/clearance \| Certificate of Good Conduct \(DCI\) \| yes \| {2}\| 24/);
+
+  await admin.getByRole("button", { name: "Save draft" }).click();
+  await expect(admin.getByRole("status")).toContainText("Draft v2 of the Pest control checklist is saved");
+
+  // The approver reviews the same diff, then approves; v1 is kept as replaced.
+  await goConsole(approver, "/checklists");
+  const theirs = approver.getByRole("region", { name: "Pest control" });
+  await theirs.getByRole("button", { name: /Pest control/ }).click();
+  await expect(theirs).toContainText("Draft v2 waiting for approval");
+  await expect(theirs.locator('[data-change="removed"]')).toContainText("In-person interview");
+  await act(approver, "Approve and make current", {}, { within: theirs });
+  await expect(theirs).toContainText("v2 current");
+  await expect(theirs).toContainText("Earlier versions: v1 (replaced)");
+  await expect(theirs).toContainText("Not asked for, though Standard: In-person interview");
 });

@@ -116,6 +116,14 @@ const (
 	ChecklistItemStatusWaived    ChecklistItemStatus = "waived"
 )
 
+// Defines values for ChecklistState.
+const (
+	AwaitingApproval ChecklistState = "awaiting_approval"
+	Current          ChecklistState = "current"
+	NotApproved      ChecklistState = "not_approved"
+	Replaced         ChecklistState = "replaced"
+)
+
 // Defines values for ClearanceResult.
 const (
 	ClearanceResultAdverse      ClearanceResult = "adverse"
@@ -996,18 +1004,28 @@ type ChecklistItemKind string
 // ChecklistItemStatus defines model for ChecklistItemStatus.
 type ChecklistItemStatus string
 
+// ChecklistState current: new applications use it. awaiting_approval: a draft newer than the current version, waiting for an approver. replaced: an earlier current version. not_approved: a draft that a later version overtook before it was approved.
+type ChecklistState string
+
 // ChecklistTemplate defines model for ChecklistTemplate.
 type ChecklistTemplate struct {
-	ApprovedBy *openapi_types.UUID     `json:"approved_by"`
-	CategoryId openapi_types.UUID      `json:"category_id"`
-	CreatedAt  *time.Time              `json:"created_at,omitempty"`
-	Id         openapi_types.UUID      `json:"id"`
-	IsCurrent  bool                    `json:"is_current"`
-	Items      []ChecklistTemplateItem `json:"items"`
-	Version    int                     `json:"version"`
+	ApprovedAt     *time.Time              `json:"approved_at"`
+	ApprovedBy     *openapi_types.UUID     `json:"approved_by"`
+	ApprovedByName *string                 `json:"approved_by_name"`
+	CategoryId     openapi_types.UUID      `json:"category_id"`
+	CreatedAt      *time.Time              `json:"created_at,omitempty"`
+	CreatedBy      *openapi_types.UUID     `json:"created_by"`
+	CreatedByName  *string                 `json:"created_by_name"`
+	Id             openapi_types.UUID      `json:"id"`
+	IsCurrent      bool                    `json:"is_current"`
+	Items          []ChecklistTemplateItem `json:"items"`
+
+	// State current: new applications use it. awaiting_approval: a draft newer than the current version, waiting for an approver. replaced: an earlier current version. not_approved: a draft that a later version overtook before it was approved.
+	State   ChecklistState `json:"state"`
+	Version int            `json:"version"`
 }
 
-// ChecklistTemplateInput Creates a new draft version. Publish with /console/checklists/{id}/publish.
+// ChecklistTemplateInput Creates a new draft version. Publish with /console/checklists/{id}/publish. Refused (422) when an item is incomplete (a document item without its document type, an empty label, a repeated label, an expiry outside 1 to 120 months, a count outside 1 to 10) or when the items are the same as the current version.
 type ChecklistTemplateInput struct {
 	CategoryId openapi_types.UUID      `json:"category_id"`
 	Items      []ChecklistTemplateItem `json:"items"`
