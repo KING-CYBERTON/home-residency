@@ -182,7 +182,7 @@ test("training: the provider is enrolled in both inductions and passes", async (
     await openRow(ops, provider.name);
     await act(ops, "Enrol in training", { course_id: { label }, scheduled_for: nairobi(60) });
     await goConsole(ops, "/trainings");
-    const row = ops.getByRole("row").filter({ hasText: name }).filter({ hasText: provider.name }).filter({ hasText: "Scheduled" });
+    const row = ops.getByRole("row").filter({ hasText: name }).filter({ hasText: "Scheduled" });
     await act(ops, "Record result", { status: "passed", score: 88 }, { within: row });
   }
   await providerPage.goto(SITE + "/provider/training");
