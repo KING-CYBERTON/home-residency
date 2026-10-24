@@ -165,7 +165,9 @@ jobs:
   deploy:
     name: Deploy
     needs: [changes, result]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.deploy == 'true'
+    # A bare condition also needs every upstream job to have succeeded, so a part this push
+    # did not touch (skipped) would silently skip the release too. Gate on the result instead.
+    if: ${{ !cancelled() && needs.result.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.deploy == 'true' }}
     permissions:
       contents: read
       id-token: write
@@ -175,7 +177,7 @@ jobs:
   mobile-release:
     name: Mobile release
     needs: [changes, result]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile_release == 'true'
+    if: ${{ !cancelled() && needs.result.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile_release == 'true' }}
     permissions:
       contents: read
       id-token: write
