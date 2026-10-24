@@ -56,6 +56,7 @@ class HomendApi {
     required String fullName,
     required String email,
     required String password,
+    String? phone,
     List<Consent> consents = const [],
   }) async => Session.fromJson(
     _j(
@@ -66,6 +67,7 @@ class HomendApi {
           'full_name': fullName,
           'email': email,
           'password': password,
+          'phone': phone,
           'consents': consents.isEmpty ? null : consents.map((c) => c.toJson()).toList(),
         }),
       ),

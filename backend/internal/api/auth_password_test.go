@@ -34,7 +34,7 @@ func TestEmailPasswordSignIn(t *testing.T) {
 	h.tokens["achieng"] = s["token"].(string)
 	h.expect(200, "achieng", "GET", "/client/addresses", nil)
 	if e := h.expect(409, "", "POST", "/auth/register", map[string]any{"kind": "provider", "full_name": "Someone Else",
-		"email": "ACHIENG@example.com", "password": "another password"}); !strings.Contains(e["message"].(string), "email already exists") {
+		"email": "ACHIENG@example.com", "phone": "+254711000999", "password": "another password"}); !strings.Contains(e["message"].(string), "email already exists") {
 		t.Fatalf("duplicate email: %v", e)
 	}
 	if n := h.scan(`SELECT count(*) FROM consents c JOIN users u ON u.id = c.user_id WHERE u.email = 'achieng@example.com'`); n != "1" {
@@ -104,7 +104,12 @@ func TestEmailPasswordSignIn(t *testing.T) {
 	h.expect(200, "", "POST", "/auth/login", map[string]any{"email": "wanjiru@example.com", "password": "wanjiru password"})
 
 	// ---- a provider who signed up by email signs the contract with the password
-	s = h.expect(200, "", "POST", "/auth/register", map[string]any{"kind": "provider", "full_name": "Juma Mwangi", "email": "juma@example.com", "password": "juma password"})
+	h.expect(422, "", "POST", "/auth/register", map[string]any{"kind": "provider", "full_name": "Juma Mwangi", "email": "juma@example.com", "password": "juma password"})
+	s = h.expect(200, "", "POST", "/auth/register", map[string]any{"kind": "provider", "full_name": "Juma Mwangi", "email": "juma@example.com", "phone": "+254711000888", "password": "juma password"})
+	// One phone, one account: a second sign-up with the same number is turned away.
+	if e := h.expect(409, "", "POST", "/auth/register", map[string]any{"kind": "provider", "full_name": "Juma Mwangi", "email": "juma2@example.com", "phone": "+254711000888", "password": "juma password"}); !strings.Contains(e["message"].(string), "already uses this phone") {
+		t.Fatalf("duplicate phone: %v", e)
+	}
 	h.tokens["juma"] = s["token"].(string)
 	h.sql(`UPDATE providers SET status = 'approved' WHERE user_id = (SELECT id FROM users WHERE email = 'juma@example.com')`)
 	offer := h.expect(200, "juma", "GET", "/provider/contract", nil)

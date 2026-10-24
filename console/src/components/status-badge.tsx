@@ -7,6 +7,7 @@ type Variant = "default" | "secondary" | "destructive" | "outline" | "warning" |
 const variants: Record<string, Variant> = {
   // waiting on staff
   submitted: "warning",
+  uploaded: "warning",
   new: "warning",
   contacted: "info",
   qualified: "info",
@@ -89,7 +90,14 @@ const variants: Record<string, Variant> = {
   quality: "secondary",
 };
 
+/** Statuses whose stored name reads differently from what the same state is called elsewhere. */
+const labels: Record<string, string> = {
+  // A document waiting for a check: the checklist item it fills says "Submitted".
+  uploaded: "Submitted",
+  pending_upload: "Upload not finished",
+};
+
 export function StatusBadge({ value }: { value: string | null | undefined }) {
   if (!value) return <span className="text-muted-foreground">—</span>;
-  return <Badge variant={variants[value] ?? "secondary"}>{humanize(value)}</Badge>;
+  return <Badge variant={variants[value] ?? "secondary"}>{labels[value] ?? humanize(value)}</Badge>;
 }

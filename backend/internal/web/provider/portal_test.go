@@ -513,11 +513,14 @@ func TestEmailSignInWithoutSMS(t *testing.T) {
 	login := b.get("/provider/login")
 	must(t, strings.Contains(login, `action="/provider/login/password"`) && !strings.Contains(login, "with=phone"), "email form only: %s", login)
 	apply := b.get("/join/apply?with=phone&category=" + catID)
-	must(t, strings.Contains(apply, `action="/join/apply/password"`) && !strings.Contains(apply, `name="phone"`), "no phone form with SMS off")
+	must(t, strings.Contains(apply, `action="/join/apply/password"`) && !strings.Contains(apply, `name="code"`) && !strings.Contains(apply, "We will send you a code"), "no SMS code form with SMS off")
 
-	_, body, _ := b.post("/join/apply/password", url.Values{"full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"}, "password": {"a good password"}, "category": {catID}})
+	_, body, _ := b.post("/join/apply/password", url.Values{"full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"}, "phone": {"0711 222 333"}, "password": {"a good password"}, "category": {catID}})
 	must(t, strings.Contains(body, "accept the privacy notice"), "consent is required")
-	_, _, at := b.post("/join/apply/password", url.Values{"full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"}, "password": {"a good password"},
+	_, body, _ = b.post("/join/apply/password", url.Values{"full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"}, "password": {"a good password"},
+		"category": {catID}, "privacy": {"on"}, "vetting": {"on"}})
+	must(t, strings.Contains(body, "the vetting team needs to call you"), "a phone is required: %s", body)
+	_, _, at := b.post("/join/apply/password", url.Values{"full_name": {"Achieng Odhiambo"}, "email": {"achieng@example.com"}, "phone": {"0711 222 333"}, "password": {"a good password"},
 		"category": {catID}, "privacy": {"on"}, "vetting": {"on"}})
 	must(t, strings.HasPrefix(at, "/provider/applications/new"), "after sign-up landed on %s", at)
 	b.post("/provider/logout", url.Values{})

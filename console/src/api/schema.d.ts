@@ -4175,6 +4175,8 @@ export interface components {
             email: string;
             /** Format: password */
             password: string;
+            /** @description Required for providers. Stored unverified; one phone belongs to one account. */
+            phone?: string;
             consents?: components["schemas"]["ConsentInput"][];
         };
         PasswordLogin: {
@@ -6029,6 +6031,7 @@ export interface components {
             document_id: string;
             /** Format: uuid */
             accessed_by: string;
+            accessed_by_name?: string | null;
             purpose?: string;
             ip_address?: string | null;
             /** Format: date-time */
@@ -7114,10 +7117,16 @@ export interface operations {
     getDocumentsDownloadUrl: {
         parameters: {
             query?: {
-                /** @description Required for staff; written to the access log */
+                /**
+                 * @deprecated
+                 * @description Older clients; use the X-Access-Purpose header.
+                 */
                 purpose?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Required for staff; written to the access log. A header, so the purpose (which often names a person) stays out of URLs and request logs. Percent-encode it (encodeURIComponent). */
+                "X-Access-Purpose"?: string;
+            };
             path: {
                 id: components["parameters"]["id"];
             };
@@ -10387,6 +10396,7 @@ export interface operations {
                 mine?: boolean;
                 from?: string;
                 to?: string;
+                client_id?: string;
                 /** @description Free-text search */
                 q?: string;
                 /** @description Opaque cursor from meta.next_cursor */

@@ -674,12 +674,13 @@ const (
 
 // AccessLogEntry defines model for AccessLogEntry.
 type AccessLogEntry struct {
-	AccessedAt time.Time          `json:"accessed_at"`
-	AccessedBy openapi_types.UUID `json:"accessed_by"`
-	DocumentId openapi_types.UUID `json:"document_id"`
-	Id         int                `json:"id"`
-	IpAddress  *string            `json:"ip_address"`
-	Purpose    *string            `json:"purpose,omitempty"`
+	AccessedAt     time.Time          `json:"accessed_at"`
+	AccessedBy     openapi_types.UUID `json:"accessed_by"`
+	AccessedByName *string            `json:"accessed_by_name"`
+	DocumentId     openapi_types.UUID `json:"document_id"`
+	Id             int                `json:"id"`
+	IpAddress      *string            `json:"ip_address"`
+	Purpose        *string            `json:"purpose,omitempty"`
 }
 
 // AccessLogEntryPage defines model for AccessLogEntryPage.
@@ -1921,6 +1922,9 @@ type PasswordRegister struct {
 	FullName string               `json:"full_name"`
 	Kind     PasswordRegisterKind `json:"kind"`
 	Password string               `json:"password"`
+
+	// Phone Required for providers. Stored unverified; one phone belongs to one account.
+	Phone *string `json:"phone,omitempty"`
 }
 
 // PasswordRegisterKind defines model for PasswordRegister.Kind.
@@ -3312,6 +3316,7 @@ type GetConsoleRequestsParams struct {
 	Mine            *bool               `form:"mine,omitempty" json:"mine,omitempty"`
 	From            *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
 	To              *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	ClientId        *openapi_types.UUID `form:"client_id,omitempty" json:"client_id,omitempty"`
 
 	// Q Free-text search
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
@@ -3417,8 +3422,11 @@ type GetConversationsMessagesParams struct {
 
 // GetDocumentsDownloadUrlParams defines parameters for GetDocumentsDownloadUrl.
 type GetDocumentsDownloadUrlParams struct {
-	// Purpose Required for staff; written to the access log
+	// Purpose Older clients; use the X-Access-Purpose header.
 	Purpose *string `form:"purpose,omitempty" json:"purpose,omitempty"`
+
+	// XAccessPurpose Required for staff; written to the access log. A header, so the purpose (which often names a person) stays out of URLs and request logs. Percent-encode it (encodeURIComponent).
+	XAccessPurpose *string `json:"X-Access-Purpose,omitempty"`
 }
 
 // PostMeConsentsJSONBody defines parameters for PostMeConsents.
@@ -10962,6 +10970,14 @@ func (siw *ServerInterfaceWrapper) GetConsoleRequests(w http.ResponseWriter, r *
 		return
 	}
 
+	// ------------- Optional query parameter "client_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "client_id", r.URL.Query(), &params.ClientId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "client_id", Err: err})
+		return
+	}
+
 	// ------------- Optional query parameter "q" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "q", r.URL.Query(), &params.Q)
@@ -12601,6 +12617,27 @@ func (siw *ServerInterfaceWrapper) GetDocumentsDownloadUrl(w http.ResponseWriter
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "purpose", Err: err})
 		return
+	}
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Access-Purpose" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Access-Purpose")]; found {
+		var XAccessPurpose string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Access-Purpose", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Access-Purpose", valueList[0], &XAccessPurpose, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Access-Purpose", Err: err})
+			return
+		}
+
+		params.XAccessPurpose = &XAccessPurpose
+
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

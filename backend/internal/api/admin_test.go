@@ -86,7 +86,8 @@ func TestAdminAndCatalogue(t *testing.T) {
 	h.expect(422, "finance", "POST", "/console/subscription-plans", map[string]any{"code": "bad", "name": "Bad", "price_minor": 1, "billing_period": "weekly"})
 	h.expect(200, "finance", "PATCH", "/console/subscription-plans/"+plan["id"].(string), map[string]any{"price_minor": 450000})
 	h.expect(204, "finance", "DELETE", "/console/subscription-plans/"+plan["id"].(string), nil)
-	h.expect(404, "finance", "DELETE", "/console/subscription-plans/"+plan["id"].(string), nil)
+	h.expect(204, "finance", "DELETE", "/console/subscription-plans/"+plan["id"].(string), nil) // already inactive: no change
+	h.expect(404, "finance", "DELETE", "/console/subscription-plans/00000000-0000-0000-0000-000000000000", nil)
 
 	page := h.expect(201, "admin", "POST", "/console/content-pages", map[string]any{"slug": "our-story", "title": "Our story", "body_markdown": "# Hello", "language": "en"})
 	h.expect(404, "", "GET", "/public/pages/our-story", nil) // unpublished
@@ -109,10 +110,14 @@ func TestAdminAndCatalogue(t *testing.T) {
 	h.expect(200, "admin", "PATCH", "/console/notification-templates/"+tmpl["id"].(string), map[string]any{"is_active": false})
 	h.expect(204, "admin", "DELETE", "/console/notification-templates/"+tmpl["id"].(string), nil)
 
-	// a category with services cannot be deleted; an unused one can
-	h.expect(409, "admin", "DELETE", "/console/categories/"+cat["id"].(string), nil)
-	spare := h.expect(201, "admin", "POST", "/console/categories", map[string]any{"slug": "spare", "name": "Spare", "engagement": "day_based"})
-	h.expect(204, "admin", "DELETE", "/console/categories/"+spare["id"].(string), nil)
+	// "Deactivate" switches a category off and keeps it, even while services and history refer to it
+	h.expect(204, "admin", "DELETE", "/console/categories/"+cat["id"].(string), nil)
+	for _, c := range h.expectList(200, "admin", "GET", "/console/categories") {
+		if c := c.(map[string]any); c["id"] == cat["id"] && c["is_active"] != false {
+			t.Fatalf("deactivated category: %v", c)
+		}
+	}
+	h.expect(200, "admin", "PATCH", "/console/categories/"+cat["id"].(string), map[string]any{"is_active": true})
 
 	// ---- staff
 	created := h.expect(201, "admin", "POST", "/console/staff", map[string]any{"full_name": "Grace Mwangi", "email": "grace@homend.test", "phone": "+254711000111", "roles": []string{"triage_officer"}})

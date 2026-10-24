@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -33,6 +34,48 @@ type resource struct {
 	cols     []col
 	required []string
 	after    string // optional statement run after a write: $1 = id, $2 = actor
+	// check is an optional query run after a write ($1 = id). Each row it returns is a problem
+	// with the saved record, written for the person editing it; any row undoes the write.
+	check string
+}
+
+// slugOK is the shape of every slug: public pages are built from them.
+const slugOK = `^[a-z0-9]+(-[a-z0-9]+)*$`
+
+// flag is the column that switches the record off (is_active or is_published), if it has one.
+func (res resource) flag() string {
+	for _, c := range res.cols {
+		if c.name == "is_active" || c.name == "is_published" {
+			return c.name
+		}
+	}
+	return ""
+}
+
+func (s *Server) checkResource(ctx context.Context, tx pgx.Tx, res resource, id uuid.UUID) error {
+	if res.check == "" {
+		return nil
+	}
+	var problems []string
+	rows, err := tx.Query(ctx, res.check, id)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return err
+		}
+		problems = append(problems, p)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(problems) > 0 {
+		return httpx.Invalid(strings.Join(problems, " "))
+	}
+	return nil
 }
 
 func (c col) cast() string {
@@ -148,6 +191,9 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request, res reso
 				return err
 			}
 		}
+		if err := s.checkResource(ctx, tx, res, id); err != nil {
+			return err
+		}
 		return audit(ctx, tx, res.entity+".create", res.entity, id, nil, in, "")
 	})
 	if err != nil {
@@ -205,6 +251,9 @@ func (s *Server) updateResource(w http.ResponseWriter, r *http.Request, res reso
 				return err
 			}
 		}
+		if err := s.checkResource(ctx, tx, res, id); err != nil {
+			return err
+		}
 		return audit(ctx, tx, res.entity+".update", res.entity, id, before, in, "")
 	})
 	if err != nil {
@@ -225,6 +274,14 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, res reso
 		var before json.RawMessage
 		if err := tx.QueryRow(ctx, res.sel+` WHERE t.id = $1 FOR UPDATE OF t`, id).Scan(&before); err != nil {
 			return err
+		}
+		// Rows with an on/off flag are switched off, so bookings, applications and pages that refer
+		// to them keep their history; only rows without one are removed.
+		if flag := res.flag(); flag != "" {
+			if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE %s SET %s = false WHERE id = $1`, res.table, flag), id); err != nil {
+				return err
+			}
+			return audit(ctx, tx, res.entity+".deactivate", res.entity, id, before, map[string]any{flag: false}, "")
 		}
 		if _, err := tx.Exec(ctx, fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, res.table), id); err != nil {
 			return err
@@ -249,6 +306,9 @@ var (
 		sel:      `SELECT ` + stampless + ` FROM service_areas t`,
 		required: []string{"slug", "name"},
 		cols:     []col{{"slug", "text"}, {"name", "text"}, {"county", "text"}, {"is_active", "bool"}, {"centre_lat", "num"}, {"centre_lng", "num"}, {"radius_km", "num"}},
+		check: `SELECT 'The slug may only use lower-case letters, numbers and single hyphens, for example "kasarani".' FROM service_areas WHERE id = $1 AND slug !~ '` + slugOK + `'
+			UNION ALL SELECT 'Give a radius in km with the centre point, or the area cannot match addresses.' FROM service_areas WHERE id = $1 AND centre_lat IS NOT NULL AND (radius_km IS NULL OR radius_km <= 0)
+			UNION ALL SELECT 'Give both the latitude and the longitude of the centre.' FROM service_areas WHERE id = $1 AND (centre_lat IS NULL) <> (centre_lng IS NULL)`,
 	}
 	categoryRes = resource{
 		entity: "category", table: "service_categories", order: "t.sort_order, t.name",
@@ -256,6 +316,8 @@ var (
 		required: []string{"slug", "name", "engagement"},
 		cols: []col{{"slug", "text"}, {"name", "text"}, {"name_sw", "text"}, {"description", "text"}, {"engagement", "enum:engagement_type"},
 			{"vetting_tier", "enum:vetting_tier"}, {"requires_client_id_verification", "bool"}, {"sop_markdown", "text"}, {"is_active", "bool"}, {"sort_order", "int"}},
+		check: `SELECT 'The slug may only use lower-case letters, numbers and single hyphens, for example "house-cleaning".' FROM service_categories WHERE id = $1 AND slug !~ '` + slugOK + `'
+			UNION ALL SELECT 'The sort order cannot be negative.' FROM service_categories WHERE id = $1 AND sort_order < 0`,
 	}
 	serviceRes = resource{
 		entity: "service", table: "services", order: "t.sort_order, t.name",
@@ -266,6 +328,9 @@ var (
 		required: []string{"category_id", "slug", "name", "pricing_unit"},
 		cols: []col{{"category_id", "uuid"}, {"slug", "text"}, {"name", "text"}, {"description", "text"}, {"scope_items", "json"}, {"pricing_unit", "enum:pricing_unit"},
 			{"min_quantity", "num"}, {"max_quantity", "num"}, {"default_duration_minutes", "int"}, {"is_active", "bool"}, {"sort_order", "int"}},
+		check: `SELECT 'The slug may only use lower-case letters, numbers and single hyphens.' FROM services WHERE id = $1 AND slug !~ '` + slugOK + `'
+			UNION ALL SELECT 'Its category "' || c.name || '" is inactive, so the service could not be booked. Activate the category first, or save the service as inactive.'
+			  FROM services t JOIN service_categories c ON c.id = t.category_id WHERE t.id = $1 AND t.is_active AND NOT c.is_active`,
 	}
 	planRes = resource{
 		entity: "subscription_plan", table: "subscription_plans", order: "t.price_minor",

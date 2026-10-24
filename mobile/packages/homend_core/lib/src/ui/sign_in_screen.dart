@@ -93,6 +93,7 @@ class _SignInScreenState extends State<SignInScreen> {
             fullName: _name.text.trim(),
             email: email,
             password: _password.text,
+            phone: _askPhone ? normalizeKenyanPhone(_phone.text) : null,
             consents: [for (final c in widget.registerConsents) Consent(c.purpose, widget.noticeVersion)],
           )
         : await api.login(email, _password.text);
@@ -194,6 +195,10 @@ class _SignInScreenState extends State<SignInScreen> {
     child: Text(_usePhone ? 'Use email and password instead' : 'Use my phone number instead'),
   );
 
+  /// Providers give a phone with email sign-up too: the vetting team calls them, and one phone
+  /// belongs to one account.
+  bool get _askPhone => _register && widget.kind == 'provider';
+
   Widget _emailStep() => Form(
     key: _form,
     child: AutofillGroup(
@@ -208,6 +213,21 @@ class _SignInScreenState extends State<SignInScreen> {
             decoration: const InputDecoration(labelText: 'Email'),
             validator: validEmail,
           ),
+          if (_askPhone) ...[
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              autofillHints: const [AutofillHints.telephoneNumber],
+              decoration: const InputDecoration(
+                labelText: 'Phone number',
+                hintText: '0712 345 678',
+                helperText: 'The vetting team calls you on this number.',
+              ),
+              validator: (v) =>
+                  normalizeKenyanPhone(v ?? '') == null ? 'Enter a Kenyan mobile number, e.g. 0712 345 678' : null,
+            ),
+          ],
           const SizedBox(height: 16),
           TextFormField(
             controller: _password,

@@ -85,6 +85,12 @@ test("recruitment: a provider signs up by SMS code and applies", async () => {
   await expect(p.locator("main")).toContainText("What work do you do?");
 
   await p.getByLabel(/Gardening/).check();
+  await p.fill("#dob", "1992-04-12");
+  await p.fill("#years", "6");
+  await p.selectOption("#home", { label: "Kilimani" });
+  await p.fill("#langs", "English, Kiswahili");
+  await p.selectOption("#avail", "full_time");
+  await p.fill("#prev", "Six years tending gardens for two families in Kilimani");
   await p.getByRole("button", { name: "Start application" }).click();
   await expect(p.locator("main")).toContainText("Still needed before you can submit");
 
@@ -115,6 +121,24 @@ test("recruitment: documents go to the vault, referees are added, the applicatio
     await expect(p.locator("li").filter({ has: p.locator(`input[name=document_type][value=${doc}]`) })).toContainText("Submitted");
   }
 
+  // A referee must be a real, different person who knew the applicant for a while.
+  for (const [name, tel, from, to, why] of [
+    ["Mary", "0722 111 222", "", "", "full name"],
+    ["Mary Wambui", provider.phone.local, "", "", "your own phone number"],
+    ["Mary Wambui", "0722 111 222", "2099-01-01", "", "cannot be in the future"],
+    ["Mary Wambui", "0722 111 222", "2025-01-01", "2025-01-10", "at least a month"],
+  ]) {
+    await p.goto(appUrl);
+    await p.locator("summary", { hasText: "Add a referee" }).click();
+    await p.fill("#r-name", name);
+    await p.fill("#r-phone", tel);
+    await p.fill("#r-rel", "Former employer");
+    if (from) await p.fill("input[name=employment_from]", from);
+    if (to) await p.fill("input[name=employment_to]", to);
+    await p.getByRole("button", { name: "Add referee" }).click();
+    await expect(p.locator("body")).toContainText(why);
+  }
+
   for (const [name, tel, rel] of [["Mary Wambui", "0722 111 222", "Former employer"], ["John Kariuki", "0722 333 444", "Neighbour"]]) {
     await p.goto(appUrl);
     await p.locator("summary", { hasText: "Add a referee" }).click();
@@ -137,6 +161,8 @@ test("vetting: one officer checks everything and sends it for approval", async (
   await openRow(ops, provider.name);
   await act(ops, "Claim");
   await expect(ops.locator("main")).toContainText("vetting officer you");
+  // The answers from the application form are on the file.
+  await expect(ops.locator("main")).toContainText("Six years tending gardens for two families in Kilimani");
   // A document opens in a new tab through a signed link. (Headless Chrome downloads a PDF instead
   // of showing it, so the check is that the tab goes to a link that serves the file.)
   const [file] = await Promise.all([

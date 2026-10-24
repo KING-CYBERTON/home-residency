@@ -793,11 +793,18 @@ paths:
       operationId: getDocumentsDownloadUrl
       parameters:
       - $ref: '#/components/parameters/id'
-      - name: purpose
-        in: query
+      - name: X-Access-Purpose
+        in: header
         schema:
           type: string
-        description: Required for staff; written to the access log
+        description: Required for staff; written to the access log. A header, so the purpose (which
+          often names a person) stays out of URLs and request logs. Percent-encode it (encodeURIComponent).
+      - name: purpose
+        in: query
+        deprecated: true
+        schema:
+          type: string
+        description: Older clients; use the X-Access-Purpose header.
       responses:
         '200':
           description: OK
@@ -4376,6 +4383,11 @@ paths:
         schema:
           type: string
           format: date
+      - name: client_id
+        in: query
+        schema:
+          type: string
+          format: uuid
       - name: q
         in: query
         schema:
@@ -9042,6 +9054,10 @@ components:
           format: password
           minLength: 8
           maxLength: 128
+        phone:
+          type: string
+          pattern: ^\+[1-9][0-9]{7,14}$
+          description: Required for providers. Stored unverified; one phone belongs to one account.
         consents:
           type: array
           items:
@@ -12795,6 +12811,9 @@ components:
         accessed_by:
           type: string
           format: uuid
+        accessed_by_name:
+          type: string
+          nullable: true
         purpose:
           type: string
         ip_address:
