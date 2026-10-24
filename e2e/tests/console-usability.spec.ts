@@ -70,7 +70,7 @@ test("audit log: filter by who did it, by name, and open the record", async () =
   await expect(ops).toHaveURL(new RegExp(`actor_id=${me.id}`));
   const entry = ops.getByRole("row").filter({ hasText: `Usability check ${run}` }).first();
   await expect(entry).toContainText(me.full_name);
-  await expect(entry, "the address and program it came from (this test calls the API from Node)").toContainText(/127\.0\.0\.1.*node/);
+  await expect(entry, "the address and program it came from (this test calls the API from Node)").toContainText(/(127\.0\.0\.1|::1)node/);
   await entry.getByRole("button", { name: "History" }).click();
   await expect(ops).toHaveURL(new RegExp(`entity_id=${household.userId}`));
   await expect(ops.getByRole("row").filter({ hasText: `Usability check ${run}` })).toHaveCount(2);

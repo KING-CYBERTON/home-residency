@@ -22,10 +22,10 @@ import (
 
 	"github.com/KING-CYBERTON/home-residency/backend/internal/api"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/config"
-	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/crypt"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/db"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/email"
+	"github.com/KING-CYBERTON/home-residency/backend/internal/httpx"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/mpesa"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/sms"
 	"github.com/KING-CYBERTON/home-residency/backend/internal/storage"
