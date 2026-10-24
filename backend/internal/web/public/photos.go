@@ -33,7 +33,7 @@ func offerPhoto(slug string) string { return offerPhotos[slug] }
 // orgImages lists the organisation's images for structured data, best first.
 func (p *Site) orgImages() []string {
 	out := []string{}
-	for _, name := range []string{"hero", "providers"} {
+	for _, name := range []string{"hero", "deep-clean"} {
 		if ph := p.site.Photo(name); ph != nil {
 			out = append(out, ph.Abs)
 		}

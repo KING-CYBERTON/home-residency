@@ -134,11 +134,15 @@ func (p *Site) sitemapPaths(c catalogue) []sitemapURL {
 		}
 		out = append(out, u)
 	}
-	add("/", "1.0", "hero", "providers")
-	for _, path := range []string{"/services", "/areas", "/pricing", "/how-it-works", "/faq", "/book"} {
-		add(path, "0.8")
+	add("/", "1.0", "hero", "service-day-worker")
+	// The section pages and the photo in each one's header (catalogue.html, pages.html).
+	for _, pg := range []struct{ path, photo string }{
+		{"/services", "service-cleaning"}, {"/areas", "estate"}, {"/pricing", "laundry"},
+		{"/how-it-works", "service-live-in-house-help"}, {"/faq", "service-caregiver"}, {"/book", ""},
+	} {
+		add(pg.path, "0.8", pg.photo)
 	}
-	add(web.JoinPath, "0.8", "providers")
+	add(web.JoinPath, "0.8", "deep-clean")
 	for _, cat := range c.Categories {
 		add("/services/"+cat.Slug, "0.9", servicePhoto(cat.Slug))
 		for _, a := range c.pricedAreas(cat.ID) {
@@ -149,6 +153,7 @@ func (p *Site) sitemapPaths(c catalogue) []sitemapURL {
 		add("/areas/"+a.Slug, "0.6")
 	}
 	add("/contact", "0.8", "estate")
+	add("/sign-in", "0.3")
 	add("/privacy", "0.2")
 	add("/terms", "0.2")
 	add("/credits", "0.1")
