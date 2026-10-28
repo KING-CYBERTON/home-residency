@@ -123,7 +123,7 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.PLAY_SERVICE_ACCOUNT }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         if: env.HAS_SECRETS == 'true'
         with:
           python-version: "3.12"
